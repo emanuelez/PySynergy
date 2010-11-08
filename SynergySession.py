@@ -115,15 +115,17 @@ class SynergySession:
 		# Parse the result and return it
 		if 'formattable' in self.status and self.status['formattable']:
 			if not result:
-				return {}
+				return []
 			
-			final_result = {}
+			final_result = []
 			for item in result.split('|ITEM_SEPARATOR|')[:-1]:
 				splitted_item = item.split('|SEPARATOR|')
 				if len(splitted_item) != len(self.status['format']):
 					raise SynergyException("the length of status['format'] and the splitted result is not the same")
+				line = {}
 				for k, v in zip(self.status['format'], splitted_item):
-					final_result[k[1:]] = v
+					line[k[1:]] = v
+				final_result.append(line)
 			return final_result
 		else:
 			return result
