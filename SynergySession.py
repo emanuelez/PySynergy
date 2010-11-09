@@ -175,7 +175,10 @@ class SynergyException(Exception):
 
 
 def main():
-    pass
+    # Test
+    ccm = SynergySession('/nokia/co_nmp/groups/gscm/dbs/co1asset')
+    results = ccm.query("is_associate_cv_of(task('co1asset#113266'))").format("%objectname").run()
+    print results
 
 
 if __name__ == '__main__':
