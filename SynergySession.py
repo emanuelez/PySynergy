@@ -10,7 +10,6 @@ Copyright (c) 2010 Emanuele Zattin. All rights reserved.
 import sys
 import os
 from subprocess import Popen, PIPE
-from mercurial.templater import engine
 
 class SynergySession:
     """This class is a wrapper around the Synergy command line client"""
@@ -32,11 +31,13 @@ class SynergySession:
         args = [self.command_name]
         args.append('start')
         args.append('-nogui')
-        args.append('-d').append(self.database) # database
+        args.append('-d')
+        args.append(self.database) # database
         args.append('-m') # permit multiple sessions
         args.append('-q') #quiet
         if self.engine:
-            args.append('-d').append(self.engine) # engine
+            args.append('-d')
+            args.append(self.engine) # engine
 
         self.environment = os.environ
         self.environment['CCM_UILOG'] = ccm_ui_path
@@ -45,7 +46,7 @@ class SynergySession:
         # Open the session
         p = Popen(args, stdout=PIPE, stderr=PIPE, env=self.environment)
         # Store the session data
-        p.wait(self)
+        p.wait()
         stdout, stderr = p.communicate()
 
         if stderr:
@@ -77,6 +78,7 @@ class SynergySession:
         p = Popen(command, stdout=PIPE, stderr=PIPE, env=self.environment)
 
         # Store the result as a single string. It will be splitted later
+        p.wait()
         stdout, stderr = p.communicate()
 
         if stderr:
