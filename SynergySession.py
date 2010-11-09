@@ -127,6 +127,8 @@ class SynergySession:
         if not self.status:
             self.errors.append('before run() the status of the command must be already set')
 
+        command = self.command_name
+
         command += ' ' + self.command
 
         if 'formattable' in self.status and self.status['formattable']:
