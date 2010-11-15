@@ -7,7 +7,6 @@ Created by Emanuele Zattin on 2010-11-08.
 Copyright (c) 2010 Emanuele Zattin. All rights reserved.
 """
 
-import sys
 import os
 from subprocess import Popen, PIPE
 
@@ -72,8 +71,8 @@ class SynergySession:
     def _run(self, command):
         """Execute a Synergy command"""
 
-        if not command.startswith(self.command_name):
-            command = ' '.join([self.command_name, command])
+        if not command[0] == self.command_name:
+            command.insert(0, self.command_name)
 
         p = Popen(command, stdout=PIPE, stderr=PIPE, env=self.environment)
 
@@ -89,12 +88,12 @@ class SynergySession:
     def delim(self):
         """Returns the delimiter defined in the Synergy DB"""
         self._reset_status()
-        return self._run('delim')
+        return self._run(['delim'])
 
     def stop(self):
         """Stops the current Synergy session"""
         if 'CCM_ADDR' in self.environment:
-            self._run('stop')
+            self._run(['stop'])
 
     def query(self, query_string):
         """Set a query that will be executed"""
@@ -111,14 +110,17 @@ class SynergySession:
         The input can be an iterable or a string"""
         if isinstance(format, str):
             self.status['format'].append(format)
-            return
+            return self
 
         if not hasattr(format, '__iter__'):
             self.warnings.append('The argument of format(format) must be something iterable or a string')
-            return
+            return self
 
-        for element in format:
-            self.status['format'].append(element)
+        if not self.status['format']:
+            for element in format:
+                self.status['format'].append(element)
+
+        return self
 
     def run(self):
         """
@@ -129,21 +131,22 @@ class SynergySession:
         if not self.status:
             self.errors.append('before run() the status of the command must be already set')
 
-        command = self.command_name
+        command = [self.command_name]
 
-        command += ' ' + self.command
+        command.append(self.command)
 
         if 'formattable' in self.status and self.status['formattable']:
             if 'format' not in self.status:
                 raise SynergyException("status['format'] undefined")
-            command += ' -u -nf -f "'
-            command += '|SEPARATOR|'.join(self.status['format'])
-            command += '|ITEM_SEPARATOR|"'
+            command.append('-u')
+            command.append('-nf')
+            command.append('-f')
+            command.append('|SEPARATOR|'.join(self.status['format']) + '|ITEM_SEPARATOR|')
 
         if 'arguments' not in self.status:
             raise SynergyException("status['arguments'] undefined")
 
-        command += ' "%s"' % self.status['arguments']
+        command.append(self.status['arguments'])
 
         result = self._run(command)
 
@@ -179,7 +182,7 @@ class SynergyException(Exception):
 def main():
     # Test
     ccm = SynergySession('/nokia/co_nmp/groups/gscm/dbs/co1asset')
-    results = ccm.query("is_associate_cv_of(task('co1asset#113266'))").format("%objectname").run()
+    results = ccm.query("is_associated_cv_of(task('co1asset#113266'))").format("%objectname").run()
     print results
 
 
