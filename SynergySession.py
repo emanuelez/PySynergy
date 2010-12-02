@@ -77,7 +77,7 @@ class SynergySession:
         p = Popen(command, stdout=PIPE, stderr=PIPE, env=self.environment)
 
         # Store the result as a single string. It will be splitted later
-        p.wait()
+        #p.wait()
         stdout, stderr = p.communicate()
 
         if stderr:
@@ -153,6 +153,8 @@ class SynergySession:
         # Parse the result and return it
         if 'formattable' in self.status and self.status['formattable']:
             if not result:
+                # Clean up
+                self._reset_status()
                 return []
 
             final_result = []
@@ -164,8 +166,12 @@ class SynergySession:
                 for k, v in zip(self.status['format'], splitted_item):
                     line[k[1:]] = v
                 final_result.append(line)
+            # Clean up
+            self._reset_status()
             return final_result
         else:
+            # Clean up
+            self._reset_status()
             return result
 
 
