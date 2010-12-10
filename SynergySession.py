@@ -104,6 +104,23 @@ class SynergySession:
             self.status['format'] = ['%objectname']
         return self
 
+    def cat(self, object_name):
+        self.command = 'cat'
+        self.status['arguments'] = object_name
+        self.status['formattable'] = False
+        if 'format' in self.status:
+            self.status['format'] = []
+        return self
+    
+    def finduse(self, object_name):
+        self.command = 'finduse'
+        self.status['arguments'] = object_name
+        self.status['option'] = []
+        self.status['formattable'] = False
+        if 'format' in self.status:
+            self.status['format'] = []
+        return self
+
     def format(self, format):
         """Sets the output format for the command, if it supports formatting.
 
@@ -121,6 +138,24 @@ class SynergySession:
                 self.status['format'].append(element)
 
         return self
+    
+    def option(self, option):
+        """Sets the options for the command, if it supports options.
+
+        The input can be an iterable or a string"""
+        if isinstance(option, str):
+            self.status['option'].append(option)
+            return self
+
+        if not hasattr(option, '__iter__'):
+            self.warnings.append('The argument of option(option) must be something iterable or a string')
+            return self
+
+        if not self.status['option']:
+            for element in option:
+                self.status['option'].append(element)
+
+        return self    
 
     def run(self):
         """
@@ -146,8 +181,11 @@ class SynergySession:
         if 'arguments' not in self.status:
             raise SynergyException("status['arguments'] undefined")
 
-        command.append(self.status['arguments'])
+        if 'option' in self.status:
+            command.append(''.join(self.status['option']))
 
+        command.append(self.status['arguments'])
+        
         result = self._run(command)
 
         # Parse the result and return it
