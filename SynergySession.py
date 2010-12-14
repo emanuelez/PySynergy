@@ -120,6 +120,15 @@ class SynergySession:
         if 'format' in self.status:
             self.status['format'] = []
         return self
+    
+    def attr(self, object_name):
+        self.command = 'attr'
+        self.status['arguments'] = object_name
+        self.status['option'] = []
+        self.status['formattable'] = False
+        if 'format' in self.status:
+            self.status['format'] = []
+        return self
 
     def format(self, format):
         """Sets the output format for the command, if it supports formatting.
@@ -182,7 +191,8 @@ class SynergySession:
             raise SynergyException("status['arguments'] undefined")
 
         if 'option' in self.status:
-            command.append(''.join(self.status['option']))
+            for element in self.status['option']:
+                command.append(element)
 
         command.append(self.status['arguments'])
         
