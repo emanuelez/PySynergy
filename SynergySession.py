@@ -45,7 +45,7 @@ class SynergySession:
         # Open the session
         p = Popen(args, stdout=PIPE, stderr=PIPE, env=self.environment)
         # Store the session data
-        p.wait()
+        #p.wait()
         stdout, stderr = p.communicate()
 
         if stderr:
@@ -105,6 +105,7 @@ class SynergySession:
         return self
 
     def cat(self, object_name):
+        """Cat an object"""
         self.command = 'cat'
         self.status['arguments'] = object_name
         self.status['formattable'] = False
@@ -113,6 +114,7 @@ class SynergySession:
         return self
     
     def finduse(self, object_name):
+        """Finduse of an object"""
         self.command = 'finduse'
         self.status['arguments'] = object_name
         self.status['option'] = []
@@ -122,6 +124,7 @@ class SynergySession:
         return self
     
     def attr(self, object_name):
+        """Attributes of an object"""
         self.command = 'attr'
         self.status['arguments'] = object_name
         self.status['option'] = []
@@ -129,12 +132,25 @@ class SynergySession:
         if 'format' in self.status:
             self.status['format'] = []
         return self
+    
+    def task(self, task, formattable = False):
+        """Task command"""
+        self.command = 'task'
+        self.status['arguments'] = task
+        self.status['option'] = []
+        self.status['formattable'] = formattable
+        if 'format' not in self.status:
+            self.status['format'] = ['%objectname']
+        return self        
 
     def format(self, format):
         """Sets the output format for the command, if it supports formatting.
 
         The input can be an iterable or a string"""
+        
         if isinstance(format, str):
+            if 'format' not in self.status:
+                self.status['format'] = []
             self.status['format'].append(format)
             return self
 
@@ -153,6 +169,8 @@ class SynergySession:
 
         The input can be an iterable or a string"""
         if isinstance(option, str):
+            if 'option' not in self.status:
+                self.status['option'] = []
             self.status['option'].append(option)
             return self
 
@@ -183,7 +201,8 @@ class SynergySession:
             if 'format' not in self.status:
                 raise SynergyException("status['format'] undefined")
             command.append('-u')
-            command.append('-nf')
+            if 'task' not in command:
+                command.append('-nf')
             command.append('-f')
             command.append('|SEPARATOR|'.join(self.status['format']) + '|ITEM_SEPARATOR|')
 
@@ -212,7 +231,7 @@ class SynergySession:
                     raise SynergyException("the length of status['format'] and the splitted result is not the same")
                 line = {}
                 for k, v in zip(self.status['format'], splitted_item):
-                    line[k[1:]] = v
+                    line[k[1:]] = v.strip()
                 final_result.append(line)
             # Clean up
             self._reset_status()
