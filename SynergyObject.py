@@ -6,8 +6,6 @@ SynergyObject.py
 Created by Aske Olsson 2010-11-30.
 Copyright (c) 2010 Aske Olsson. All rights reserved.
 """
-import SynergySession
-
 from datetime import datetime
 
 import re
