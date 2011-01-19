@@ -157,8 +157,7 @@ class TaskUtil(object):
                 for s in successors:
                     fileobject.add_successor(s['objectname'])
                 #print fileobject.get_object_name()
-                if fileobject.get_type() != 'library':
-                    task.add_object(fileobject)
+                task.add_object(fileobject)
 
     def find_status_time(self, status, status_log):
         earliest = datetime.today()
