@@ -53,26 +53,31 @@ class TaskObject(SynergyObject.SynergyObject):
             self.objects = [o]
         else:
             self.objects.append(o)
+            
     def get_complete_time(self):
         return self.complete_time
     
     def set_complete_time(self, complete_time):
         self.complete_time = complete_time
-
-    def print_status(self):
-        print "Object information:"   
-        print "Name:         ", self.get_name()
-        print "Version:      ", self.get_version()
-        print "Type:         ", self.get_type()
-        print "Instance:     ", self.get_instance()
-        print "Author:       ", self.get_author()
-        print "Status:       ", self.get_status()
-        print "Create time:  ", self.get_created_time()
-        print "Complete time:", self.get_complete_time()
-        print "Tasks:        ", self.get_tasks()
-        print "Objects:      ",  '\n               '.join(sorted([o.get_object_name() for o in self.objects]))
-#        print "Description:\n"
-#        print self.description
+      
+    def set_attributes(self, attributes):
+        self.attributes = attributes
+        self.complete_time = self.find_status_time('complete', self.attributes['status_log'])
+        if 'task_description' in self.attributes.keys():
+            self.description = self.attributes['task_description']
         
-        
-
+    def get_attributes(self):
+        return self.attributes
+    
+    def find_status_time(self, status, status_log):
+        earliest = datetime.today()
+        for line in status_log.splitlines():
+            if status in line and 'ccm_root' not in line:
+                time = datetime.strptime(line.partition(': Status')[0], "%a %b %d %H:%M:%S %Y")
+                if time < earliest:
+                    earliest = time
+                    
+        return earliest  
+    
+    
+    

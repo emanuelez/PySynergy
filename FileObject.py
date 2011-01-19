@@ -17,26 +17,22 @@ class FileObject(SynergyObject.SynergyObject):
     def __init__(self, objectname, delimiter, owner, status, create_time, task):
         super(FileObject, self).__init__(objectname, delimiter, owner, status, create_time, task)
         self.content = None
-        self.commit_msg = None
+        self.commit_message = None
         self.integrate_time = None
         self.predecessors = None
         self.successors = None
-        
-                
+        self.path = None
+        self.dir_changes = None
+    
+    
     def get_integrate_time(self):
-        if self.integrate_time is None:
-            return "Not defined"
-        else:
-            return self.integrate_time
+        return self.integrate_time
     
     def set_integrate_time(self, time):
         self.integrate_time = time
     
     def get_predecessors(self):
-        if self.predecessors is None:
-            return "Not defined"
-        else:
-            return self.predecessors
+        return self.predecessors
     
     def set_predecessors(self, predecessors):
         self.predecessors = predecessors
@@ -47,6 +43,9 @@ class FileObject(SynergyObject.SynergyObject):
         else:
             self.predecessors.append(predecessor)
 
+    def set_successors(self, successors):
+        self.successors = successors
+
     def add_successor(self, successor):
         if self.successors is None:
             self.successors = [successor]
@@ -54,10 +53,7 @@ class FileObject(SynergyObject.SynergyObject):
             self.successors.append(successor)
             
     def get_successors(self):
-        if self.successors is None:
-            return "Not defined"
-        else:
-            return self.successors        
+        return self.successors        
             
     def get_path(self):
         return self.path
@@ -71,29 +67,44 @@ class FileObject(SynergyObject.SynergyObject):
     def set_content(self, content):
         self.content = content
         
-    def get_commit_message(self):
-        return self.commit_msg
+    def set_dir_changes(self, dir_changes):
+        self.dir_changes = dir_changes        
+
+    def get_dir_changes(self):
+        return self.dir_changes
+        
+    def set_attributes(self, attributes):
+        self.attributes = attributes
+        self.integrate_time = self.find_status_time('integrate', self.attributes['status_log'])
+        self.content = self.attributes['source']
+        self.commit_message = self.find_commit_message_from_content()
+        
+    def get_attributes(self):
+        return attributes
+        
+
+    def find_status_time(self, status, status_log):
+        earliest = datetime.today()
+        for line in status_log.splitlines():
+            if status in line and 'ccm_root' not in line:
+                time = datetime.strptime(line.partition(': Status')[0], "%a %b %d %H:%M:%S %Y")
+                if time < earliest:
+                    earliest = time
+                    
+        return earliest  
+
+    def find_commit_message_from_content(self):
+        start = self.content.find('REASON')
+        newline_end = self.content.find('\n\n', start)
+        version_end = self.content.find('VERSION', start)
+        if newline_end != -1 and version_end != -1 and newline_end < version_end:
+            end = newline_end
+        else:
+            end = version_end
+            
+        if start != -1 and end != -1:
+            return self.content[start:end]
+        return ''
     
-    def set_commit_message(self, msg):
-        self.commit_msg = msg
-            
-    def print_status(self):
-        print "Object information:"   
-        print "Name:", self.get_name()
-        print "Version:", self.get_version()
-        print "Type:", self.get_type()
-        print "Instance:", self.get_instance()
-        print "Author:", self.get_author()
-        print "Status:", self.get_status()
-        print "Create time:", self.get_created_time()
-        print "Integrate time:", self.get_integrate_time()
-        print "Tasks:", self.get_tasks()
-        print "Predecessors:", ''.join(self.get_predecessors())
-        print "Successors:", ''.join(self.get_successors())
-        if self.content:
-            print "*****\n"
-            #print self.content
-            print "*****\n"
-            
-            
+    
 
