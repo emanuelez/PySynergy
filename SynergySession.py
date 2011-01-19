@@ -17,6 +17,7 @@ class SynergySession:
         self.command_name = command_name
         self.database     = database
         self.engine       = engine
+        self.num_of_cmds  = 0
 
         # This dictionary will contain the status of the next command and will be emptied by self.run()
         self.command = ''
@@ -44,6 +45,7 @@ class SynergySession:
 
         # Open the session
         p = Popen(args, stdout=PIPE, stderr=PIPE, env=self.environment)
+        self.num_of_cmds += 1
         # Store the session data
         #p.wait()
         stdout, stderr = p.communicate()
@@ -60,6 +62,7 @@ class SynergySession:
     def __del__(self):
         # Close the session
         self.stop()
+        print "Number of commands issued:", str(self.num_of_cmds)
 
     def _reset_status(self):
         """Reset the status of the object"""
@@ -75,6 +78,7 @@ class SynergySession:
             command.insert(0, self.command_name)
 
         p = Popen(command, stdout=PIPE, stderr=PIPE, env=self.environment)
+        self.num_of_cmds += 1
 
         # Store the result as a single string. It will be splitted later
         #p.wait()
@@ -88,7 +92,7 @@ class SynergySession:
     def delim(self):
         """Returns the delimiter defined in the Synergy DB"""
         self._reset_status()
-        return self._run(['delim'])
+        return self._run(['delim']).strip()
 
     def stop(self):
         """Stops the current Synergy session"""
@@ -98,7 +102,7 @@ class SynergySession:
     def query(self, query_string):
         """Set a query that will be executed"""
         self.command = 'query'
-        self.status['arguments'] = query_string
+        self.status['arguments'] = [query_string]
         self.status['formattable'] = True
         if 'format' not in self.status:
             self.status['format'] = ['%objectname']
@@ -107,7 +111,7 @@ class SynergySession:
     def cat(self, object_name):
         """Cat an object"""
         self.command = 'cat'
-        self.status['arguments'] = object_name
+        self.status['arguments'] = [object_name]
         self.status['formattable'] = False
         if 'format' in self.status:
             self.status['format'] = []
@@ -116,7 +120,7 @@ class SynergySession:
     def finduse(self, object_name):
         """Finduse of an object"""
         self.command = 'finduse'
-        self.status['arguments'] = object_name
+        self.status['arguments'] = [object_name]
         self.status['option'] = []
         self.status['formattable'] = False
         if 'format' in self.status:
@@ -126,7 +130,7 @@ class SynergySession:
     def attr(self, object_name):
         """Attributes of an object"""
         self.command = 'attr'
-        self.status['arguments'] = object_name
+        self.status['arguments'] = [object_name]
         self.status['option'] = []
         self.status['formattable'] = False
         if 'format' in self.status:
@@ -136,13 +140,33 @@ class SynergySession:
     def task(self, task, formattable = False):
         """Task command"""
         self.command = 'task'
-        self.status['arguments'] = task
+        self.status['arguments'] = [task]
         self.status['option'] = []
         self.status['formattable'] = formattable
         if 'format' not in self.status:
             self.status['format'] = ['%objectname']
         return self        
-
+    
+    def rp(self, project):
+        """Reconfigure properties command"""
+        self.command = 'rp'
+        self.status['arguments'] = [project]
+        self.status['option'] = []
+        self.status['formattable'] = True
+        if 'format' not in self.status:
+            self.status['format'] = ['%objectname']
+        return self   
+    
+    def diff(self, new, old):
+        """Difference between to files"""
+        self.command = 'diff'
+        self.status['arguments'] = [old, new]
+        self.status['option'] = []
+        self.status['formattable'] = False
+        if 'format' in self.status:
+            self.status['format'] = []
+        return self    
+    
     def format(self, format):
         """Sets the output format for the command, if it supports formatting.
 
@@ -201,7 +225,7 @@ class SynergySession:
             if 'format' not in self.status:
                 raise SynergyException("status['format'] undefined")
             command.append('-u')
-            if 'task' not in command:
+            if 'task' not in command and 'rp' not in command:
                 command.append('-nf')
             command.append('-f')
             command.append('|SEPARATOR|'.join(self.status['format']) + '|ITEM_SEPARATOR|')
@@ -212,8 +236,8 @@ class SynergySession:
         if 'option' in self.status:
             for element in self.status['option']:
                 command.append(element)
-
-        command.append(self.status['arguments'])
+        
+        command.extend(self.status['arguments'])
         
         result = self._run(command)
 
