@@ -12,6 +12,8 @@ import FileObject
 import TaskObject
 from datetime import datetime
 import re
+from operator import itemgetter
+
 
 class CCMFilePath(object):    
     """Get the file path of a file from Synergy"""
@@ -210,11 +212,19 @@ class ObjectHistory(object):
             # check predecessor release to see if this object should be added to the set.
             if stop_at_release:
                 # Get the release(s) for the predecessor
-                releases = self.ccm.query("has_member('{0}') and status='released'".format(predecessor.get_object_name())).run()
+                releases = self.ccm.query("has_member('{0}') and status='released'".format(predecessor.get_object_name())).format('%objectname').format('%create_time').run()
                 # Check if the "stop" release is the the releaes for the predecessor and return/stop if true
                 if stop_at_release in [r['objectname'] for r in releases if r['objectname'] == stop_at_release]:
                     return
-                        
+                #Check if projects are releated to stop release. Latest first
+                rels = self.sort_releases_by_create_time(releases)
+                for r in rels:
+                    if self.project_is_some_predecessor(r, stop_at_release):
+                        print "Found Relationship between:", r, "and", stop_at_release
+                        return
+
+
+
              # Check if predecessor is already added to history - if so add this as successor to fileobject, else add new predecessor to history
             if self.history.has_key(predecessor.get_object_name()):
                  predecessor = self.history[predecessor.get_object_name()]
@@ -245,7 +255,26 @@ class ObjectHistory(object):
         print fileobject.get_object_name(), content
         return content
 
-        
+    def sort_releases_by_create_time(self, releases):
+        rels = [(r['objectname'], datetime.strptime(r['create_time'], "%a %b %d %H:%M:%S %Y")) for r in releases]
+        r = sorted(rels, key=itemgetter(1), reverse=True)
+        sorted_releases = [rel[0] for rel in r]
+        return sorted_releases
+    
+    def project_is_some_predecessor(self, project, stop_at_release):
+        ret_val = False
+        successors = self.ccm.query("has_baseline_project('{0}') and status='released'".format(project)).format("%objectname").run()
+        for successor in successors:
+            successor = successor['objectname']
+            if successor == stop_at_release:
+                return True
+            else:
+                ret_val = self.project_is_some_predecessor(successor, stop_at_release)
+                
+        return ret_val
+
+
+
 
 class SynergyUtils(object):
     """Misc synergy utils"""
