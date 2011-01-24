@@ -39,7 +39,9 @@ class SynergySession:
             args.append('-d')
             args.append(self.engine) # engine
 
-        self.environment = os.environ
+        env = os.environ
+        self.environment = env.copy()
+
         self.environment['CCM_UILOG'] = ccm_ui_path
         self.environment['CCM_ENGLOG'] = ccm_eng_path
 
@@ -49,7 +51,6 @@ class SynergySession:
         # Store the session data
         #p.wait()
         stdout, stderr = p.communicate()
-
         if stderr:
             raise SynergyException('Error while starting a synergy Session: ' + stderr)
 
