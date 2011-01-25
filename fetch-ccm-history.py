@@ -34,7 +34,7 @@ class CCMHistory(object):
 
     def get_project_history(self, project):
         # find latest top-level project
-        result = self.ccm.query("name='{0}' and create_time > time('%today_minus2months') and status='released' and version match 'MCL_??w??'".format(project)).format("%objectname").format("%create_time").format('%version').format("%owner").format("%status").format("%task").run()
+        result = self.ccm.query("name='{0}' and create_time > time('%today_minus2months') and status='released'".format(project)).format("%objectname").format("%create_time").format('%version').format("%owner").format("%status").format("%task").run()
         #objectname, delimiter, owner, status, create_time, task):
         latest = datetime(1,1,1, tzinfo=None)
         latestproject = []
@@ -56,14 +56,15 @@ class CCMHistory(object):
             # do the history thing
             self.create_history(latestproject.get_object_name(), baseline_project.get_object_name())
             
+            #Store data
+            fname = self.outputfile + '_' + self.tag
+            self.persist_data(fname, self.history[self.tag])
+            
             # Find next baseline project
             latestproject = baseline_project
             baseline = self.ccm.query("is_baseline_project_of('{0}')".format(latestproject.get_object_name())).format("%objectname").format("%create_time").format('%version').format("%owner").format("%status").format("%task").run()[0]
             baseline_project = SynergyObject.SynergyObject(baseline['objectname'], self.delim, baseline['owner'], baseline['status'], baseline['create_time'], baseline['task'])
             self.tag = baseline_project.get_version()
-            
-            fname = self.outputfile + '_' + self.tag
-            self.persist_data(fname, self.history[self.tag])
             
         return self.history
             
@@ -122,7 +123,7 @@ class CCMHistory(object):
         #persist data
         self.history[self.tag]['objects'].extend(objects.values())
         if persist:
-            fname = self.outputfile + '_' + self.tag + 'inc'
+            fname = self.outputfile + '_' + self.tag + '_inc'
             self.persist_data(fname, self.history[self.tag])
 
            
@@ -167,6 +168,7 @@ class CCMHistory(object):
         print "saving..."
         fh = open(fname, 'wb')
         cPickle.dump(data, fh)
+        fh.close()
         print "done..."
     
                
@@ -189,6 +191,7 @@ def main():
     if os.path.isfile(fname):
         fh = open(fname, 'rb')
         history = cPickle.load(fh)
+        fh.close()
         
     #print history
     fetch_ccm = CCMHistory(ccm, history, outputfile)
@@ -198,6 +201,7 @@ def main():
     
     fh = open(outputfile + '.p', 'wb')
     cPickle.dump(history, fh)
+    fh.close()
     
     
     
