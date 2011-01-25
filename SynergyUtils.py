@@ -199,12 +199,12 @@ class ObjectHistory(object):
                        
     def recursive_get_history(self, fileobject, stop_at_release):
         """ Recursivly find the history of the file object, optionally stopping at the 'stop_at_release' project """
+        next_iter = False
         delim = fileobject.get_separator()
         print 'Processing:', fileobject.get_object_name()
         predecessors = self.ccm.query("is_predecessor_of('{0}')".format(fileobject.get_object_name())).format("%owner").format("%status").format("%create_time").format("%task").run()
         for p in predecessors:
             predecessor = FileObject.FileObject(p['objectname'], delim, p['owner'], p['status'], p['create_time'], p['task'])
-            
             #handle directory objects
             if fileobject.get_type() == 'dir':
                 fileobject.set_dir_changes(self.get_dir_changes(fileobject, predecessor))
@@ -213,18 +213,21 @@ class ObjectHistory(object):
             if stop_at_release:
                 # Get the release(s) for the predecessor
                 releases = self.ccm.query("has_member('{0}') and status='released'".format(predecessor.get_object_name())).format('%objectname').format('%create_time').run()
-                # Check if the "stop" release is the the releaes for the predecessor and return/stop if true
-                if stop_at_release in [r['objectname'] for r in releases if r['objectname'] == stop_at_release]:
-                    return
-                #Check if projects are releated to stop release. Latest first
-                rels = self.sort_releases_by_create_time(releases)
-                for r in rels:
-                    if self.project_is_some_predecessor(r, stop_at_release):
-                        print "Found Relationship between:", r, "and", stop_at_release
-                        return
+                if releases:
+                    # Check if the "stop" release is the the releaes for the predecessor and return/stop if true
+                    if stop_at_release in [r['objectname'] for r in releases if r['objectname'] == stop_at_release]:
+                        continue
+                    #Check if projects are releated to stop release. Latest first
+                    rels = self.sort_releases_by_create_time(releases)
+                    for r in rels:
+                        if self.project_is_some_predecessor(r, stop_at_release):
+                            print "Found Relationship between:", r, "and", stop_at_release
+                            next_iter = True
+                            break
+                    if next_iter:
+                        continue
 
-
-
+            print "Adding", predecessor.get_object_name(), "to history"
              # Check if predecessor is already added to history - if so add this as successor to fileobject, else add new predecessor to history
             if self.history.has_key(predecessor.get_object_name()):
                  predecessor = self.history[predecessor.get_object_name()]
