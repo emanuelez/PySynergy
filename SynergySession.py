@@ -8,6 +8,7 @@ Copyright (c) 2010 Emanuele Zattin. All rights reserved.
 """
 
 import os
+import re
 from subprocess import Popen, PIPE
 
 class SynergySession:
@@ -168,6 +169,17 @@ class SynergySession:
             self.status['format'] = []
         return self    
     
+    def hist(self, obj):
+        """history command"""
+        self.command = 'hist'
+        self.status['arguments'] = [obj]
+        self.status['options'] = []
+        self.status['formattable'] = True
+        if 'format' not in self.status:
+            self.status['format'] = ['%objectname']
+        return self
+
+
     def format(self, format):
         """Sets the output format for the command, if it supports formatting.
 
@@ -225,8 +237,9 @@ class SynergySession:
         if 'formattable' in self.status and self.status['formattable']:
             if 'format' not in self.status:
                 raise SynergyException("status['format'] undefined")
-            command.append('-u')
-            if 'task' not in command and 'rp' not in command:
+            if 'hist' not in command:
+                command.append('-u')
+            if 'task' not in command and 'rp' not in command and 'hist' not in command:
                 command.append('-nf')
             command.append('-f')
             command.append('|SEPARATOR|'.join(self.status['format']) + '|ITEM_SEPARATOR|')
@@ -257,6 +270,17 @@ class SynergySession:
                 line = {}
                 for k, v in zip(self.status['format'], splitted_item):
                     line[k[1:]] = v.strip()
+                if 'hist' in command:
+                    # History command is special ;)
+                    p = re.compile("(?s).*?Predecessors:\s*(.*)Successors:\s*(.*?)\*+")
+                    m = p.match(splitted_item[0])
+                    if m:
+                        line['predecessors'] = m.group(1).split()
+                        line['successors'] = m.group(2).split()
+                    else:
+                        line['predecessors'] = []
+                        line['successors'] = []
+
                 final_result.append(line)
             # Clean up
             self._reset_status()
