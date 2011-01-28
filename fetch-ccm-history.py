@@ -20,6 +20,7 @@ from operator import itemgetter, attrgetter
 from datetime import datetime
 import cPickle
 import os.path
+import os
 import sys
 
 class CCMHistory(object):
@@ -55,17 +56,35 @@ class CCMHistory(object):
             print "Toplevel Project:", latestproject.get_object_name()
             # do the history thing
             self.create_history(latestproject.get_object_name(), baseline_project.get_object_name())
-            
-            #Store data
-            fname = self.outputfile + '_' + self.tag
-            self.persist_data(fname, self.history[self.tag])
+            self.history[self.tag]['created'] = latestproject.get_created_time()
             
             # Find next baseline project
             latestproject = baseline_project
             baseline = self.ccm.query("is_baseline_project_of('{0}')".format(latestproject.get_object_name())).format("%objectname").format("%create_time").format('%version').format("%owner").format("%status").format("%task").run()[0]
             baseline_project = SynergyObject.SynergyObject(baseline['objectname'], self.delim, baseline['owner'], baseline['status'], baseline['create_time'], baseline['task'])
+
+            #Set previous project and name of current release:
+            self.history[self.tag]['previous'] = baseline_project.get_version()
+            self.history[self.tag]['name'] = self.tag
+
+            #Store data
+            fname = self.outputfile + '_' + self.tag
+            self.persist_data(fname, self.history[self.tag])
+            # delete the _inc file
+            os.remove(fname + '_inc' + '.p')
+
+            #Finally set the new (old) tag for the release
             self.tag = baseline_project.get_version()
-            
+
+            # Stop at this release and get all objects from Synergy
+            if latestproject.get_version() == '10w45_sb9_fam':
+                self.history[self.tag] = self.get_project_objects(latestproject.get_object_name())
+                self.history[self.tag]['previous'] = None
+                self.history[self.tag]['name'] = self.tag
+                self.history[self.tag]['created'] = latestproject.get_created_time()
+
+                baseline_project = None
+
         return self.history
             
                 
@@ -126,7 +145,7 @@ class CCMHistory(object):
             fname = self.outputfile + '_' + self.tag + '_inc'
             self.persist_data(fname, self.history[self.tag])
 
-           
+
     def find_tasks_from_objects(self, objects, project):
         task_util = TaskUtil(self.ccm)
         tasks = {}
@@ -159,9 +178,37 @@ class CCMHistory(object):
         # Fill out all task info
         for task in tasks.values():
             task_util.fill_task_info(task)
-                            
+
         self.history[self.tag]['tasks'].extend(tasks.values())
-                
+
+
+    def get_project_objects(self, project):
+        objects_changed = self.ccm.query("recursive_is_member_of('{0}')".format(project)).format("%objectname").format("%owner").format("%status").format("%create_time").format("%task").run()
+        objects = {}
+        existing_objects = []
+        persist = False
+        if self.tag in self.history.keys():
+            if 'objects' in self.history[self.tag]:
+                existing_objects = [o.get_object_name() for o in self.history[self.tag]['objects']]
+        else:
+            self.history[self.tag] = {'objects': [], 'tasks': []}
+        for o in objects_changed:
+            #print o['objectname']
+            if o['objectname'] not in existing_objects:
+                if ':project:' not in o['objectname']:
+                    # Get information for this file  - no history
+                    objects.update(object_hist.get_history(FileObject.FileObject(o['objectname'], self.delim, o['owner'], o['status'], o['create_time'], o['task']), project))
+                    persist = True
+                    #self.changed_objects.update(object_hist.get_history(FileObject.FileObject(o['objectname'], self.delim, o['owner'], o['status'], o['create_time'], o['task']), baseline_project))
+
+        # Create tasks from objects
+        self.find_tasks_from_objects(objects.values(), project)
+        #persist data
+        self.history[self.tag]['objects'].extend(objects.values())
+        if persist:
+            fname = self.outputfile + '_' + self.tag + '_inc'
+            self.persist_data(fname, self.history[self.tag])
+
 
     def persist_data(self, fname, data):
         fname = fname + '.p'
