@@ -203,11 +203,13 @@ class ObjectHistory(object):
             if fileobject.get_type() == 'dir':
                 #get predecessors and do a diff on dir objects
                 predecessors = self.ccm.query("is_predecessor_of('{0}')".format(fileobject.get_object_name())).format("%owner").format("%status").format("%create_time").format("%task").run()
-                if len(predecessors) > 1:
-                    print "several predecessors found for:", fileobject.get_object_name()
                 for p in predecessors:
                     predecessor = FileObject.FileObject(p['objectname'], fileobject.get_separator(), p['owner'], p['status'], p['create_time'], p['task'])
-                    fileobject.set_dir_changes(self.synergy_utils.get_dir_changes(fileobject, predecessor))
+                    fileobject.add_dir_changes(self.synergy_utils.get_dir_changes(fileobject, predecessor))
+                if fileobject.get_dir_changes():
+                    print "Directory changes:"
+                    print "Deleted objects:", ', '.join(fileobject.get_dir_changes()['deleted'])
+                    print "New objects:    ", ', '.join(fileobject.get_dir_changes()['new'])
         else:
             self.recursive_get_history(fileobject, stop_at_release)
         self.history[fileobject.get_object_name()] = fileobject
@@ -229,7 +231,11 @@ class ObjectHistory(object):
 
             #handle directory objects
             if fileobject.get_type() == 'dir':
-                fileobject.set_dir_changes(self.synergy_utils.get_dir_changes(fileobject, predecessor))
+                fileobject.add_dir_changes(self.synergy_utils.get_dir_changes(fileobject, predecessor))
+                if fileobject.get_dir_changes():
+                    print "Directory changes:"
+                    print "Deleted objects:", ', '.join(fileobject.get_dir_changes()['deleted'])
+                    print "New objects:    ", ', '.join(fileobject.get_dir_changes()['new'])
             fileobject.add_predecessor(predecessor.get_object_name())
             # check predecessor release to see if this object should be added to the set.
             if stop_at_release:
@@ -340,8 +346,9 @@ class SynergyUtils(object):
             if line.startswith('>'):
                 new.append(line.split()[1])
         content = {'deleted': deleted, 'new' : new}
-        print fileobject.get_object_name(), content
+        print content
         return content
+
 
 
 
