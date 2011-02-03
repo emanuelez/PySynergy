@@ -18,6 +18,7 @@ from SynergyUtils import ObjectHistory, TaskUtil, CCMFilePath, SynergyUtils
 from operator import itemgetter, attrgetter
 
 from datetime import datetime
+import time
 import cPickle
 import os.path
 import os
@@ -32,6 +33,7 @@ class CCMHistory(object):
         self.history = history
         self.tag = ""
         self.outputfile = outputfile
+        self.timer = Timer()
 
     def get_project_history(self, project):
         # find latest top-level project
@@ -95,19 +97,6 @@ class CCMHistory(object):
                 self.history[self.tag] = {'objects': [], 'tasks': []}
             self.history[self.tag]['next'] = next
 
-
-
-
-            # Stop at this release and get all objects from Synergy
-            if latestproject.get_version() == '10w51_sb9_fam':
-                
-                self.history[self.tag]['previous'] = None
-                self.history[self.tag]['name'] = self.tag
-                self.history[self.tag]['created'] = latestproject.get_created_time()
-                self.history[self.tag] = self.get_project_objects(latestproject.get_object_name())
-
-                baseline_project = None
-
         return self.history
 
 
@@ -156,11 +145,12 @@ class CCMHistory(object):
 
                 else:
                     # Get history for this file between these to baselines/ projects
-                    objects.update(object_hist.get_history(FileObject.FileObject(o['objectname'], self.delim, o['owner'], o['status'], o['create_time'], o['task']), baseline_project))
+                    with self.timer:
+                        objects.update(object_hist.get_history(FileObject.FileObject(o['objectname'], self.delim, o['owner'], o['status'], o['create_time'], o['task']), baseline_project))
                     persist = True
                     #self.changed_objects.update(object_hist.get_history(FileObject.FileObject(o['objectname'], self.delim, o['owner'], o['status'], o['create_time'], o['task']), baseline_project))
-            else:
-                print o['objectname'], "already in history"
+                else:
+                    print o['objectname'], "already in history"
         # Create tasks from objects
         self.find_tasks_from_objects(objects.values(), latestproject)
         #persist data
@@ -219,7 +209,7 @@ class CCMHistory(object):
             self.history[self.tag] = {'objects': [], 'tasks': []}
 
         for o in objects_changed:
-            #print o['objectname']
+        #print o['objectname']
             if o['objectname'] not in existing_objects:
                 if ':project:' in o['objectname']:
                     #print o['objectname']
@@ -230,7 +220,8 @@ class CCMHistory(object):
                     self.get_project_objects(subproject)
 
                 else:
-                    objects.update(object_hist.get_history(FileObject.FileObject(o['objectname'], self.delim, o['owner'], o['status'], o['create_time'], o['task']), project))
+                    with self.timer:
+                        objects.update(object_hist.get_history(FileObject.FileObject(o['objectname'], self.delim, o['owner'], o['status'], o['create_time'], o['task']), project))
                     persist = True
                     #self.changed_objects.update(object_hist.get_history(FileObject.FileObject(o['objectname'], self.delim, o['owner'], o['status'], o['create_time'], o['task']), baseline_project))
             else:
@@ -252,6 +243,19 @@ class CCMHistory(object):
         fh.close()
         print "done..."
 
+class Timer():
+    def __init__(self):
+        self.time = []
+    def __enter__(self):
+        self.start = time.time()
+    def __exit__(self, *args):
+        end = time.time() - self.start
+        self.time.append(end)
+        if len(self.time) % 100 == 0:
+            print "time used processing last 100 objects:", sum(self.time[-100:])
+        if len(self.time) % 1000 == 0:
+            print "time used processing last 1000 objects:", sum(self.time[-1000:])
+            self.time = []
 
 
 def main():
