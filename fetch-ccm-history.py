@@ -13,7 +13,7 @@ import SynergySession
 import FileObject
 import TaskObject
 import SynergyObject
-from SynergyUtils import ObjectHistory, TaskUtil, CCMFilePath, SynergyUtils
+from SynergyUtils import ObjectHistory, TaskUtil, SynergyUtils
 
 from operator import itemgetter, attrgetter
 
@@ -31,6 +31,7 @@ class CCMHistory(object):
         self.ccm = ccm
         self.delim = self.ccm.delim()
         self.history = history
+        self.history_created = []
         self.tag = ""
         self.outputfile = outputfile
         self.timer = Timer()
@@ -77,6 +78,7 @@ class CCMHistory(object):
             #Store data
             fname = self.outputfile + '_' + self.tag
             self.persist_data(fname, self.history[self.tag])
+            self.history_created.append(fname)
             # delete the _inc file if it exists
             if os.path.isfile(fname + '_inc' + '.p'):
                 os.remove(fname + '_inc' + '.p')
@@ -91,11 +93,22 @@ class CCMHistory(object):
             print "    Files:  ", str(len(self.history[self.tag]['objects']))
             print ""
 
+            #Drop entry from dict to save memory
+            del self.history[self.tag]
+
             #Finally set the new (old) tag for the release
             self.tag = latestproject.get_version()
             if self.tag not in self.history.keys():
                 self.history[self.tag] = {'objects': [], 'tasks': []}
             self.history[self.tag]['next'] = next
+
+            print "baseline project version:", baseline_project.get_version()
+            if baseline_project.get_version() is "11w01_sb9_fam":
+                baseline_project = None
+
+        # Do the last project as a full project
+        self.find_project_diff(latestproject, baseline_project, latestproject)
+
 
         return self.history
 
@@ -104,60 +117,44 @@ class CCMHistory(object):
         #clear changed objects and find all objects from this release
         self.find_project_diff(latestproject, baseline_project, latestproject)
 
-
     def find_project_diff(self, latestproject, baseline_project, toplevel_project):
-        #print "diffenence between", latestproject, "and", baseline_project
-        object_hist = ObjectHistory(self.ccm, toplevel_project)
-        objects_changed = self.ccm.query("is_member_of('{0}') and not is_member_of('{1}')".format(latestproject, baseline_project)).format("%objectname").format("%owner").format("%status").format("%create_time").format("%task").run()
+        # Find difference between latestproject and baseline_project
+        object_hist = ObjectHistory(self.ccm, toplevel_project, baseline_project)
+        if baseline_project:
+            objects_changed = self.ccm.query("recursive_is_member_of('{0}', 'none') and not recursive_is_member_of('{1}', 'none')".format(latestproject, baseline_project)).format("%objectname").format("%owner").format("%status").format("%create_time").format("%task").run()
+        else:
+            # Last projects, get ALL objects
+            objects_changed = self.ccm.query("recursive_is_member_of('{0}', 'none')".format(latestproject)).format("%objectname").format("%owner").format("%status").format("%create_time").format("%task").run()
+
         objects = {}
         existing_objects = []
-        persist = False
+        persist = 0
         if self.tag in self.history.keys():
             if 'objects' in self.history[self.tag]:
                 existing_objects = [o.get_object_name() for o in self.history[self.tag]['objects']]
         else:
             self.history[self.tag] = {'objects': [], 'tasks': []}
+
+        # Check history for all objects and add them to history
         for o in objects_changed:
             #print o['objectname']
             if o['objectname'] not in existing_objects:
-                if ':project:' in o['objectname']:
-                    #print o['objectname']
-                    #Find diffenence of subprojects
-                    #first find subprojects baseline project
-                    subproject = o['objectname']
-                    subproject_baseline = self.ccm.query("is_baseline_project_of('{0}')".format(subproject)).format("%objectname").format("%create_time").format('%version').run()
-                    #print subproject_baseline
-                    if subproject_baseline:
-                        subproject_baseline = subproject_baseline[0]
-                        print "Subproject", subproject
-                        self.find_project_diff(subproject, subproject_baseline['objectname'], toplevel_project)
-                    else:
-                        print "subproject", subproject, "has no baseline project"
-                        #Lets see if the project has a predecessor:
-                        subproject_predecessor = self.ccm.query("is_predecessor_of('{0}')".format(subproject)).format("%objectname").format("%create_time").format('%version').run()
-                        if subproject_predecessor:
-                            print "project had a predecessor:", subproject_predecessor
-                            self.find_project_diff(subproject, subproject_predecessor[0]['objectname'], toplevel_project)
-#                            baseline_project = subproject_predecessor[0]['objectname']
-                        else:
-                            print "no predecessor..."
-                    #print ""
-
-                else:
-                    # Get history for this file between these to baselines/ projects
+                # Don't do project objects
+                if ':project:' not in o['objectname']:
                     with self.timer:
-                        objects.update(object_hist.get_history(FileObject.FileObject(o['objectname'], self.delim, o['owner'], o['status'], o['create_time'], o['task']), baseline_project))
-                    persist = True
-                    #self.changed_objects.update(object_hist.get_history(FileObject.FileObject(o['objectname'], self.delim, o['owner'], o['status'], o['create_time'], o['task']), baseline_project))
-                else:
-                    print o['objectname'], "already in history"
+                        objects.update(object_hist.get_history(FileObject.FileObject(o['objectname'], self.delim, o['owner'], o['status'], o['create_time'], o['task'])))
+                    persist +=1
+            else:
+                print o['objectname'], "already in history"
+
+            if persist % 100 == 0:
+                self.history[self.tag]['objects'].extend(objects.values())
+                fname = self.outputfile + '_' + self.tag + '_inc'
+                self.persist_data(fname, self.history[self.tag])
+                objects = {}
+
         # Create tasks from objects
         self.find_tasks_from_objects(objects.values(), latestproject)
-        #persist data
-        self.history[self.tag]['objects'].extend(objects.values())
-        if persist:
-            fname = self.outputfile + '_' + self.tag + '_inc'
-            self.persist_data(fname, self.history[self.tag])
 
 
     def find_tasks_from_objects(self, objects, project):
