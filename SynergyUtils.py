@@ -13,84 +13,85 @@ import TaskObject
 from datetime import datetime
 import re
 from operator import itemgetter
-
+from itertools import product
 
 class CCMFilePath(object):
-    """Get the file path of a file from Synergy"""
+    """Get the file path of an object from Synergy"""
 
-    def __init__(self, ccm, toplevel_project):
+    def __init__(self, ccm):
 
         self.ccm = ccm
         self.top_reached = None
-        self.toplevel_project = toplevel_project
         self.delim = self.ccm.delim()
-        self.lookup = {}
+        self.path_lookup = {}
+        #self.project_lookup = {}
 
-    def get_file_path(self, object_name):
+    def get_path(self, object_name, current_release):
+        # Get the path of object
         self.top_reached = None
+        self.current_release = current_release
         result = self.recurse_file_path(object_name)
-        if result:
-            result = self.finalize_path(result)
-        #print 'Final path:', result
         return result
-
-    def finalize_path(self, path):
-        final_path = []
-        for index in range(len(path)):
-            final_path.append(path[index].rpartition('/')[0])
-            final_path.append('/')
-        return ''.join(final_path)
 
 
     def recurse_file_path(self, object_name):
         ret_val = None
-        #print 'Proccessing:', object_name
+        #print "Object:", object_name
         result = self.ccm.finduse(object_name).option("-released_proj").run().splitlines()
+        #lets first try to see if any of the cached projects are already in the list
+        r = [(k,j) for (k,j) in product(self.path_lookup.keys(), result) if k in j]
+        if r:
+            #put the matching project to end of array
+            result.remove(r[0][1])
+            result.append(r[0][1])
+
+        #reverse the list, as the matching project is mostly in the latter part
         result.reverse()
         for s in result:
             if not self.top_reached:
-                #print 'Trying:', s
-                if 'MCL' in s:
-                    s = s.strip()
-                    # match
-                    p = re.compile("^(.+?)-(.+?)@(.*)$")
-                    m = p.match(s)
-                    if m:
-                        path = m.group(1)
-                        childversion = m.group(2)
-                        parentproject = m.group(3)
+                s = s.strip()
+                # match
+                p = re.compile("^(.+?)-(.+?)@(.*)$")
+                m = p.match(s)
+                if m:
+                    path = m.group(1)
+                    childversion = m.group(2)
+                    parentproject = m.group(3)
 
-                        if parentproject == self.toplevel_project:
-                            #print 'Top reached'
+                    if parentproject == self.current_release:
+                        #print 'Top reached'
+                        self.top_reached = 1
+                        # add to lookup table
+                        self.path_lookup[object_name] = path
+                        return path
+                    else:
+                        #try lookup table
+                        if parentproject in self.path_lookup.keys():
+                            #print "Path cached for:", object_name, self.path_lookup[parentproject]
                             self.top_reached = 1
-                            # add to lookup table
-                            self.lookup[parentproject] = path
-                            return [path]
-                        else:
-                            #try lookup table
-                            if parentproject in self.lookup.keys():
-                                #print "Path cached for:", object_name, ' '.join(self.lookup[parentproject])
-                                self.top_reached = 1
-                                return self.lookup[parentproject]
+                            # Add remaning path
+                            p = [self.path_lookup[parentproject]]
+                            p.extend(path.split('/')[1:])
+                            p = '/'.join(p)
+                            return p
 
-                            if ':project:' not in parentproject:
-                                #Sometimes the greatness of Synergy will return a name-version instead of a four-part-name, so convert it into a four-part-name:
-                                splitted_name = parentproject.split(self.delim)
-                                fourpart = self.ccm.query("name='{0}' and version='{1}' and type='project'".format(splitted_name[0], splitted_name[1])).format('%objectname').run()
-                                if fourpart:
-                                    parentproject = fourpart[0]['objectname']
+                        if ':project:' not in parentproject:
+                            #Sometimes the greatness of Synergy will return a name-version instead of a four-part-name, so convert it into a four-part-name:
+                            splitted_name = parentproject.split(self.delim)
+                            fourpart = self.ccm.query("name='{0}' and version='{1}' and type='project'".format(splitted_name[0], splitted_name[1])).format('%objectname').run()
+                            if fourpart:
+                                parentproject = fourpart[0]['objectname']
 
-                            parent = self.recurse_file_path(parentproject)
-                            #print 'Got:', parent
-                            if parent is None:
-                                #print parentproject, "didn't match"
-                                ret_val = None
-                            else:
-                                l = parent
-                                l.append(path)
-                                # alse add this project to lookup table with complete path
-                                self.lookup[parentproject] = l
-                                ret_val = l
+                        parent = self.recurse_file_path(parentproject)
+                        if parent:
+                            p = [parent]
+                            p.extend(path.split('/')[1:])
+                            p = '/'.join(p)
+                            #Only add path and  if we are processing a project
+                            if ':project:' in object_name:
+                                # add this project to lookup table with complete path
+                                self.path_lookup[object_name] = p
+                            return p
 
         return ret_val
 
@@ -157,16 +158,26 @@ class TaskUtil(object):
         current_task_objects = [obj.get_object_name() for obj in task.get_objects()]
         for o in task_objects:
             if o['objectname'] not in current_task_objects:
-                fileobject = FileObject.FileObject(o['objectname'], self.delim, o['owner'], o['status'], o['create_time'], o['task'])
-                fileobject.set_attributes(self.synergy_utils.get_all_attributes(fileobject))
-                predecessors = self.ccm.query("is_predecessor_of('{0}')".format(fileobject.get_object_name())).format("%objectname").run()
-                for p in predecessors:
-                    fileobject.add_predecessor(p['objectname'])
-                successors = self.ccm.query("is_successor_of('{0}')".format(fileobject.get_object_name())).format("%objectname").run()
-                for s in successors:
-                    fileobject.add_successor(s['objectname'])
-                #print fileobject.get_object_name()
-                task.add_object(fileobject)
+                print "object:", o['objectname'], "not found in objects, but associated to:", task.get_object_name()
+                #fileobject = FileObject.FileObject(o['objectname'], self.delim, o['owner'], o['status'], o['create_time'], o['task'])
+                #content = self.ccm.cat(fileobject.get_object_name()).run()
+                #fileobject.set_content(content)
+                #fileobject.set_attributes(self.synergy_utils.get_all_attributes(fileobject))
+                #predecessors = self.ccm.query("is_predecessor_of('{0}')".format(fileobject.get_object_name())).format("%owner").format("%status").format("%create_time").format("%task").format("%objectname").run()
+                #for p in predecessors:
+                #    predecessor = FileObject.FileObject(p['objectname'], fileobject.get_separator(), p['owner'], p['status'], p['create_time'], p['task'])
+                #    fileobject.add_predecessor(predecessor.get_object_name())
+                #    if fileobject.get_type() == 'dir':
+                #        fileobject.add_dir_changes(self.synergy_utils.get_dir_changes(fileobject, predecessor))
+                #        if fileobject.get_dir_changes():
+                #            print "Directory changes:"
+                #            print "Deleted objects:", ', '.join(fileobject.get_dir_changes()['deleted'])
+                #            print "New objects:    ", ', '.join(fileobject.get_dir_changes()['new'])
+                #successors = self.ccm.query("is_successor_of('{0}')".format(fileobject.get_object_name())).format("%objectname").run()
+                #for s in successors:
+                #    fileobject.add_successor(s['objectname'])
+                ##print fileobject.get_object_name()
+                #task.add_object(fileobject)
 
     def find_status_time(self, status, status_log):
         earliest = datetime.today()
@@ -182,23 +193,36 @@ class TaskUtil(object):
 class ObjectHistory(object):
     """ Get the history of one object backwards in time """
 
-    def __init__(self, ccm, toplevel_project):
+    def __init__(self, ccm, current_release, old_release = None):
         self.ccm = ccm
         self.history = {}
         self.synergy_utils = SynergyUtils(self.ccm)
-        self.toplevel_project = toplevel_project
-        self.ccm_file_path = CCMFilePath(ccm, toplevel_project)
+        self.current_release = current_release
+        self.ccm_file_path = CCMFilePath(ccm)
+        self.old_release = old_release
+        if old_release:
+            #Fill subproject old list
+            sub = self.ccm.query("recursive_is_member_of('{0}', 'none') and type='project'".format(old_release)).format('%objectname').run()
+            self.old_subproject_list = [s['objectname'] for s in sub]
+        #Fill subproject current list
+        sub = self.ccm.query("recursive_is_member_of('{0}', 'none') and type='project'".format(current_release)).format('%objectname').run()
+        self.current_subproject_list = [s['objectname'] for s in sub]
 
-    def get_history(self, fileobject, stop_at_release = None):
-        print 'Processing:', fileobject.get_object_name()
+
+    def get_history(self, fileobject):
+        #print ""
+        #print 'Processing:', fileobject.get_object_name()
+
         # clear old history
         self.history = {}
-        # Get the file history recursively
-        path = self.ccm_file_path.get_file_path(fileobject.get_object_name())
-        fileobject.set_attributes(self.synergy_utils.get_all_attributes(fileobject))
-        #print "Object", fileobject.get_object_name(), "path:", path
+        path = self.ccm_file_path.get_path(fileobject.get_object_name(), self.current_release)
+
         fileobject.set_path(path)
-        if stop_at_release == self.toplevel_project:
+        content = self.ccm.cat(fileobject.get_object_name()).run()
+        fileobject.set_content(content)
+        fileobject.set_attributes(self.synergy_utils.get_all_attributes(fileobject))
+
+        if self.old_release == self.current_release:
             #handle directory objects
             if fileobject.get_type() == 'dir':
                 #get predecessors and do a diff on dir objects
@@ -211,7 +235,9 @@ class ObjectHistory(object):
                     print "Deleted objects:", ', '.join(fileobject.get_dir_changes()['deleted'])
                     print "New objects:    ", ', '.join(fileobject.get_dir_changes()['new'])
         else:
-            self.recursive_get_history(fileobject, stop_at_release)
+            self.recursive_get_history(fileobject)
+        print "Filepath:", path
+        print ""
         self.history[fileobject.get_object_name()] = fileobject
 
 
@@ -220,14 +246,16 @@ class ObjectHistory(object):
     def add_to_history(self, fileobject):
         self.history[fileobject.get_object_name()] = fileobject
 
-    def recursive_get_history(self, fileobject, stop_at_release):
-        """ Recursivly find the history of the file object, optionally stopping at the 'stop_at_release' project """
+    def recursive_get_history(self, fileobject):
+        """ Recursivly find the history of the file object, optionally stopping at the 'old_release' project """
         next_iter = False
         delim = fileobject.get_separator()
-        #print 'Processing:', fileobject.get_object_name()
+        print ""
+        print 'Processing:', fileobject.get_object_name(), fileobject.get_status()
         predecessors = self.ccm.query("is_predecessor_of('{0}')".format(fileobject.get_object_name())).format("%owner").format("%status").format("%create_time").format("%task").run()
         for p in predecessors:
             predecessor = FileObject.FileObject(p['objectname'], delim, p['owner'], p['status'], p['create_time'], p['task'])
+            print "Predecessor:", predecessor.get_object_name()
 
             #handle directory objects
             if fileobject.get_type() == 'dir':
@@ -237,31 +265,38 @@ class ObjectHistory(object):
                     print "Deleted objects:", ', '.join(fileobject.get_dir_changes()['deleted'])
                     print "New objects:    ", ', '.join(fileobject.get_dir_changes()['new'])
             fileobject.add_predecessor(predecessor.get_object_name())
+
+            # get toplevel project / toplevel release and path for predecessor
+            path = self.ccm_file_path.get_path(predecessor.get_object_name(), self.old_release)
             # check predecessor release to see if this object should be added to the set.
-            if stop_at_release:
+            if self.old_release:
+
                 # Get the release(s) for the predecessor
                 releases = self.ccm.query("has_member('{0}') and status='released'".format(predecessor.get_object_name())).format('%objectname').format('%create_time').run()
                 if releases:
-                    # Check if the "stop" release is the the releaes for the predecessor and return/stop if true
-                    if stop_at_release in [r['objectname'] for r in releases if r['objectname'] == stop_at_release]:
+                    #print '\n'.join([r['objectname'] for r in releases])
+                    # Check if the "old" release is the the releases for the predecessor and stop if true
+                    if [r['objectname'] for r in releases if r['objectname'] in self.current_subproject_list or r['objectname'] in self.old_subproject_list]:
+                        # Object is already released, continue with the next predecessor
+                        print predecessor.get_object_name(), "is already released"
                         continue
-                    #Check if projects are releated to stop release. Latest first
+                    #Check if projects are releated to old release. Latest first
                     rels = self.sort_releases_by_create_time(releases)
                     for r in rels:
-                        if self.project_is_some_predecessor(r, stop_at_release):
-                            print "Found Relationship between:", r, "and", stop_at_release
+                        if self.project_is_some_predecessor(r):
+                            print "Found Relationship between:", r, "and", self.old_release
                             next_iter = True
                             break
                     if next_iter:
                         continue
                 else:
                     #Check if a successor is released
-                    if self.successor_is_released(predecessor, fileobject, stop_at_release):
+                    if self.successor_is_released(predecessor, fileobject):
                         print "Successor is already released", fileobject.get_object_name()
                         continue
 
 
-            print "Adding", predecessor.get_object_name(), "to history"
+            print "Adding", predecessor.get_object_name(), predecessor.get_status(),  "to history. Path:", path
              # Check if predecessor is already added to history - if so add this as successor to fileobject, else add new predecessor to history
             if self.history.has_key(predecessor.get_object_name()):
                  predecessor = self.history[predecessor.get_object_name()]
@@ -269,14 +304,15 @@ class ObjectHistory(object):
                  self.add_to_history(predecessor)
             else:
                 predecessor.set_attributes(self.synergy_utils.get_all_attributes(predecessor))
-                path = self.ccm_file_path.get_file_path(predecessor.get_object_name())
                 if not path:
                     #Path couldn't be found object is probably not released... use path of successor
                     path = fileobject.get_path()
+
                 predecessor.set_path(path)
-                #print "Object", predecessor.get_object_name(), "path:", path
+                content = self.ccm.cat(predecessor.get_object_name()).run()
+                predecessor.set_content(content)                #print "Object", predecessor.get_object_name(), "path:", path
                 predecessor.add_successor(fileobject.get_object_name())
-                self.recursive_get_history(predecessor, stop_at_release)
+                self.recursive_get_history(predecessor)
                 self.add_to_history(predecessor)
 
     def sort_releases_by_create_time(self, releases):
@@ -285,30 +321,34 @@ class ObjectHistory(object):
         sorted_releases = [rel[0] for rel in r]
         return sorted_releases
 
-    def project_is_some_predecessor(self, project, stop_at_release):
+    def project_is_some_predecessor(self, project):
+        print "Checking if", project, "is some predecessor..."
         ret_val = False
         successors = self.ccm.query("has_baseline_project('{0}') and status='released'".format(project)).format("%objectname").run()
         for successor in successors:
             successor = successor['objectname']
-            if successor == stop_at_release:
+            if successor in self.old_subproject_list:
                 return True
             else:
-                ret_val = self.project_is_some_predecessor(successor, stop_at_release)
+                ret_val = self.project_is_some_predecessor(successor)
 
         return ret_val
 
-    def successor_is_released(self, predecessor, fileobject, release):
+    def successor_is_released(self, predecessor, fileobject):
+        print "Checking if successor is released, for", fileobject.get_object_name()
         ret_val = False
         successors = self.ccm.query("is_successor_of('{0}')".format(predecessor.get_object_name())).format("%owner").format("%status").format("%create_time").format("%task").run()
         for s in successors:
             if s['objectname'] is not fileobject.get_object_name():
                 s = FileObject.FileObject(s['objectname'], predecessor.get_separator(), s['owner'], s['status'], s['create_time'], s['task'])
+                print "successor:", s.get_object_name()
                 #check releases of successor
                 releases = self.ccm.query("has_member('{0}') and status='released'".format(s.get_object_name())).format('%objectname').format('%create_time').run()
-                if release in [r['objectname'] for r in releases if r['objectname'] == release]:
+                #print '\n'.join([r['objectname'] for r in releases])
+                if [r['objectname'] for r in releases if r['objectname'] in self.old_subproject_list]:
                     ret_val = True
                 else:
-                    retval = self.successor_is_released(s, fileobject, release)
+                    retval = self.successor_is_released(s, fileobject)
         return ret_val
 
 
@@ -318,7 +358,7 @@ class SynergyUtils(object):
 
     def __init__(self, ccm):
         self.ccm = ccm
-        self.unwanted_attributes = ['_archive_info', '_modify_time', 'binary_scan_file_time',
+        self.attribute_blacklist = ['_archive_info', '_modify_time', 'binary_scan_file_time',
         'cluster_id', 'comment',  'create_time', 'created_in', 'cvtype', 'dcm_receive_time',
         'handle_source_as', 'is_asm', 'is_model', 'local_to', 'modify_time', 'name',
         'owner', 'project', 'release', 'source_create_time', 'source_modify_time',
@@ -331,7 +371,7 @@ class SynergyUtils(object):
         attributes = {}
         for attr in attr_list:
             attr = attr.partition(' ')[0]
-            if attr not in self.unwanted_attributes:
+            if attr not in self.attribute_blacklist:
                 attributes[attr] = self.ccm.attr(obj.get_object_name()).option('-s').option(attr).run()
         return attributes
 
@@ -348,16 +388,6 @@ class SynergyUtils(object):
         content = {'deleted': deleted, 'new' : new}
         print content
         return content
-
-
-
-
-
-
-
-
-
-
 
 
 

@@ -87,8 +87,8 @@ class FileObject(SynergyObject.SynergyObject):
     def set_attributes(self, attributes):
         self.attributes = attributes
         self.integrate_time = self.find_status_time('integrate', self.attributes['status_log'])
-        self.content = self.attributes['source']
-        self.commit_message = self.find_commit_message_from_content()
+        #self.content = self.attributes['source']
+        #self.commit_message = self.find_commit_message_from_content()
 
     def get_attributes(self):
         return attributes
