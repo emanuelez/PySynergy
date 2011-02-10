@@ -41,6 +41,7 @@ class CCMFilePath(object):
         #lets first try to see if any of the cached projects are already in the list
         r = [(k,j) for (k,j) in product(self.path_lookup.keys(), result) if k in j]
         if r:
+            print "Trying", r[0][1], "first for", object_name
             #put the matching project to end of array
             result.remove(r[0][1])
             result.append(r[0][1])
@@ -211,7 +212,7 @@ class ObjectHistory(object):
 
     def get_history(self, fileobject):
         #print ""
-        #print 'Processing:', fileobject.get_object_name()
+        print 'Processing:', fileobject.get_object_name(), "from", self.current_release, "to", self.old_release
 
         # clear old history
         self.history = {}
