@@ -125,10 +125,12 @@ class CCMHistory(object):
             object_hist = ObjectHistory(self.ccm, toplevel_project, baseline_project)
             objects_changed = self.ccm.query("recursive_is_member_of('{0}', 'none') and not recursive_is_member_of('{1}', 'none')".format(latestproject, baseline_project)).format("%objectname").format("%owner").format("%status").format("%create_time").format("%task").run()
         else:
-            # Last projects, get ALL objects in release
+            # root project, get ALL objects in release
             object_hist = ObjectHistory(self.ccm, toplevel_project, toplevel_project)
             objects_changed = self.ccm.query("recursive_is_member_of('{0}', 'none')".format(latestproject)).format("%objectname").format("%owner").format("%status").format("%create_time").format("%task").run()
 
+        num_of_objects = len([o for o in objects_changed if ":project:" not in o])
+        print "objects to process for",  latestproject, num_of_objects
         objects = {}
         existing_objects = []
         persist = 1
@@ -156,6 +158,9 @@ class CCMHistory(object):
                 self.persist_data(fname, self.history[self.tag])
                 objects = {}
 
+            num_of_objects -= 1
+            print "objects left:", num_of_objects
+
         # Create tasks from objects
         self.find_tasks_from_objects(objects.values(), latestproject)
 
@@ -164,6 +169,8 @@ class CCMHistory(object):
         task_util = TaskUtil(self.ccm)
         tasks = {}
         not_used = []
+        num_of_tasks = sum([len(o.get_tasks()) for o in objects])
+        print "tasks to scan:", num_of_tasks
         #Find all tasks from the objects found
         for o in objects:
             for task in o.get_tasks().split(','):
@@ -181,13 +188,18 @@ class CCMHistory(object):
                                     to = TaskObject.TaskObject(t['objectname'], self.delim, t['owner'], t['status'], t['create_time'], task)
                                     to.set_synopsis(t['task_synopsis'])
                                     to.set_release(t['release'])
+                                    print "adding", o.get_object_name(), "to", task
                                     to.add_object(o)
 
                                     tasks[task] = to
                             else:
                                 not_used.append(task)
                     else:
+                        print "adding", o.get_object_name(), "to", task
                         tasks[task].add_object(o)
+
+            num_of_tasks -= 1
+            print "tasks left:", num_of_tasks
 
         # Fill out all task info
         for task in tasks.values():

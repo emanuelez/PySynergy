@@ -145,6 +145,7 @@ class TaskUtil(object):
 
 
     def fill_task_info(self, task):
+        print "Fetching task info", task.get_object_name()
         task.set_attributes(self.synergy_utils.get_all_attributes(task))
         #Find related task (s30)
         releated_task = self.ccm.query("has_task_in_CUIinsp('{0}')".format(task.get_object_name())).format('%objectname').format("%owner").format("%status").format("%create_time").format("%task").run()
@@ -154,12 +155,12 @@ class TaskUtil(object):
             attributes = self.synergy_utils.get_all_attributes(insp_task)
             task.get_attributes().update({'inspection_task': attributes})
 
-        task_objects = self.ccm.task(task.get_tasks(), True).option('-sh').option('obj').format("%objectname").format("%owner").format("%status").format("%create_time").format("%task").run()
+        #task_objects = self.ccm.task(task.get_tasks(), True).option('-sh').option('obj').format("%objectname").format("%owner").format("%status").format("%create_time").format("%task").run()
 
-        current_task_objects = [obj.get_object_name() for obj in task.get_objects()]
-        for o in task_objects:
-            if o['objectname'] not in current_task_objects:
-                print "object:", o['objectname'], "not found in objects, but associated to:", task.get_object_name()
+        #current_task_objects = [obj.get_object_name() for obj in task.get_objects()]
+        #for o in task_objects:
+        #    if o['objectname'] not in current_task_objects:
+        #        print "object:", o['objectname'], "not found in objects, but associated to:", task.get_object_name()
                 #fileobject = FileObject.FileObject(o['objectname'], self.delim, o['owner'], o['status'], o['create_time'], o['task'])
                 #content = self.ccm.cat(fileobject.get_object_name()).run()
                 #fileobject.set_content(content)
@@ -336,20 +337,21 @@ class ObjectHistory(object):
         return ret_val
 
     def successor_is_released(self, predecessor, fileobject):
-        print "Checking if successor is released, for", fileobject.get_object_name()
+        print "Checking if successor is released, for", fileobject.get_object_name(), "by predecessor", predecessor.get_object_name()
         ret_val = False
         successors = self.ccm.query("is_successor_of('{0}')".format(predecessor.get_object_name())).format("%owner").format("%status").format("%create_time").format("%task").run()
         for s in successors:
-            if s['objectname'] is not fileobject.get_object_name():
+            if s['objectname'] != fileobject.get_object_name():
                 s = FileObject.FileObject(s['objectname'], predecessor.get_separator(), s['owner'], s['status'], s['create_time'], s['task'])
                 print "successor:", s.get_object_name()
                 #check releases of successor
                 releases = self.ccm.query("has_member('{0}') and status='released'".format(s.get_object_name())).format('%objectname').format('%create_time').run()
                 #print '\n'.join([r['objectname'] for r in releases])
                 if [r['objectname'] for r in releases if r['objectname'] in self.old_subproject_list]:
-                    ret_val = True
+                    print "successor:", s.get_object_name(), "is released"
+                    return True
                 else:
-                    retval = self.successor_is_released(s, fileobject)
+                    ret_val = self.successor_is_released(s, fileobject)
         return ret_val
 
 
@@ -373,6 +375,7 @@ class SynergyUtils(object):
         for attr in attr_list:
             attr = attr.partition(' ')[0]
             if attr not in self.attribute_blacklist:
+                print "setting attribute:", attr
                 attributes[attr] = self.ccm.attr(obj.get_object_name()).option('-s').option(attr).run()
         return attributes
 
