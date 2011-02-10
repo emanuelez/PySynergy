@@ -193,50 +193,11 @@ class CCMHistory(object):
         self.history[self.tag]['tasks'].extend(tasks.values())
 
 
-    def get_project_objects(self, project):
-        object_hist = ObjectHistory(self.ccm, project)
-        objects_changed = self.ccm.query("is_member_of('{0}')".format(project)).format("%objectname").format("%owner").format("%status").format("%create_time").format("%task").run()
-        objects = {}
-        existing_objects = []
-        persist = False
-        if self.tag in self.history.keys():
-            if 'objects' in self.history[self.tag]:
-                existing_objects = [o.get_object_name() for o in self.history[self.tag]['objects']]
-        else:
-            self.history[self.tag] = {'objects': [], 'tasks': []}
-
-        for o in objects_changed:
-        #print o['objectname']
-            if o['objectname'] not in existing_objects:
-                if ':project:' in o['objectname']:
-                    #print o['objectname']
-                    #Find diffenence of subprojects
-                    #first find subprojects baseline project
-                    subproject = o['objectname']
-                    print "Subproject", subproject
-                    self.get_project_objects(subproject)
-
-                else:
-                    with self.timer:
-                        objects.update(object_hist.get_history(FileObject.FileObject(o['objectname'], self.delim, o['owner'], o['status'], o['create_time'], o['task']), project))
-                    persist = True
-                    #self.changed_objects.update(object_hist.get_history(FileObject.FileObject(o['objectname'], self.delim, o['owner'], o['status'], o['create_time'], o['task']), baseline_project))
-            else:
-                print o['objectname'], "already in history"
-        # Create tasks from objects
-        self.find_tasks_from_objects(objects.values(), project)
-        #persist data
-        self.history[self.tag]['objects'].extend(objects.values())
-        if persist:
-            fname = self.outputfile + '_' + self.tag + '_inc'
-            self.persist_data(fname, self.history[self.tag])
-
-
     def persist_data(self, fname, data):
         fname = fname + '.p'
         print "saving..."
         fh = open(fname, 'wb')
-        cPickle.dump(data, fh)
+        cPickle.dump(data, fh, cPickle.HIGHEST_PROTOCOL)
         fh.close()
         print "done..."
 
@@ -284,7 +245,7 @@ def main():
 
 
     fh = open(outputfile + '.p', 'wb')
-    cPickle.dump(history, fh)
+    cPickle.dump(history, fh, cPickle.HIGHEST_PROTOCOL)
     fh.close()
 
 
