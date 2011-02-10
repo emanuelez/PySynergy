@@ -103,11 +103,13 @@ class CCMHistory(object):
             self.history[self.tag]['next'] = next
 
             print "baseline project version:", baseline_project.get_version()
-            if baseline_project.get_version() is "11w01_sb9_fam":
+            if baseline_project.get_version() == "11w01_sb9_fam":
+                print "Stopping at 11w01_sb9_fam"
                 baseline_project = None
 
+        print "getting all objects for:", latestproject.get_version(), "..."
         # Do the last project as a full project
-        self.find_project_diff(latestproject, baseline_project, latestproject)
+        self.find_project_diff(latestproject.get_object_name(), baseline_project, latestproject.get_object_name())
 
 
         return self.history
@@ -119,16 +121,17 @@ class CCMHistory(object):
 
     def find_project_diff(self, latestproject, baseline_project, toplevel_project):
         # Find difference between latestproject and baseline_project
-        object_hist = ObjectHistory(self.ccm, toplevel_project, baseline_project)
         if baseline_project:
+            object_hist = ObjectHistory(self.ccm, toplevel_project, baseline_project)
             objects_changed = self.ccm.query("recursive_is_member_of('{0}', 'none') and not recursive_is_member_of('{1}', 'none')".format(latestproject, baseline_project)).format("%objectname").format("%owner").format("%status").format("%create_time").format("%task").run()
         else:
-            # Last projects, get ALL objects
+            # Last projects, get ALL objects in release
+            object_hist = ObjectHistory(self.ccm, toplevel_project, toplevel_project)
             objects_changed = self.ccm.query("recursive_is_member_of('{0}', 'none')".format(latestproject)).format("%objectname").format("%owner").format("%status").format("%create_time").format("%task").run()
 
         objects = {}
         existing_objects = []
-        persist = 0
+        persist = 1
         if self.tag in self.history.keys():
             if 'objects' in self.history[self.tag]:
                 existing_objects = [o.get_object_name() for o in self.history[self.tag]['objects']]
