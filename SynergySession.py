@@ -118,7 +118,7 @@ class SynergySession:
         if 'format' in self.status:
             self.status['format'] = []
         return self
-    
+
     def finduse(self, object_name):
         """Finduse of an object"""
         self.command = 'finduse'
@@ -128,7 +128,7 @@ class SynergySession:
         if 'format' in self.status:
             self.status['format'] = []
         return self
-    
+
     def attr(self, object_name):
         """Attributes of an object"""
         self.command = 'attr'
@@ -138,7 +138,7 @@ class SynergySession:
         if 'format' in self.status:
             self.status['format'] = []
         return self
-    
+
     def task(self, task, formattable = False):
         """Task command"""
         self.command = 'task'
@@ -147,8 +147,8 @@ class SynergySession:
         self.status['formattable'] = formattable
         if 'format' not in self.status:
             self.status['format'] = ['%objectname']
-        return self        
-    
+        return self
+
     def rp(self, project):
         """Reconfigure properties command"""
         self.command = 'rp'
@@ -157,8 +157,8 @@ class SynergySession:
         self.status['formattable'] = True
         if 'format' not in self.status:
             self.status['format'] = ['%objectname']
-        return self   
-    
+        return self
+
     def diff(self, new, old):
         """Difference between to files"""
         self.command = 'diff'
@@ -167,8 +167,8 @@ class SynergySession:
         self.status['formattable'] = False
         if 'format' in self.status:
             self.status['format'] = []
-        return self    
-    
+        return self
+
     def hist(self, obj):
         """history command"""
         self.command = 'hist'
@@ -184,7 +184,7 @@ class SynergySession:
         """Sets the output format for the command, if it supports formatting.
 
         The input can be an iterable or a string"""
-        
+
         if isinstance(format, str):
             if 'format' not in self.status:
                 self.status['format'] = []
@@ -200,7 +200,7 @@ class SynergySession:
                 self.status['format'].append(element)
 
         return self
-    
+
     def option(self, option):
         """Sets the options for the command, if it supports options.
 
@@ -219,7 +219,7 @@ class SynergySession:
             for element in option:
                 self.status['option'].append(element)
 
-        return self    
+        return self
 
     def run(self):
         """
@@ -242,7 +242,10 @@ class SynergySession:
             if 'task' not in command and 'rp' not in command and 'hist' not in command:
                 command.append('-nf')
             command.append('-f')
-            command.append('|SEPARATOR|'.join(self.status['format']) + '|ITEM_SEPARATOR|')
+            if 'hist' not in command:
+                command.append('|SEPARATOR|'.join(self.status['format']) + '|ITEM_SEPARATOR|')
+            else:
+                command.append('|SEPARATOR|'.join(self.status['format']))
 
         if 'arguments' not in self.status:
             raise SynergyException("status['arguments'] undefined")
@@ -250,11 +253,10 @@ class SynergySession:
         if 'option' in self.status:
             for element in self.status['option']:
                 command.append(element)
-        
-        command.extend(self.status['arguments'])
-        
-        result = self._run(command)
 
+        command.extend(self.status['arguments'])
+
+        result = self._run(command)
         # Parse the result and return it
         if 'formattable' in self.status and self.status['formattable']:
             if not result:
@@ -263,7 +265,13 @@ class SynergySession:
                 return []
 
             final_result = []
-            for item in result.split('|ITEM_SEPARATOR|')[:-1]:
+            items = []
+            if 'hist' in command:
+                items = result.split('*****************************************************************************')[:-1]
+            else:
+                items = result.split('|ITEM_SEPARATOR|')[:-1]
+
+            for item in items:
                 splitted_item = item.split('|SEPARATOR|')
                 if len(splitted_item) != len(self.status['format']):
                     raise SynergyException("the length of status['format'] and the splitted result is not the same")
@@ -272,11 +280,12 @@ class SynergySession:
                     line[k[1:]] = v.strip()
                 if 'hist' in command:
                     # History command is special ;)
-                    p = re.compile("(?s).*?Predecessors:\s*(.*)Successors:\s*(.*?)\*+")
-                    m = p.match(splitted_item[0])
+                    p = re.compile("(?s)(.*?)Predecessors:\s*(.*)Successors:\s*(.*?)$")
+                    m = p.match(splitted_item[len(splitted_item)-1])
                     if m:
-                        line['predecessors'] = m.group(1).split()
-                        line['successors'] = m.group(2).split()
+                        line[self.status['format'][-1]] =  m.group(1).split()
+                        line['predecessors'] = m.group(2).split()
+                        line['successors'] = m.group(3).split()
                     else:
                         line['predecessors'] = []
                         line['successors'] = []
