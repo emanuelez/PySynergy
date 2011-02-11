@@ -169,8 +169,8 @@ class CCMHistory(object):
         task_util = TaskUtil(self.ccm)
         tasks = {}
         not_used = []
-        num_of_tasks = sum([len(o.get_tasks()) for o in objects])
-        print "tasks to scan:", num_of_tasks
+        num_of_tasks = sum([len(o.get_tasks().split(',')) for o in objects])
+        print "objects to scan for tasks:", num_of_tasks
         #Find all tasks from the objects found
         for o in objects:
             for task in o.get_tasks().split(','):
@@ -198,8 +198,8 @@ class CCMHistory(object):
                         print "adding", o.get_object_name(), "to", task
                         tasks[task].add_object(o)
 
-            num_of_tasks -= 1
-            print "tasks left:", num_of_tasks
+                num_of_tasks -= 1
+                print "tasks left:", num_of_tasks
 
         # Fill out all task info
         for task in tasks.values():
