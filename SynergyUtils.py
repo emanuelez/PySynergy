@@ -366,8 +366,9 @@ class SynergyUtils(object):
         'handle_source_as', 'is_asm', 'is_model', 'local_to', 'modify_time', 'name',
         'owner', 'project', 'release', 'source_create_time', 'source_modify_time',
         'status', 'subsystem', 'version', 'wa_type', '_relations', 'est_duration',
-        'groups' , 'platform', 'priority', 'task_subsys' ]
-
+        'groups' , 'platform', 'priority', 'task_subsys', 'assigner', 'assignment_date',
+        'completed_id', 'completed_in', 'completion_date', 'creator', 'modifiable_in',
+        'registration_date']
 
     def get_all_attributes(self, obj):
         attr_list = self.ccm.attr(obj.get_object_name()).option('-l').run().splitlines()
