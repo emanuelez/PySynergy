@@ -155,12 +155,12 @@ class TaskUtil(object):
             attributes = self.synergy_utils.get_all_attributes(insp_task)
             task.get_attributes().update({'inspection_task': attributes})
 
-        #task_objects = self.ccm.task(task.get_tasks(), True).option('-sh').option('obj').format("%objectname").format("%owner").format("%status").format("%create_time").format("%task").run()
+        task_objects = self.ccm.task(task.get_tasks(), True).option('-sh').option('obj').format("%objectname").format("%owner").format("%status").format("%create_time").format("%task").run()
 
-        #current_task_objects = [obj.get_object_name() for obj in task.get_objects()]
-        #for o in task_objects:
-        #    if o['objectname'] not in current_task_objects:
-        #        print "object:", o['objectname'], "not found in objects, but associated to:", task.get_object_name()
+        current_task_objects = task.get_objects()
+        for o in task_objects:
+            if o['objectname'] not in current_task_objects:
+                print "object:", o['objectname'], "not found in objects, but associated to:", task.get_object_name()
                 #fileobject = FileObject.FileObject(o['objectname'], self.delim, o['owner'], o['status'], o['create_time'], o['task'])
                 #content = self.ccm.cat(fileobject.get_object_name()).run()
                 #fileobject.set_content(content)
@@ -307,12 +307,12 @@ class ObjectHistory(object):
             else:
                 predecessor.set_attributes(self.synergy_utils.get_all_attributes(predecessor))
                 if not path:
-                    #Path couldn't be found object is probably not released... use path of successor
+                    #Path couldn't be found object is probably not released... use path of successor as that is the one we have...
                     path = fileobject.get_path()
 
                 predecessor.set_path(path)
                 content = self.ccm.cat(predecessor.get_object_name()).run()
-                predecessor.set_content(content)                #print "Object", predecessor.get_object_name(), "path:", path
+                predecessor.set_content(content)
                 predecessor.add_successor(fileobject.get_object_name())
                 self.recursive_get_history(predecessor)
                 self.add_to_history(predecessor)

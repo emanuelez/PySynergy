@@ -183,6 +183,11 @@ class CCMHistory(object):
         tasks = {}
         not_used = []
 
+        if self.tag in self.history.keys():
+            if 'tasks' in self.history[self.tag]:
+                for t in self.history[self.tag]['tasks']:
+                    tasks[t.get_display_name()] = t
+
         #Find all tasks from the objects found
         for o in objects:
             for task in o.get_tasks().split(','):
@@ -201,25 +206,28 @@ class CCMHistory(object):
                                     to.set_synopsis(t['task_synopsis'])
                                     to.set_release(t['release'])
                                     print "adding", o.get_object_name(), "to", task
-                                    to.add_object(o)
+                                    to.add_object(o.get_object_name())
 
                                     tasks[task] = to
                             else:
                                 not_used.append(task)
                     else:
-                        print "adding", o.get_object_name(), "to", task
-                        tasks[task].add_object(o)
+                        if o.get_object_name() not in tasks[task].get_objects():
+                            print "adding", o.get_object_name(), "to", task
+                            tasks[task].add_object(o.get_object_name())
 
 
         num_of_tasks = len(tasks.keys())
         print "Tasks to process:", num_of_tasks
+
         # Fill out all task info
         for task in tasks.values():
-            task_util.fill_task_info(task)
+            if not task.get_attributes():
+                task_util.fill_task_info(task)
             num_of_tasks -= 1
             print "tasks left:", num_of_tasks
 
-        self.history[self.tag]['tasks'].extend(tasks.values())
+        self.history[self.tag]['tasks'] = tasks.values()
 
 
     def persist_data(self, fname, data):
