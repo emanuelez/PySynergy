@@ -110,7 +110,15 @@ class CCMHistory(object):
         print "getting all objects for:", latestproject.get_version(), "..."
         # Do the last project as a full project
         self.find_project_diff(latestproject.get_object_name(), baseline_project, latestproject.get_object_name())
-
+        #Print Info
+        print self.tag, "done processing, Info:"
+        print "Name        ", self.tag
+        print "Previous <- ", self.history[self.tag]['previous']
+        print "Next   ->   ", self.history[self.tag]['next']
+        print "Number of:  "
+        print "    Tasks:  ", str(len(self.history[self.tag]['tasks']))
+        print "    Files:  ", str(len(self.history[self.tag]['objects']))
+        print ""
 
         return self.history
 
@@ -132,18 +140,19 @@ class CCMHistory(object):
         num_of_objects = len([o for o in objects_changed if ":project:" not in o])
         print "objects to process for",  latestproject, num_of_objects
         objects = {}
-        existing_objects = []
         persist = 1
         if self.tag in self.history.keys():
             if 'objects' in self.history[self.tag]:
-                existing_objects = [o.get_object_name() for o in self.history[self.tag]['objects']]
+                #Add all existin objects
+                for o in self.history[self.tag]['objects']:
+                    objects[o.get_object_name()] = o
         else:
             self.history[self.tag] = {'objects': [], 'tasks': []}
 
         # Check history for all objects and add them to history
         for o in objects_changed:
             #print o['objectname']
-            if o['objectname'] not in existing_objects:
+            if o['objectname'] not in objects.keys():
                 # Don't do project objects
                 if ':project:' not in o['objectname']:
                     with self.timer:
@@ -153,13 +162,17 @@ class CCMHistory(object):
                 print o['objectname'], "already in history"
 
             if persist % 100 == 0:
-                self.history[self.tag]['objects'].extend(objects.values())
+                self.history[self.tag]['objects'] = objects.values()
                 fname = self.outputfile + '_' + self.tag + '_inc'
                 self.persist_data(fname, self.history[self.tag])
                 objects = {}
 
             num_of_objects -= 1
             print "objects left:", num_of_objects
+
+
+        print "number of files:", str(len(objects.values()))
+        self.history[self.tag]['objects'] = objects.values()
 
         # Create tasks from objects
         self.find_tasks_from_objects(objects.values(), latestproject)
@@ -169,8 +182,7 @@ class CCMHistory(object):
         task_util = TaskUtil(self.ccm)
         tasks = {}
         not_used = []
-        num_of_tasks = sum([len(o.get_tasks().split(',')) for o in objects])
-        print "objects to scan for tasks:", num_of_tasks
+
         #Find all tasks from the objects found
         for o in objects:
             for task in o.get_tasks().split(','):
@@ -198,12 +210,14 @@ class CCMHistory(object):
                         print "adding", o.get_object_name(), "to", task
                         tasks[task].add_object(o)
 
-                num_of_tasks -= 1
-                print "tasks left:", num_of_tasks
 
+        num_of_tasks = len(tasks.keys())
+        print "Tasks to process:", num_of_tasks
         # Fill out all task info
         for task in tasks.values():
             task_util.fill_task_info(task)
+            num_of_tasks -= 1
+            print "tasks left:", num_of_tasks
 
         self.history[self.tag]['tasks'].extend(tasks.values())
 
