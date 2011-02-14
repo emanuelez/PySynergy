@@ -199,12 +199,13 @@ class ObjectHistory(object):
 
     def __init__(self, ccm, current_release, old_release = None):
         self.ccm = ccm
+        self.delim = ccm.delim()
         self.history = {}
         self.synergy_utils = SynergyUtils(self.ccm)
         self.current_release = current_release
         self.ccm_file_path = CCMFilePath(ccm)
         self.old_release = old_release
-        self.dir = 'data/' + self.current_release
+        self.dir = 'data/' + self.current_release.split(self.delim)[1].split(':')[0]
         if old_release:
             #Fill subproject old list
             sub = self.ccm.query("recursive_is_member_of('{0}', 'none') and type='project'".format(old_release)).format('%objectname').run()
@@ -306,13 +307,15 @@ class ObjectHistory(object):
                         continue
 
 
-            print "Adding", predecessor.get_object_name(), predecessor.get_status(),  "to history. Path:", path
+
              # Check if predecessor is already added to history - if so add this as successor to fileobject, else add new predecessor to history
             if self.history.has_key(predecessor.get_object_name()):
-                 predecessor = self.history[predecessor.get_object_name()]
-                 predecessor.add_successor(fileobject.get_object_name())
-                 self.add_to_history(predecessor)
+                print "Updating", predecessor.get_object_name(), predecessor.get_status(),  "in history. Path:", path
+                predecessor = self.history[predecessor.get_object_name()]
+                predecessor.add_successor(fileobject.get_object_name())
+                self.add_to_history(predecessor)
             else:
+                print "Adding", predecessor.get_object_name(), predecessor.get_status(),  "to history. Path:", path
                 predecessor.set_attributes(self.synergy_utils.get_all_attributes(predecessor))
                 if not path:
                     #Path couldn't be found object is probably not released... use path of successor as that is the one we have...
@@ -323,7 +326,8 @@ class ObjectHistory(object):
                 #predecessor.set_content(content)
                 if not os.path.exists(self.dir):
                     os.makedirs(self.dir)
-                f = open(self.dir + '/' + fileobject.get_object_name(), 'wb')
+                fname = self.dir + '/' + predecessor.get_object_name()
+                f = open(fname, 'wb')
                 f.write(content)
                 f.close()
                 predecessor.add_successor(fileobject.get_object_name())
@@ -363,6 +367,9 @@ class ObjectHistory(object):
                 if [r['objectname'] for r in releases if r['objectname'] in self.old_subproject_list]:
                     print "successor:", s.get_object_name(), "is released"
                     return True
+                elif [r['objectname'] for r in releases if r['objectname'] in self.current_subproject_list]:
+		            print "successor:", s.get_object_name(), "is released in current project, don't continue"
+		            return False
                 else:
                     ret_val = self.successor_is_released(s, fileobject)
         return ret_val
@@ -381,7 +388,7 @@ class SynergyUtils(object):
         'status', 'subsystem', 'version', 'wa_type', '_relations', 'est_duration',
         'groups' , 'platform', 'priority', 'task_subsys', 'assigner', 'assignment_date',
         'completed_id', 'completed_in', 'completion_date', 'creator', 'modifiable_in',
-        'registration_date']
+        'registration_date', 'source']
 
     def get_all_attributes(self, obj):
         attr_list = self.ccm.attr(obj.get_object_name()).option('-l').run().splitlines()
