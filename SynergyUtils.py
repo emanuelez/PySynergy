@@ -14,6 +14,8 @@ from datetime import datetime
 import re
 from operator import itemgetter
 from itertools import product
+import os.path
+import os
 
 class CCMFilePath(object):
     """Get the file path of an object from Synergy"""
@@ -202,6 +204,7 @@ class ObjectHistory(object):
         self.current_release = current_release
         self.ccm_file_path = CCMFilePath(ccm)
         self.old_release = old_release
+        self.dir = 'data/' + self.current_release
         if old_release:
             #Fill subproject old list
             sub = self.ccm.query("recursive_is_member_of('{0}', 'none') and type='project'".format(old_release)).format('%objectname').run()
@@ -221,7 +224,12 @@ class ObjectHistory(object):
 
         fileobject.set_path(path)
         content = self.ccm.cat(fileobject.get_object_name()).run()
-        fileobject.set_content(content)
+        if not os.path.exists(self.dir):
+            os.makedirs(self.dir)
+        f = open(self.dir + '/' + fileobject.get_object_name(), 'wb')
+        f.write(content)
+        f.close()
+
         fileobject.set_attributes(self.synergy_utils.get_all_attributes(fileobject))
 
         if self.old_release == self.current_release:
@@ -312,7 +320,12 @@ class ObjectHistory(object):
 
                 predecessor.set_path(path)
                 content = self.ccm.cat(predecessor.get_object_name()).run()
-                predecessor.set_content(content)
+                #predecessor.set_content(content)
+                if not os.path.exists(self.dir):
+                    os.makedirs(self.dir)
+                f = open(self.dir + '/' + fileobject.get_object_name(), 'wb')
+                f.write(content)
+                f.close()
                 predecessor.add_successor(fileobject.get_object_name())
                 self.recursive_get_history(predecessor)
                 self.add_to_history(predecessor)

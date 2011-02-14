@@ -94,7 +94,7 @@ class CCMHistory(object):
             print ""
 
             #Drop entry from dict to save memory
-            del self.history[self.tag]
+            #del self.history[self.tag]
 
             #Finally set the new (old) tag for the release
             self.tag = latestproject.get_version()
