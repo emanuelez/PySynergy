@@ -107,6 +107,7 @@ class CCMHistory(object):
                 print "Stopping at 11w01_sb9_fam"
                 baseline_project = None
 
+        self.history[self.tag]['previous'] = None
         print "getting all objects for:", latestproject.get_version(), "..."
         # Do the last project as a full project
         self.find_project_diff(latestproject.get_object_name(), baseline_project, latestproject.get_object_name())
