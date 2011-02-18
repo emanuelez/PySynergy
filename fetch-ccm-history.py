@@ -191,8 +191,8 @@ class CCMHistory(object):
                     tasks[t.get_display_name()] = t
 
         num_of_tasks = sum([len(o.get_tasks()) for o in objects])
-       print "Tasks with assiociated objects:", num_of_tasks
-       #Find all tasks from the objects found
+        print "Tasks with assiociated objects:", num_of_tasks
+        #Find all tasks from the objects found
         for o in objects:
             for task in o.get_tasks().split(','):
                 if task != "<void>":
