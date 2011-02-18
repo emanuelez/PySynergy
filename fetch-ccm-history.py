@@ -190,7 +190,9 @@ class CCMHistory(object):
                     print "loading old task:", t.get_display_name()
                     tasks[t.get_display_name()] = t
 
-        #Find all tasks from the objects found
+        num_of_tasks = sum([len(o.get_tasks()) for o in objects])
+       print "Tasks with assiociated objects:", num_of_tasks
+       #Find all tasks from the objects found
         for o in objects:
             for task in o.get_tasks().split(','):
                 if task != "<void>":
@@ -217,10 +219,11 @@ class CCMHistory(object):
                         if o.get_object_name() not in tasks[task].get_objects():
                             print "adding", o.get_object_name(), "to", task
                             tasks[task].add_object(o.get_object_name())
-
+            num_of_tasks -= 1
+            print "tasks left:", num_of_tasks
 
         num_of_tasks = len(tasks.keys())
-        print "Tasks to process:", num_of_tasks
+        print "Tasks in release to process for info:", num_of_tasks
 
         # Fill out all task info
         for task in tasks.values():
@@ -230,6 +233,8 @@ class CCMHistory(object):
             print "tasks left:", num_of_tasks
 
         self.history[self.tag]['tasks'] = tasks.values()
+        fname = self.outputfile + '_' + self.tag + '_inc'
+        self.persist_data(fname, self.history[self.tag])
 
 
     def persist_data(self, fname, data):
