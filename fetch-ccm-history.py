@@ -112,6 +112,7 @@ class CCMHistory(object):
         # Do the last project as a full project
         self.find_project_diff(latestproject.get_object_name(), baseline_project, latestproject.get_object_name())
         #Print Info
+        self.history[self.tag]['previous'] = None
         print self.tag, "done processing, Info:"
         print "Name        ", self.tag
         print "Previous <- ", self.history[self.tag]['previous']
@@ -186,6 +187,7 @@ class CCMHistory(object):
         if self.tag in self.history.keys():
             if 'tasks' in self.history[self.tag]:
                 for t in self.history[self.tag]['tasks']:
+                    print "loading old task:", t.get_display_name()
                     tasks[t.get_display_name()] = t
 
         #Find all tasks from the objects found
