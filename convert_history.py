@@ -92,9 +92,24 @@ def main():
     
     convert_history(fh, tasks, releases)
     
-def convert_history(files, tasks, releases):
+def convert_history(files, tasks, releases, fileobjects):
     """Converts the Synergy history between two releases to a Git compatible one.""" 
-    
+
+    print "Look for cycles in the File History graph"
+	while find_cycle(files):
+		cycle = find_cycle(files)
+		print "A cycle was found!"
+		print "Cycle:", cycle
+
+		# Find the newest file
+		newest = max(cycle, key=lambda x: [fileobject.get_integrate_time() for fileobject in fileobjects if fileobject.get_objectname == x][0])
+		print "Object %s is the newest in the cycle: it should not have successors!" % newest
+
+		# Remove the outgoing link from the newest file
+		for successor in files.neighbors(newest) if successor in cycle:
+			files.del_edge((newest, successor))
+			print "Removed the %s -> %s edge" % (newest, successor)
+
     [files.del_edge(edge) for i, edge in transitive_edges(files)]
     print "Removed transitive edges from the File History graph."       
     
