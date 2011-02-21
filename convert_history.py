@@ -96,19 +96,19 @@ def convert_history(files, tasks, releases, fileobjects):
     """Converts the Synergy history between two releases to a Git compatible one.""" 
 
     print "Look for cycles in the File History graph"
-	while find_cycle(files):
-		cycle = find_cycle(files)
-		print "A cycle was found!"
-		print "Cycle:", cycle
+    while find_cycle(files):
+        cycle = find_cycle(files)
+        print "A cycle was found!"
+        print "Cycle:", cycle
 
-		# Find the newest file
-		newest = max(cycle, key=lambda x: [fileobject.get_integrate_time() for fileobject in fileobjects if fileobject.get_objectname == x][0])
-		print "Object %s is the newest in the cycle: it should not have successors!" % newest
+        # Find the newest file
+        newest = max(cycle, key=lambda x: [fileobject.get_integrate_time() for fileobject in fileobjects if fileobject.get_objectname == x][0])
+        print "Object %s is the newest in the cycle: it should not have successors!" % newest
 
-		# Remove the outgoing link from the newest file
-		for successor in files.neighbors(newest) if successor in cycle:
-			files.del_edge((newest, successor))
-			print "Removed the %s -> %s edge" % (newest, successor)
+        # Remove the outgoing link from the newest file
+        for successor in files.neighbors(newest) if successor in cycle:
+            files.del_edge((newest, successor))
+            print "Removed the %s -> %s edge" % (newest, successor)
 
     [files.del_edge(edge) for i, edge in transitive_edges(files)]
     print "Removed transitive edges from the File History graph."       
@@ -233,16 +233,24 @@ def create_commits_graph(files, tasks, releases):
     [commits.add_edge((task, release)) for (release, task) in product(releases.edges(), tasks.edges()) if set(releases.links(release)) & set(tasks.links(task))]
     
     # Create the edges from tasks to tasks and from releases to tasks    
-    for (t1, t2) in [(t1, t2) for (t1, t2) in permutations(tasks.edges(), 2)]:
-        for (obj1, obj2) in [(obj1, obj2) for (obj1, obj2) in product(tasks.links(t1), tasks.links(t2)) if (obj1, obj2) in files.edges()]:
-            for release in releases.edges():
-                if commits.has_edge((t1, release)):
-                    if not commits.has_edge((release, t2)):
-                        commits.add_edge((release, t2))
-                    break
-            else:
-                if not commits.has_edge((t1, t2)):        
-                    commits.add_edge((t1, t2))
+    for (t1, t2) in permutations(tasks.edges(), 2):
+        print "tasks: (%s, %s)" % (t1, t2)
+        for (obj1, obj2) in product(tasks.links(t1), tasks.links(t2)):
+            print "\tobjects: (%s, %s)" % (obj1, obj2)
+            if (obj1, obj2) in files.edges():
+                print "\tthe objects are an edge in the files history graph!"
+                for release in releases.edges():
+                    print "\t\trelease: %s" % release
+                    if commits.has_edge((t1, release)):
+                        print "\t\t(%s, &s) is already an edge in the commits graph" % (t1, relese)
+                        if not commits.has_edge((release, t2)):
+                            print "\t\tadding an edge in the commits graph" % (release, t2)
+                            commits.add_edge((release, t2))
+                        break
+                else:
+                    if not commits.has_edge((t1, t2)):
+                        print "\t\tadding and edge in the commits graph (%s, %s)" % (t1, t2)
+                        commits.add_edge((t1, t2))
                 
     return commits
     
