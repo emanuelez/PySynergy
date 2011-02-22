@@ -206,13 +206,16 @@ class ObjectHistory(object):
         self.ccm_file_path = CCMFilePath(ccm)
         self.old_release = old_release
         self.dir = 'data/' + self.current_release.split(self.delim)[1].split(':')[0]
+        self.release_lookup = {}
         if old_release:
             #Fill subproject old list
             sub = self.ccm.query("recursive_is_member_of('{0}', 'none') and type='project'".format(old_release)).format('%objectname').run()
             self.old_subproject_list = [s['objectname'] for s in sub]
+            self.old_subproject_list.append(old_release)
         #Fill subproject current list
         sub = self.ccm.query("recursive_is_member_of('{0}', 'none') and type='project'".format(current_release)).format('%objectname').run()
         self.current_subproject_list = [s['objectname'] for s in sub]
+        self.current_subproject_list.append(current_release)
 
 
     def get_history(self, fileobject):
@@ -341,23 +344,30 @@ class ObjectHistory(object):
         return sorted_releases
 
     def project_is_some_predecessor(self, project):
-        print "Checking if", project, "is some predecessor..."
-        ret_val = False
+        print "Checking if", project, "is some predecessor of", self.current_release, "or", self.old_release, "..."
         successors = self.ccm.query("has_baseline_project('{0}') and status='released'".format(project)).format("%objectname").run()
         for successor in successors:
             successor = successor['objectname']
+            print "successor:", successor
             if successor in self.old_subproject_list:
+                print "Found", successor, "in previous subprojects"
+                return True
+            elif successor in self.current_subproject_list:
+                print "Found", successor, "in current subprojects"
                 return True
             else:
-                ret_val = self.project_is_some_predecessor(successor)
+                if self.project_is_some_predecessor(successor):
+                    return True
 
-        return ret_val
+        return False
 
     def successor_is_released(self, predecessor, fileobject):
         print "Checking if successor is released, for", fileobject.get_object_name(), "by predecessor", predecessor.get_object_name()
         ret_val = False
         successors = self.ccm.query("is_successor_of('{0}')".format(predecessor.get_object_name())).format("%owner").format("%status").format("%create_time").format("%task").run()
         for s in successors:
+            if s['objectname'] in self.release_lookup.keys():
+                return self.release_lookup[s['objectname']]
             if s['objectname'] != fileobject.get_object_name():
                 s = FileObject.FileObject(s['objectname'], predecessor.get_separator(), s['owner'], s['status'], s['create_time'], s['task'])
                 print "successor:", s.get_object_name()
@@ -366,12 +376,15 @@ class ObjectHistory(object):
                 #print '\n'.join([r['objectname'] for r in releases])
                 if [r['objectname'] for r in releases if r['objectname'] in self.old_subproject_list]:
                     print "successor:", s.get_object_name(), "is released"
+                    self.release_lookup[s.get_object_name()] = True
                     return True
                 elif [r['objectname'] for r in releases if r['objectname'] in self.current_subproject_list]:
-		            print "successor:", s.get_object_name(), "is released in current project, don't continue"
-		            return False
+                    print "successor:", s.get_object_name(), "is released in current project, don't continue"
+                    return False
+                    self.release_lookup[s.get_object_name()] = False
                 else:
                     ret_val = self.successor_is_released(s, fileobject)
+                    self.release_lookup[s.get_object_name()] = ret_val
         return ret_val
 
 
