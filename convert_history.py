@@ -232,25 +232,20 @@ def create_commits_graph(files, tasks, releases):
     
     # Create the edges from the tasks to the releases
     [commits.add_edge((task, release)) for (release, task) in product(releases.edges(), tasks.edges()) if set(releases.links(release)) & set(tasks.links(task))]
-    
+   
+    # Create the edges from the releases to the tasks
+    for (release, task) in product(releases.edges(), tasks.edges()):
+        for obj_in_release in releases.links(release):
+            if set(files.neighbors(obj_in_release)) & set(tasks.links(task)):
+                if not commits.has_edge((release, task)):
+                    commits.add_edge((release, task))
+
     # Create the edges from tasks to tasks and from releases to tasks    
     for (t1, t2) in permutations(tasks.edges(), 2):
-        print "tasks: (%s, %s)" % (t1, t2)
         for (obj1, obj2) in product(tasks.links(t1), tasks.links(t2)):
-            print "\tobjects: (%s, %s)" % (obj1, obj2)
             if (obj1, obj2) in files.edges():
-                print "\tthe objects are an edge in the files history graph!"
-                for release in releases.edges():
-                    print "\t\trelease: %s" % release
-                    if commits.has_edge((t1, release)) and not commits.has_edge((t2, release)):
-                        if not commits.has_edge((release, t2)):
-                            print "\t\tadding an edge in the commits graph (%s, %s)" % (release, t2)
-                            commits.add_edge((release, t2))
-                        break
-                else:
-                    if not commits.has_edge((t1, t2)):
-                        print "\t\tadding and edge in the commits graph (%s, %s)" % (t1, t2)
-                        commits.add_edge((t1, t2))
+                if not commits.has_edge((t1, t2)):
+                    commits.add_edge((t1, t2))
                 
     return commits
     

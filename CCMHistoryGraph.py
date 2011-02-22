@@ -110,6 +110,16 @@ def create_object_graph(objects):
         for s in suc:
             object_graph.add_edge((obj, s.get_object_name()))
 
+    object_names = [o.get_object_name() for o in objects]
+    for o in objects:
+        # Bind objects to previous release
+        predecessors = o.get_predecessors()
+        for p in predecessors:
+            if p not in object_names:
+                if not object_graph.has_node(p):
+                    object_graph.add_node(p)
+                    object_graph.add_edge((p,o.get_object_name()))
+
     return object_graph
 
 
