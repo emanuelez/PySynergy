@@ -103,9 +103,6 @@ class CCMHistory(object):
             self.history[self.tag]['next'] = next
 
             print "baseline project version:", baseline_project.get_version()
-            if baseline_project.get_version() == "11w01_sb9_fam":
-                print "Stopping at 11w01_sb9_fam"
-                baseline_project = None
 
         self.history[self.tag]['previous'] = None
         print "getting all objects for:", latestproject.get_version(), "..."
@@ -191,7 +188,7 @@ class CCMHistory(object):
                     tasks[t.get_display_name()] = t
 
         num_of_tasks = sum([len(o.get_tasks().split(',')) for o in objects])
-        print "Tasks with assiociated objects:", num_of_tasks
+        print "Tasks with associated objects:", num_of_tasks
         #Find all tasks from the objects found
         for o in objects:
             for task in o.get_tasks().split(','):
