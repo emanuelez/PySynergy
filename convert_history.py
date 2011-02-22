@@ -106,9 +106,10 @@ def convert_history(files, tasks, releases, fileobjects):
         print "Object %s is the newest in the cycle: it should not have successors!" % newest
 
         # Remove the outgoing link from the newest file
-        for successor in files.neighbors(newest) if successor in cycle:
-            files.del_edge((newest, successor))
-            print "Removed the %s -> %s edge" % (newest, successor)
+        for successor in files.neighbors(newest):
+            if successor in cycle:
+                files.del_edge((newest, successor))
+                print "Removed the %s -> %s edge" % (newest, successor)
 
     [files.del_edge(edge) for i, edge in transitive_edges(files)]
     print "Removed transitive edges from the File History graph."       
@@ -241,10 +242,9 @@ def create_commits_graph(files, tasks, releases):
                 print "\tthe objects are an edge in the files history graph!"
                 for release in releases.edges():
                     print "\t\trelease: %s" % release
-                    if commits.has_edge((t1, release)):
-                        print "\t\t(%s, &s) is already an edge in the commits graph" % (t1, relese)
+                    if commits.has_edge((t1, release)) and not commits.has_edge((t2, release)):
                         if not commits.has_edge((release, t2)):
-                            print "\t\tadding an edge in the commits graph" % (release, t2)
+                            print "\t\tadding an edge in the commits graph (%s, %s)" % (release, t2)
                             commits.add_edge((release, t2))
                         break
                 else:
