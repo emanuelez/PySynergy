@@ -18,7 +18,8 @@ from pygraph.algorithms.cycles import find_cycle
 from pygraph.algorithms.critical import transitive_edges
 from pygraph.algorithms.accessibility import mutual_accessibility
 import pygraphviz as gv
-
+import logging as log
+import math
 
 def main():
     
@@ -220,28 +221,40 @@ def find_cuts(s):
     return cuts
     
 def complementary_set(s, ss):
-    return list(set(s) - set(ss))
-    
+    return list(set(s) - set(ss))  
 
 def create_commits_graph(files, tasks, releases):
+    log.basicConfig(filename='convert_history.log',level=logging.DEBUG)
     commits = digraph()
     
     # Create the nodes
+    print "\tCreate the nodes..."
+    print "\t\tFrom the tasks"
     [commits.add_node(task) for task in tasks.edges()]
+    print "\t\tFrom the releases"
     [commits.add_node(release) for release in releases.edges()]
     
     # Create the edges from the tasks to the releases
+    print "\tCreate the nodes..."
+    print "\t\tFrom tasks to releases"
     [commits.add_edge((task, release)) for (release, task) in product(releases.edges(), tasks.edges()) if set(releases.links(release)) & set(tasks.links(task))]
    
     # Create the edges from the releases to the tasks
-    for (release, task) in product(releases.edges(), tasks.edges()):
-        for obj_in_release in releases.links(release):
-            if set(files.neighbors(obj_in_release)) & set(tasks.links(task)):
-                if not commits.has_edge((release, task)):
-                    commits.add_edge((release, task))
+    print "\t\tFrom releases to tasks"
+    product_number = len(releases.edges()) * len(tasks.edges())
+    for (counter, (release, task)) in enumerate(product(releases.edges(), tasks.edges())):
+        log.info("Edge (%d/%d) from release %s to task %s" % (counter, product_number, release, task))
+        [commits.add_edge((release, task))
+         for obj_in_release 
+         in releases.links(release) 
+         if set(files.neighbors(obj_in_release)) & set(tasks.links(task))
+         and not commits.has_edge((release, task))]
 
-    # Create the edges from tasks to tasks and from releases to tasks    
-    for (t1, t2) in permutations(tasks.edges(), 2):
+    # Create the edges from tasks to tasks and from releases to tasks
+    print "\t\tFrom tasks to tasks"
+    permutations_number = math.factorial(len(tasks.edges()))/math.factorial(len(tasks.edges())-2)   
+    for (counter,(t1, t2)) in enumerate(permutations(tasks.edges(), 2)):
+        log.info("Edge (%d/%d) from task %s to task %s" % (counter, permutations_number, t1, t2))
         for (obj1, obj2) in product(tasks.links(t1), tasks.links(t2)):
             if (obj1, obj2) in files.edges():
                 if not commits.has_edge((t1, t2)):
