@@ -17,9 +17,7 @@ from pygraph.readwrite.dot import write
 from pygraph.algorithms.cycles import find_cycle
 from pygraph.algorithms.critical import transitive_edges
 from pygraph.algorithms.accessibility import mutual_accessibility
-import pygraphviz as gv
 import logging as log
-import math
 
 def main():
     
@@ -91,7 +89,7 @@ def main():
     
     print "Releases hypergraph ready."
     
-    convert_history(fh, tasks, releases)
+    convert_history(fh, tasks, releases, None)
     
 def convert_history(files, tasks, releases, fileobjects):
     """Converts the Synergy history between two releases to a Git compatible one.""" 
@@ -224,7 +222,8 @@ def complementary_set(s, ss):
     return list(set(s) - set(ss))  
 
 def create_commits_graph(files, tasks, releases):
-    log.basicConfig(filename='convert_history.log',level=logging.DEBUG)
+    log.basicConfig(filename='convert_history.log',level=log.DEBUG)
+
     commits = digraph()
     
     # Create the nodes
@@ -252,14 +251,14 @@ def create_commits_graph(files, tasks, releases):
 
     # Create the edges from tasks to tasks and from releases to tasks
     print "\t\tFrom tasks to tasks"
-    permutations_number = math.factorial(len(tasks.edges()))/math.factorial(len(tasks.edges())-2)   
-    for (counter,(t1, t2)) in enumerate(permutations(tasks.edges(), 2)):
-        log.info("Edge (%d/%d) from task %s to task %s" % (counter, permutations_number, t1, t2))
-        for (obj1, obj2) in product(tasks.links(t1), tasks.links(t2)):
-            if (obj1, obj2) in files.edges():
-                if not commits.has_edge((t1, t2)):
-                    commits.add_edge((t1, t2))
-                
+    for (counter, obj1) in enumerate(files.nodes()):
+        log.info("From task to task: object %d/%d" % (counter, len(files.nodes())))
+        task1 = tasks.links(obj1)
+        for obj2 in files.neighbors(obj1):
+            task2 = tasks.links(obj2)
+            if not task1 == task2 and not commits.has_edge((task1, task2)):
+                commits.add_edge((task1, task2))
+
     return commits
     
 def create_reduced_graph(files, tasks, cycle):
