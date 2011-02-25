@@ -5,8 +5,8 @@ fetch-ccm-history.py
 
 Fetch ccm (Synergy, Continuus) history from a repository
 
-Created by Aske Olsson 2011-01-11.
-Copyright (c) 2010 Aske Olsson. All rights reserved.
+Created by Emanuele Zattin and Aske Olsson on 2011-01-26.
+Copyright (c) 2011 Nokia. All rights reserved.
 """
 
 import SynergySession

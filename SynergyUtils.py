@@ -3,8 +3,8 @@
 """
 SynergyUtils.py
 
-Created by Aske Olsson 2010-12-13.
-Copyright (c) 2010 Aske Olsson. All rights reserved.
+Created by Emanuele Zattin and Aske Olsson on 2011-01-26.
+Copyright (c) 2011 Nokia. All rights reserved.
 """
 
 import SynergySession

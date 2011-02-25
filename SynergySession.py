@@ -3,8 +3,8 @@
 """
 untitled.py
 
-Created by Emanuele Zattin on 2010-11-08.
-Copyright (c) 2010 Emanuele Zattin. All rights reserved.
+Created by Emanuele Zattin and Aske Olsson on 2011-01-26.
+Copyright (c) 2011 Nokia. All rights reserved.
 """
 
 import os
