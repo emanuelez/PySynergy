@@ -12,8 +12,9 @@ import logging as logger
 import time
 from datetime import datetime
 from copy import copy
-from pygraph.classes.digraph import digraph
+from operator import itemgetter, attrgetter
 from collections import deque
+from pygraph.classes.digraph import digraph
 
 def ccm_fast_export(releases, graphs):
     logger.basicConfig(filename='ccm_fast_export.log',level=logger.DEBUG)
@@ -117,6 +118,7 @@ def create_release_merge_commit(releases, release, mark, reference):
 
 def create_commit(n, release, releases, mark, reference, graphs):
     logger.info("Creating commit for %s" %(n))
+    object_lookup = {}
     # Find n in release
     if ':task:' in n:
         # It's a task
@@ -135,6 +137,19 @@ def create_commit(n, release, releases, mark, reference, graphs):
         mark, commit = make_commit_from_task(task, get_mark(mark), reference, release, file_list)
         print '\n'.join(commit)
         return mark
+    
+    else:
+        # It's a single object
+        logger.info("Single Object: %s" %(n))
+        o = get_object(n, releases[release]['objects'])
+        if not o.get_type() == 'dir':
+            mark = create_blob(o, get_mark(mark), release)
+            object_lookup[o.get_object_name()] = mark
+
+        file_list = create_file_list([o], object_lookup)
+        mark, commit = make_commit_from_object(o, get_mark(mark), reference, release, file_list)
+        print '\n'.join(commit)
+        return mark
 
 def make_commit_from_task(task, mark, reference, release, file_list):
     commit_info = []
@@ -150,7 +165,24 @@ def make_commit_from_task(task, mark, reference, release, file_list):
         merge = ['merge :' + str(i) for i in reference[1:]]
         commit_info.append('\n'.join(merge))
     commit_info.append(file_list)
-#    commit_info.append('')
+    commit_info.append('')
+    logger.info("git-fast-import COMMIT:\n%s" %('\n'.join(commit_info)))
+    return mark, commit_info
+
+def make_commit_from_object(o, mark, reference, release, file_list):
+    commit_info = []
+    commit_info.append('commit refs/tags/' + release)
+    commit_info.append('mark :' + str(mark))
+    commit_info.append('author %s <%s@nokia.com> ' % (o.get_author(), o.get_author()) + str(int(time.mktime(o.get_integrate_time().timetuple()))) + " +0000")
+    commit_info.append('committer %s <%s@nokia.com> ' % (o.get_author(), o.get_author()) + str(int(time.mktime(o.get_integrate_time().timetuple()))) + " +0000")
+    commit_msg = "Object not associated to task in release: " + o.get_object_name()
+    commit_info.append('data ' + str(len(commit_msg)))
+    commit_info.append(commit_msg)
+    commit_info.append('from :' + str(reference[0]))
+    if len(reference) > 1:
+        merge = ['merge :' + str(i) for i in reference[1:]]
+        commit_info.append('\n'.join(merge))
+    commit_info.append(file_list)
     commit_info.append('')
     logger.info("git-fast-import COMMIT:\n%s" %('\n'.join(commit_info)))
     return mark, commit_info
@@ -227,6 +259,10 @@ def get_objects_from_graph(task, graph, objects):
 def get_task_object_from_splitted_task_name(task):
     return task.rsplit('_')[0]
 
+def get_object(o, objects):
+    for obj in objects:
+        if obj.get_object_name() == o:
+            return obj
 
 def create_blob(obj, mark, release):
     blob =['blob']
