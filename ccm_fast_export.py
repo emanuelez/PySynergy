@@ -127,6 +127,9 @@ def create_commit(n, release, releases, mark, reference, graphs):
         # Get the correct task name so commit message can be filled
         task_name = get_task_object_from_splitted_task_name(n)
         task = find_task_in_release(task_name, releases[release]['tasks'])
+
+        # sort objects to get correct commit order, if multiple versions of one file is in in the task
+        objects = sort_objects_by_integrate_time(objects)
         for o in objects:
             if not o.get_type() == 'dir':
                 mark = create_blob(o, get_mark(mark), release)
@@ -258,6 +261,11 @@ def get_objects_from_graph(task, graph, objects):
 
 def get_task_object_from_splitted_task_name(task):
     return task.rsplit('_')[0]
+
+def sort_objects_by_integrate_time(objects):
+    #Sort first by integrate time, but also by version as several objects may be checked in at the same time (checkpoint->integrate).
+    sorted_objects = sorted(objects, key=attrgetter('integrate_time', 'version'))
+    return sorted_objects
 
 def get_object(o, objects):
     for obj in objects:
