@@ -28,19 +28,13 @@ def ccm_fast_export(releases, graphs):
 
     initial_release_time = time.mktime(releases[release]['created'].timetuple())
     mark = 0
-    blobs = []
 
-#    f = open('test.bin5', 'wb')
     files = []
     #Create the initial release
     for o in releases[release]['objects']:
         if o.get_type() != 'dir':
-            mark, blob = create_blob(o, get_mark(mark), release)
-            #print blob
-#            f.write(blob)
+            mark = create_blob(o, get_mark(mark), release)
             files.append('M 100644 :'+str(mark) + ' ' + o.get_path())
-
-    #commit_info.append('')
 
     mark = get_mark(mark)
     commit_info = []
@@ -53,13 +47,9 @@ def ccm_fast_export(releases, graphs):
     commit_info.append('Initial commit')
     commit_info.append('\n'.join(files))
     commit_info.append('')
-    #commit_info.append('')
     print '\n'.join(commit_info)
 
-
-#    f.write('\n'.join(blobs))
     logger.info("git-fast-import:\n%s" %('\n'.join(commit_info)))
-#    f.write('\n'.join(commit_info))
 
     commit_lookup[release] = mark
     # do the following releases (graphs)
@@ -85,9 +75,7 @@ def ccm_fast_export(releases, graphs):
                 continue
             reference = [commit_lookup[i] for i in commit_graph.incidents(n)]
             # create blobs and commit message for task/object
-            mark, commit, blobs = do_neighbor(n, release, releases, mark, reference, graphs)
-#            f.write('\n'.join(blobs))
-#            f.write('\n'.join(commit))
+            mark = create_commit(n, release, releases, mark, reference, graphs)
 
             commit_lookup[n] = mark
             # Get neighbors for this node
@@ -98,7 +86,6 @@ def ccm_fast_export(releases, graphs):
 
         reference = [commit_lookup[i] for i in commit_graph.incidents(release)]
         mark, merge_commit = create_release_merge_commit(releases, release, get_mark(mark), reference)
-#        f.write('\n'.join(merge_commit))
         print '\n'.join(merge_commit)
 
         commit_lookup[release] = mark
@@ -110,9 +97,6 @@ def ccm_fast_export(releases, graphs):
     reset.append('from :' + str(mark))
     logger.info("git-fast-import:\n%s" %('\n'.join(reset)))
     print '\n'.join(reset)
-#    f.write('\n'.join(reset))
-
-#    f.close()
 
 def create_release_merge_commit(releases, release, mark, reference):
     msg = []
@@ -128,44 +112,29 @@ def create_release_merge_commit(releases, release, mark, reference):
         merge = ['merge :' + str(i) for i in reference[1:]]
         msg.append('\n'.join(merge))
     msg.append('')
-    #msg.append('')
     logger.info("git-fast-import MERGE-COMMIT:\n%s" %('\n'.join(msg)))
     return mark, msg
-
-def do_neighbor(neighbor, release, releases, mark, reference, graphs):
-    mark, commit, blobs = create_commit(neighbor, release, releases, mark, reference, graphs)
-
-    return mark, commit, blobs
-
 
 def create_commit(n, release, releases, mark, reference, graphs):
     logger.info("Creating commit for %s" %(n))
     # Find n in release
     if ':task:' in n:
         # It's a task
-        #task = find_task_in_release(n, releases[release]['tasks'])
-        #if not task:
-            # Task splitted find objects from task graph
         logger.info("Task: %s" %(n))
         objects = get_objects_from_graph(n, graphs[release]['task'], releases[release]['objects'])
-        # Get the correct task name so commit can be filled
+        # Get the correct task name so commit message can be filled
         task_name = get_task_object_from_splitted_task_name(n)
         task = find_task_in_release(task_name, releases[release]['tasks'])
-        #else:
-        #    objects = get_objects_from_task(task, releases[release]['objects'])
-        object_lookup = {}
-        blobs = []
         for o in objects:
-            mark, blob = create_blob(o, get_mark(mark), release)
-            #print blob
-            object_lookup[o.get_object_name()] = mark
-            blobs.append(blob)
+            if not o.get_type() == 'dir':
+                mark = create_blob(o, get_mark(mark), release)
+                object_lookup[o.get_object_name()] = mark
 
 
         file_list = create_file_list(objects, object_lookup)
         mark, commit = make_commit_from_task(task, get_mark(mark), reference, release, file_list)
         print '\n'.join(commit)
-        return mark, commit, blobs
+        return mark
 
 def make_commit_from_task(task, mark, reference, release, file_list):
     commit_info = []
@@ -267,17 +236,14 @@ def create_blob(obj, mark, release):
     content = f.read()
     f.close()
     length = len(content)
-    #length = len(fname)
     blob.append('data '+ str(length))
     msg = copy(blob)
     msg.append('<content of %s>' %(obj.get_object_name()))
     msg.append('')
     blob.append(content)
-    #blob.append('')
-    #logger.info("Object: %s mark %d length %d" % (obj.get_object_name(), mark, length))
     logger.info("git-fast-import BLOB:\n%s" %('\n'.join(msg)))
     print '\n'.join(blob)
-    return mark, '\n'.join(blob)
+    return mark
 
 def fix_orphan_nodes(commit_graph, release):
     orphan_nodes = [node for node in commit_graph.nodes() if commit_graph.incidents(node) == []]
