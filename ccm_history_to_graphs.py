@@ -37,7 +37,6 @@ def create_graphs_from_releases(releases):
 
 
     return graphs
-    # Create first graph
-#    commit_graph = ccm_graph.create_graphs(releases[release])
+
 
 
