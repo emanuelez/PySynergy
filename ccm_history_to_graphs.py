@@ -6,7 +6,7 @@ ccm_history_to_graphs.py
 Create commit graphs from ccm history pulled from Synergy via fetch-ccm-history.py
 
 Created by Aske Olsson 2011-02-22.
-Copyright (c) 2011 Aske Olsson. All rights reserved.
+Copyright (c) 2011 Nokia. All rights reserved.
 """
 
 import FileObject

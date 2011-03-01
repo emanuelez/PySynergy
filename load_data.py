@@ -1,3 +1,14 @@
+#!/usr/bin/env python
+# encoding: utf-8
+"""
+load_data.py
+
+Output Synergy data as git fast import/export format
+
+Created by Aske Olsson 2011-02-23.
+Copyright (c) 2011 Nokia. All rights reserved.
+"""
+
 import FileObject
 import TaskObject
 import cPickle
