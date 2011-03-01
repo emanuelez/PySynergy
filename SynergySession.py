@@ -18,22 +18,22 @@ import os
 import re
 from subprocess import Popen, PIPE
 
-class SynergySession:
+class SynergySession(object):
     """This class is a wrapper around the Synergy command line client"""
 
-    def __init__(self, database, engine = None, command_name = 'ccm', ccm_ui_path = '/dev/null', ccm_eng_path = '/dev/null'):
+    def __init__(self, database, engine=None, command_name='ccm', ccm_ui_path='/dev/null', ccm_eng_path='/dev/null'):
         self.command_name = command_name
-        self.database     = database
-        self.engine       = engine
-        self.num_of_cmds  = 0
+        self.database = database
+        self.engine = engine
+        self.num_of_cmds = 0
 
         # This dictionary will contain the status of the next command and will be emptied by self.run()
         self.command = ''
-        self.status  = {}
+        self.status = {}
 
         # Store the warnings and errors that might be found along the preparation or execution of a command
         self.warnings = []
-        self.errors   = []
+        self.errors = []
 
         # Open the session
         args = [self.command_name]
@@ -75,10 +75,10 @@ class SynergySession:
 
     def _reset_status(self):
         """Reset the status of the object"""
-        self.command  = ''
-        self.status   = {}
+        self.command = ''
+        self.status = {}
         self.warnings = []
-        self.errors   = []
+        self.errors = []
 
     def _run(self, command):
         """Execute a Synergy command"""
@@ -94,7 +94,8 @@ class SynergySession:
         stdout, stderr = p.communicate()
 
         if stderr:
-            raise SynergyException('Error while running the Synergy command: %s \nError message: %s' % (command, stderr))
+            raise SynergyException(
+                    'Error while running the Synergy command: %s \nError message: %s' % (command, stderr))
 
         return stdout
 
@@ -146,7 +147,7 @@ class SynergySession:
             self.status['format'] = []
         return self
 
-    def task(self, task, formattable = False):
+    def task(self, task, formattable=False):
         """Task command"""
         self.command = 'task'
         self.status['arguments'] = [task]
@@ -274,7 +275,8 @@ class SynergySession:
             final_result = []
             items = []
             if 'hist' in command:
-                items = result.split('*****************************************************************************')[:-1]
+                items = result.split('*****************************************************************************')[
+                        :-1]
             else:
                 items = result.split('|ITEM_SEPARATOR|')[:-1]
 
@@ -288,9 +290,9 @@ class SynergySession:
                 if 'hist' in command:
                     # History command is special ;)
                     p = re.compile("(?s)(.*?)Predecessors:\s*(.*)Successors:\s*(.*?)$")
-                    m = p.match(splitted_item[len(splitted_item)-1])
+                    m = p.match(splitted_item[len(splitted_item) - 1])
                     if m:
-                        line[self.status['format'][-1]] =  m.group(1).split()
+                        line[self.status['format'][-1]] = m.group(1).split()
                         line['predecessors'] = m.group(2).split()
                         line['successors'] = m.group(3).split()
                     else:
@@ -298,7 +300,7 @@ class SynergySession:
                         line['successors'] = []
 
                 final_result.append(line)
-            # Clean up
+                # Clean up
             self._reset_status()
             return final_result
         else:
@@ -318,7 +320,7 @@ class SynergyException(Exception):
 
 
 def main():
-    # Test
+    """Test"""
     ccm = SynergySession('/nokia/co_nmp/groups/gscm/dbs/co1asset')
     results = ccm.query("is_associated_cv_of(task('co1asset#113266'))").format("%objectname").run()
     print results

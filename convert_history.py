@@ -13,13 +13,13 @@ from itertools import combinations
 from itertools import count
 from pygraph.classes.digraph import digraph
 from pygraph.classes.hypergraph import hypergraph
-from pygraph.readwrite.dot import write
 from pygraph.algorithms.cycles import find_cycle
 from pygraph.algorithms.critical import transitive_edges
 from pygraph.algorithms.accessibility import mutual_accessibility
 import logging as log
 
 def main():
+    """A test method"""
 
        # The file history graph
     fh = digraph()
@@ -113,10 +113,10 @@ def convert_history(files, tasks, releases, fileobjects):
     [files.del_edge(edge) for i, edge in transitive_edges(files)]
     #print "Removed transitive edges from the File History graph."
 
-    tasks = sanitize_tasks(tasks)
+    sanitized_tasks = _sanitize_tasks(tasks)
     #print "Tasks hypergraph sanitized."
 
-    commits = create_commits_graph(files, tasks, releases)
+    commits = create_commits_graph(files, sanitized_tasks, releases)
 
     #print "First commits graph created."
 
@@ -127,7 +127,7 @@ def convert_history(files, tasks, releases, fileobjects):
         #print "Cycle:", cycle
 
         # Generate the reduced file history graph
-        reduced_graph = create_reduced_graph(files, tasks, cycle)
+        reduced_graph = _create_reduced_graph(files, tasks, cycle)
         #print "Reduced graph:", reduced_graph
 
         # Find the longest cycle in the reduced graph
@@ -141,7 +141,7 @@ def convert_history(files, tasks, releases, fileobjects):
             if tasks.links(node1) == tasks.links(node2):
                 task = tasks.links(node1)[0]
                 # Find which cuts are compatible and add them to the candidates list
-                candidate_cuts.extend( [cut for cut in find_cuts(tasks.links(task))
+                candidate_cuts.extend( [cut for cut in _find_cuts(tasks.links(task))
                         if (node1 in cut and node2 not in cut)
                         or (node2 in cut and node2 not in cut)])
 
@@ -196,7 +196,7 @@ def convert_history(files, tasks, releases, fileobjects):
     return commits
 
 
-def sanitize_tasks(tasks):
+def _sanitize_tasks(tasks):
     common_objects = [(t1, t2, set(tasks.links(t1)) & set(tasks.links(t2)))
                       for (t1, t2) in combinations(tasks.edges(), 2)
                       if set(tasks.links(t1)) & set(tasks.links(t2))]
@@ -212,16 +212,17 @@ def sanitize_tasks(tasks):
 
     return tasks
 
-def find_cuts(s):
+def _find_cuts(s):
     subsets = reduce(lambda z, x: z + [y + [x] for y in z], s, [[]])[1:-1]
     cuts = []
-    [cuts.append(i) for i in subsets if complementary_set(s, i) not in cuts]
+    [cuts.append(i) for i in subsets if _complementary_set(s, i) not in cuts]
     return cuts
 
-def complementary_set(s, ss):
+def _complementary_set(s, ss):
     return list(set(s) - set(ss))
 
 def create_commits_graph(files, tasks, releases):
+    """Create a commits graph from files, tasks and releases"""
     log.basicConfig(filename='convert_history.log',level=log.DEBUG)
 
     commits = digraph()
@@ -264,7 +265,7 @@ def create_commits_graph(files, tasks, releases):
 
     return commits
 
-def create_reduced_graph(files, tasks, cycle):
+def _create_reduced_graph(files, tasks, cycle):
     reduced = digraph()
 
     # Add the nodes
