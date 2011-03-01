@@ -108,6 +108,8 @@ class CCMHistory(object):
         print "getting all objects for:", latestproject.get_version(), "..."
         # Do the last project as a full project
         self.find_project_diff(latestproject.get_object_name(), baseline_project, latestproject.get_object_name())
+        self.history[self.tag]['name'] = self.tag
+        self.history[self.tag]['created'] = latestproject.get_created_time()
         #Print Info
         self.history[self.tag]['previous'] = None
         print self.tag, "done processing, Info:"
