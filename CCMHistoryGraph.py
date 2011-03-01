@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # encoding: utf-8
 """
 CCMHistoryGraph.py
@@ -31,8 +32,10 @@ import convert_history as ch
 def find_objects_without_associated_tasks(objects, tasks):
     objects_from_tasks = []
     # compare objects in the tasks with objects in release, to see if there is any single objects
-    objects_from_tasks = [o for task in tasks for o in task.get_objects()]
-    single_objects = [o for o in objects if o.get_object_name() not in objects_from_tasks]
+    object_names= set([o.get_object_name() for o in objects])
+    objects_from_tasks = set([o for task in tasks for o in task.get_objects()])
+    single_object_names = object_names - objects_from_tasks
+    single_objects = [o for o in objects if o.get_object_name() in single_object_names]
     return single_objects
 
 def get_commit_history(release):
@@ -40,7 +43,7 @@ def get_commit_history(release):
 
     return commits
 
-def create_graphs( release):
+def create_graphs(release):
     tasks = release['tasks']
     objects = release['objects']
 
@@ -49,7 +52,7 @@ def create_graphs( release):
     release_graph = create_release_graph(objects, release['name'], release['previous']);
     commit_graph = ch.convert_history(object_graph, task_graph, release_graph, objects)
 
-    return commit_graph
+    return object_graph, task_graph, release_graph, commit_graph
 
 
 def create_release_graph(objects, release, previous):
@@ -61,17 +64,18 @@ def create_release_graph(objects, release, previous):
     for o in objects:
         # Bind objects to this release
         if o.get_successors() is None:
-            print "linking", o.get_object_name(), "to release", release
+            #print "linking", o.get_object_name(), "to release", release
             release_graph.link(o.get_object_name(), release)
 
         # Bind objects to previous release
         predecessors = o.get_predecessors()
-        for p in predecessors:
-            if p not in object_names:
-                if not release_graph.has_node(p):
-                    release_graph.add_node(p)
-                    print "linking", p, "to release", previous
-                    release_graph.link(p, previous)
+        if predecessors is not None:
+            for p in predecessors:
+                if p not in object_names:
+                    if not release_graph.has_node(p):
+                        release_graph.add_node(p)
+                        #print "linking", p, "to release", previous
+                        release_graph.link(p, previous)
 
     return release_graph
 
@@ -83,12 +87,12 @@ def create_task_graph(tasks, objects):
     #link the objects and the tasks
     for t in tasks:
         for o in t.get_objects():
-            print "linking:", o, "and", t.get_object_name()
+            #print "linking:", o, "and", t.get_object_name()
             task_graph.link(o, t.get_object_name())
     # Add single_objects to task_graph
     for o in find_objects_without_associated_tasks(objects, tasks):
         task_graph.add_hyperedge(o.get_object_name())
-        print "linking:", o.get_object_name(), "and", o.get_object_name()
+        #print "linking:", o.get_object_name(), "and", o.get_object_name()
         task_graph.link(o.get_object_name(), o.get_object_name())
 
     return task_graph
@@ -112,11 +116,12 @@ def create_object_graph(objects):
     for o in objects:
         # Bind objects to previous release
         predecessors = o.get_predecessors()
-        for p in predecessors:
-            if p not in object_names:
-                if not object_graph.has_node(p):
-                    object_graph.add_node(p)
-                    object_graph.add_edge((p,o.get_object_name()))
+        if predecessors is not None:
+            for p in predecessors:
+                if p not in object_names:
+                    if not object_graph.has_node(p):
+                        object_graph.add_node(p)
+                        object_graph.add_edge((p,o.get_object_name()))
 
     return object_graph
 
