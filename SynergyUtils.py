@@ -54,7 +54,7 @@ class CCMFilePath(object):
             if not self.top_reached:
                 s = s.strip()
                 # match
-                p = re.compile("^(.+?)-(.+?)@(.*)$")
+                p = re.compile("^(.+)-(.+?)@(.*)$")
                 m = p.match(s)
                 if m:
                     path = m.group(1)
