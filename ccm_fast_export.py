@@ -129,7 +129,7 @@ def create_commit(n, release, releases, mark, reference, graphs):
         task = find_task_in_release(task_name, releases[release]['tasks'])
 
         # sort objects to get correct commit order, if multiple versions of one file is in in the task
-        objects = sort_objects_by_integrate_time(objects)
+        objects = reduce_objects_for_commit(objects)
         for o in objects:
             if not o.get_type() == 'dir':
                 mark = create_blob(o, get_mark(mark), release)
@@ -140,7 +140,7 @@ def create_commit(n, release, releases, mark, reference, graphs):
         mark, commit = make_commit_from_task(task, get_mark(mark), reference, release, file_list)
         print '\n'.join(commit)
         return mark
-    
+
     else:
         # It's a single object
         logger.info("Single Object: %s" %(n))
@@ -262,6 +262,22 @@ def get_objects_from_graph(task, graph, objects):
 def get_task_object_from_splitted_task_name(task):
     return task.rsplit('_')[0]
 
+def reduce_objects_for_commit(objects):
+    ret_val = []
+    objs = {}
+    for o in objects:
+        key = o.get_name() + ':' + o.get_type() + ':' + o.get_instance()
+        if key in objs.keys():
+            objs[key].append(o)
+        else:
+            objs[key] = [o]
+
+    for v in objs.values():
+        o = sort_objects_by_integrate_time(v)
+        ret_val.append(o.pop())
+
+    return ret_val
+
 def sort_objects_by_integrate_time(objects):
     #Sort first by integrate time, but also by version as several objects may be checked in at the same time (checkpoint->integrate).
     sorted_objects = sorted(objects, key=attrgetter('integrate_time', 'version'))
@@ -276,16 +292,12 @@ def create_blob(obj, mark, release):
     blob =['blob']
     blob.append('mark :'+str(mark))
     fname = 'data/' + release + '/' + obj.get_object_name()
-    f = open(fname, 'rb')
-    content = f.read()
-    f.close()
-    length = len(content)
-    blob.append('data '+ str(length))
-    msg = copy(blob)
-    msg.append('<content of %s>' %(obj.get_object_name()))
-    msg.append('')
-    blob.append(content)
-    logger.info("git-fast-import BLOB:\n%s" %('\n'.join(msg)))
+    #f = open(fname, 'rb')
+    #content = f.read()
+    #f.close()
+    #length = len(content)
+    #blob.append('data '+ str(length))
+    #blob.append(content)
     print '\n'.join(blob)
     return mark
 
