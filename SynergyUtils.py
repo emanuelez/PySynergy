@@ -148,13 +148,13 @@ class TaskUtil(object):
 
     def fill_task_info(self, task):
         print "Fetching task info", task.get_object_name()
-        task.set_attributes(self.synergy_utils.get_all_attributes(task))
+        task.set_attributes(self.synergy_utils.get_non_blacklisted_attributes(task))
         #Find related task (s30)
         releated_task = self.ccm.query("has_task_in_CUIinsp('{0}')".format(task.get_object_name())).format('%objectname').format("%owner").format("%status").format("%create_time").format("%task").run()
         #There should be only one releated task - inspection task
         if len(releated_task) == 1:
             insp_task = TaskObject.TaskObject(releated_task[0]['objectname'], self.delim, releated_task[0]['owner'], releated_task[0]['status'], releated_task[0]['create_time'], releated_task[0]['task'])
-            attributes = self.synergy_utils.get_all_attributes(insp_task)
+            attributes = self.synergy_utils.get_non_blacklisted_attributes(insp_task)
             task.get_attributes().update({'inspection_task': attributes})
 
         task_objects = self.ccm.task(task.get_tasks(), True).option('-sh').option('obj').format("%objectname").format("%owner").format("%status").format("%create_time").format("%task").run()
@@ -166,7 +166,7 @@ class TaskUtil(object):
                 #fileobject = FileObject.FileObject(o['objectname'], self.delim, o['owner'], o['status'], o['create_time'], o['task'])
                 #content = self.ccm.cat(fileobject.get_object_name()).run()
                 #fileobject.set_content(content)
-                #fileobject.set_attributes(self.synergy_utils.get_all_attributes(fileobject))
+                #fileobject.set_attributes(self.synergy_utils.get_non_blacklisted_attributes(fileobject))
                 #predecessors = self.ccm.query("is_predecessor_of('{0}')".format(fileobject.get_object_name())).format("%owner").format("%status").format("%create_time").format("%task").format("%objectname").run()
                 #for p in predecessors:
                 #    predecessor = FileObject.FileObject(p['objectname'], fileobject.get_separator(), p['owner'], p['status'], p['create_time'], p['task'])
@@ -234,7 +234,7 @@ class ObjectHistory(object):
         f.write(content)
         f.close()
 
-        fileobject.set_attributes(self.synergy_utils.get_all_attributes(fileobject))
+        fileobject.set_attributes(self.synergy_utils.get_non_blacklisted_attributes(fileobject))
 
         if self.old_release == self.current_release:
             #handle directory objects
@@ -319,7 +319,7 @@ class ObjectHistory(object):
                 self.add_to_history(predecessor)
             else:
                 print "Adding", predecessor.get_object_name(), predecessor.get_status(),  "to history. Path:", path
-                predecessor.set_attributes(self.synergy_utils.get_all_attributes(predecessor))
+                predecessor.set_attributes(self.synergy_utils.get_non_blacklisted_attributes(predecessor))
                 if not path:
                     #Path couldn't be found object is probably not released... use path of successor as that is the one we have...
                     path = fileobject.get_path()
@@ -403,7 +403,7 @@ class SynergyUtils(object):
         'completed_id', 'completed_in', 'completion_date', 'creator', 'modifiable_in',
         'registration_date', 'source']
 
-    def get_all_attributes(self, obj):
+    def get_non_blacklisted_attributes(self, obj):
         attr_list = self.ccm.attr(obj.get_object_name()).option('-l').run().splitlines()
         attributes = {}
         for attr in attr_list:
@@ -412,7 +412,15 @@ class SynergyUtils(object):
                 print "setting attribute:", attr
                 attributes[attr] = self.ccm.attr(obj.get_object_name()).option('-s').option(attr).run()
         return attributes
-
+    
+    def get_all_attributes(self, obj):
+        attr_list = self.ccm.attr(obj.get_object_name()).option('-l').run().splitlines()
+        attributes = {}
+        for attr in attr_list:
+            attr = attr.partition(' ')[0]
+            print "setting attribute:", attr
+            attributes[attr] = self.ccm.attr(obj.get_object_name()).option('-s').option(attr).run()
+        return attributes
 
     def get_dir_changes(self, fileobject, predecessor):
         diff = self.ccm.diff(fileobject.get_object_name(), predecessor.get_object_name()).run().splitlines()
