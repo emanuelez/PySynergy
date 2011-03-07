@@ -15,50 +15,116 @@ from copy import copy
 from operator import itemgetter, attrgetter
 from collections import deque
 from pygraph.classes.digraph import digraph
+from pygraph.algorithms.searching import breadth_first_search
+from itertools import count
 
 def ccm_fast_export(releases, graphs):
     logger.basicConfig(filename='ccm_fast_export.log',level=logger.DEBUG)
 
     commit_lookup = {}
-    #Start at initial release
-    for k, v in releases.iteritems():
-        if v['previous'] is None:
-            release = k
-            break
-    logger.info("Starting at %s as initial release" %(release))
+    
+    # populate release_list to have them in the right order (oldeset to youngest)
+    releases_list = []
+    releases_list.append(next((k for k, v in releases.iteritems() if not v['previous']), None))
+    current_release = releases_list[0]
+    while releases[current_release]['next']:
+        current_release = releases[current_release]['next']
+        releases_list.append(current_release)       
+    
+    #-------------------------
+    # Start at initial release
+    #-------------------------
+    
+    # Get the key of the first value with no predecessor
+    current_release = releases_list[0]
+    logger.info("Starting at %s as initial release" %(current_release))
 
-    initial_release_time = time.mktime(releases[release]['created'].timetuple())
-    mark = 0
+    initial_release_time = int(time.mktime(releases[current_release]['created'].timetuple()))
+    mark = count(1)
+    
+    objs_in_release = (obj for obj in releases[current_release]['objects'] if obj.get_type() != 'dir')
 
     files = []
     #Create the initial release
-    for o in releases[release]['objects']:
-        if o.get_type() != 'dir':
-            mark = create_blob(o, get_mark(mark), release)
-            files.append('M 100644 :'+str(mark) + ' ' + o.get_path())
+    for obj in objs_in_release:
+        current_mark = next(mark)
+        create_blob(o, current_mark, release)
+        files.append('M 100644 :%i %s' % (current_mark, o.get_path()))
 
-    mark = get_mark(mark)
+    release_mark = next(mark)
     commit_info = []
-    commit_info.append('reset refs/tags/' + release)
-    commit_info.append('commit refs/tags/' + release)
-    commit_info.append('mark :' + str(mark))
-    commit_info.append('author Nokia <nokia@nokia.com> ' + str(int(initial_release_time)) + " +0000")
-    commit_info.append('committer Nokia <nokia@nokia.com> ' + str(int(initial_release_time)) + " +0000")
+    commit_info.append('reset refs/tags/%s' % release)
+    commit_info.append('commit refs/tags/%s' % release)
+    commit_info.append('mark :%i' % release_mark)
+    commit_info.append('author Nokia <nokia@nokia.com> %i +0000' % initial_release_time)
+    commit_info.append('committer Nokia <nokia@nokia.com> %i +0000' % initial_release_time)
     commit_info.append('data 15')
     commit_info.append('Initial commit')
     commit_info.append('\n'.join(files))
     commit_info.append('')
     print '\n'.join(commit_info)
+    
+    commit_lookup[release] = release_mark
 
     logger.info("git-fast-import:\n%s" %('\n'.join(commit_info)))
-
-    commit_lookup[release] = mark
+    
+    for current_release in releases_list[1:]:
+        logger.info("Next release: %s" % current_release)
+        
+        # Select and fix the commit graph
+        commit_graph = graphs[current_release]['commit']
+        commit_graph = fix_orphan_nodes(commit_graph, current_release['previous'])
+        
+        # Get the commits order
+        commits = breadth_first_search(commit_graph)[1]
+        
+        # Fix the commits order
+        commits.remove(current_release['previous'])
+        commits.remove(release)
+        commits.append(release)
+        
+        logger.info("Commits order: %s" % " --> ".join(commits))
+        
+        for commit in commits:
+            if commit == commits[-1]:
+                # Last commit. Release merge
+            elif len(commit_graph.incidents(commit)) > 1:
+                # Merge commit
+            else:
+                # Normal commit
+                
+                # Files
+                obj_in_commit = (for objectname in graphs[current_release]['task'].links(commit))
+                files = []
+                for obj in objs_in_release:
+                    current_mark = next(mark)
+                    create_blob(o, current_mark, release)
+                    files.append('M 100644 :%i %s' % (current_mark, o.get_path()))                
+                                
+    
+   
     # do the following releases (graphs)
     release = releases[release]['next']
     while release:
         logger.info("Next release: %s" %(release))
         commit_graph = graphs[release]['commit']
         commit_graph = fix_orphan_nodes(commit_graph, releases[release]['previous'])
+        
+        # Get the commits order
+        commits = breadth_first_search(commit_graph)[1]
+        
+        # Fix the commits order
+        commits.remove(releases[release]['previous'])
+        commits.remove(release)
+        commits.append(release)
+        
+        for commit in commits:
+            if len(commit_graph.incidents(commit)) > 1:
+                # Merge commit
+            else:
+                # Normal commit
+        
+        
         neighbors = deque(commit_graph.neighbors(releases[release]['previous']))
 
         neighbors_left = len(neighbors)
@@ -97,7 +163,7 @@ def ccm_fast_export(releases, graphs):
     reset = ['reset refs/heads/master']
     reset.append('from :' + str(mark))
     logger.info("git-fast-import:\n%s" %('\n'.join(reset)))
-    print '\n'.join(reset)
+    print '\n'.join(reset)      
 
 def create_release_merge_commit(releases, release, mark, reference):
     msg = []
@@ -302,7 +368,6 @@ def create_blob(obj, mark, release):
     #blob.append('data '+ str(length))
     #blob.append(content)
     print '\n'.join(blob)
-    return mark
 
 def fix_orphan_nodes(commit_graph, release):
     orphan_nodes = [node for node in commit_graph.nodes() if commit_graph.incidents(node) == []]
