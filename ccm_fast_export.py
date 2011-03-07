@@ -15,6 +15,7 @@ from copy import copy
 from operator import itemgetter, attrgetter
 from collections import deque
 from pygraph.classes.digraph import digraph
+from pygraph.algorithms.searching import breadth_first_search
 
 def ccm_fast_export(releases, graphs):
     logger.basicConfig(filename='ccm_fast_export.log',level=logger.DEBUG)
@@ -27,7 +28,8 @@ def ccm_fast_export(releases, graphs):
             break
     logger.info("Starting at %s as initial release" %(release))
 
-    initial_release_time = time.mktime(releases[release]['created'].timetuple())
+    #initial_release_time = time.mktime(releases[release]['created'].timetuple())
+    initial_release_time = 0.0 # epoch for now since releases[release] has no 'created' key :(
     mark = 0
 
     files = []
@@ -56,34 +58,33 @@ def ccm_fast_export(releases, graphs):
     # do the following releases (graphs)
     release = releases[release]['next']
     while release:
+        previous_release = releases[release]['previous']
         logger.info("Next release: %s" %(release))
         commit_graph = graphs[release]['commit']
-        commit_graph = fix_orphan_nodes(commit_graph, releases[release]['previous'])
-        neighbors = deque(commit_graph.neighbors(releases[release]['previous']))
+        commit_graph = fix_orphan_nodes(commit_graph, previous_release)
 
-        neighbors_left = len(neighbors)
+        # Get the commits order
+        spanning_tree, commits = breadth_first_search(commit_graph, previous_release)
 
-        while neighbors_left > 1:
-            n = neighbors.popleft()
-            logger.info("Neighbor: %s" %(n))
-            # Check is all incident objects are processed
-            if not set(commit_graph.incidents(n)).issubset(set(commit_lookup.keys())):
-                #print "Processing", n
-                #print "objects left:", neighbors
-                #print "missing", set(commit_graph.incidents(n)) - set(commit_lookup.keys())
-                #print "lookup", commit_lookup.keys()
-                neighbors.append(n)
-                continue
-            reference = [commit_lookup[i] for i in commit_graph.incidents(n)]
-            # create blobs and commit message for task/object
-            mark = create_commit(n, release, releases, mark, reference, graphs)
+        # Fix the commits order list
+        commits.remove(previous_release)
+        commits.remove(release)
 
-            commit_lookup[n] = mark
-            # Get neighbors for this node
-            nbs = commit_graph.neighbors(n)
-            neighbors.extend(set(nbs) - set(neighbors))
+        for counter, commit in enumerate(commits):
+            logger.info("Commit %i/%i" % (counter, len(commits)))
 
-            neighbors_left = len(neighbors)
+            # Create the references lists. It lists the parents of the commit
+            reference = [commit_lookup[i] for i in commit_graph.incidents(commit)]
+
+            if len(reference) > 1:
+                # Merge commit
+                mark = create_merge_commit(commit, release, releases, mark, reference, graphs)
+            else:
+                # Normal commit
+                mark = create_commit(commit, release, releases, mark, reference, graphs)
+
+            # Update the lookup table
+            commit_lookup[commit] = mark
 
         reference = [commit_lookup[i] for i in commit_graph.incidents(release)]
         mark, merge_commit = create_release_merge_commit(releases, release, get_mark(mark), reference)
@@ -115,6 +116,34 @@ def create_release_merge_commit(releases, release, mark, reference):
     msg.append('')
     logger.info("git-fast-import MERGE-COMMIT:\n%s" %('\n'.join(msg)))
     return mark, msg
+
+def create_merge_commit(n, release, releases, mark, reference, graphs):
+    logger.info("Creating commit for %s" % n)
+    object_lookup = {}
+
+    objects = get_objects_from_graph(n, graphs[release]['task'], releases[release]['objects'])
+
+    # Also add all the objects of the parents
+    for parent in graphs[release]['task'].incidents(n):
+        objects.extend(get_objects_from_graph(parent, graphs[release]['task'], releases[release]['objects']))
+
+    # Get the correct task name so commit message can be filled
+    task_name = get_task_object_from_splitted_task_name(n)
+    task = find_task_in_release(task_name, releases[release]['tasks'])
+
+    # Sort objects to get correct commit order, if multiple versions of one file is in in the task
+    objects = reduce_objects_for_commit(objects)
+
+    for o in objects:
+        if not o.get_type() == 'dir':
+            mark = create_blob(o, get_mark(mark), release)
+            object_lookup[o.get_object_name()] = mark
+
+
+    file_list = create_file_list(objects, object_lookup)
+    mark, commit = make_commit_from_task(task, get_mark(mark), reference, release, file_list)
+    print '\n'.join(commit)
+    return mark
 
 def create_commit(n, release, releases, mark, reference, graphs):
     logger.info("Creating commit for %s" %(n))
