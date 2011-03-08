@@ -16,6 +16,8 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
 import os
 import re
+from threading import Thread
+from Queue import Queue
 from subprocess import Popen, PIPE
 
 class SynergySession(object):
@@ -26,6 +28,8 @@ class SynergySession(object):
         self.database = database
         self.engine = engine
         self.num_of_cmds = 0
+        self.sessionID = 0 # for multiple sessions, populate after creating the session
+        self.q = Queue()
 
         # This dictionary will contain the status of the next command and will be emptied by self.run()
         self.command = ''
@@ -68,10 +72,19 @@ class SynergySession(object):
         # Get the delimiter and store it
         self.delimiter = self.delim()
 
+    def setSessionID(self, sessionID):
+        self.sessionID = sessionID
+
+    def getSessionID(self):
+        return self.sessionID
+
+    def getCCM_ADDR(self):
+        return self.environment['CCM_ADDR'].strip()
+
     def __del__(self):
         # Close the session
         self.stop()
-        print "Number of commands issued:", str(self.num_of_cmds)
+        print "[" + str(self.sessionID) + "] Number of commands issued:", str(self.num_of_cmds)
 
     def _reset_status(self):
         """Reset the status of the object"""
@@ -82,7 +95,6 @@ class SynergySession(object):
 
     def _run(self, command):
         """Execute a Synergy command"""
-
         if not command[0] == self.command_name:
             command.insert(0, self.command_name)
 
@@ -228,6 +240,23 @@ class SynergySession(object):
                 self.status['option'].append(element)
 
         return self
+
+    def start(self):
+        self.t = Thread(target=self.prun, args=(self.q,))
+        self.t.start()
+
+    def join(self):
+        retval = self.q.get()
+        self.q.task_done()
+        self.q.join()
+        self.t.join()
+        return retval
+
+    def prun(self, q):
+        self.q = q
+        retval = self.run()
+        self.q.put(retval)
+        return retval
 
     def run(self):
         """
