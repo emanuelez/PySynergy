@@ -5,7 +5,7 @@ ccm_history_to_graphs.py
 
 Create commit graphs from ccm history pulled from Synergy via fetch-ccm-history.py
 
-Created by Aske Olsson 2011-02-22.
+Created by Aske Olsson and Emanuele Zattin 2011-02-22.
 Copyright (c) 2011 Nokia. All rights reserved.
 """
 
@@ -48,8 +48,6 @@ def create_graphs_from_releases(releases):
     return graphs
 
 
-
-
 def find_objects_without_associated_tasks(objects, tasks):
     objects_from_tasks = []
     # compare objects in the tasks with objects in release, to see if there is any single objects
@@ -63,6 +61,7 @@ def get_commit_history(release):
     commits = create_graphs(release)
 
     return commits
+
 
 def create_graphs(release):
     tasks = release['tasks']
@@ -147,7 +146,6 @@ def create_object_graph(objects):
     return object_graph
 
 
-
 def object_graph_to_image(object_graph, release):
 
     G=gv.AGraph(strict=False,directed=True)
@@ -159,6 +157,7 @@ def object_graph_to_image(object_graph, release):
 
     G.layout(prog='dot')
     G.draw(release['name'] + "_objects.png", format='png')
+
 
 def task_graph_to_image(object_graph, task_graph, release):
     G=gv.AGraph(directed=True)
@@ -177,6 +176,7 @@ def task_graph_to_image(object_graph, task_graph, release):
     G.layout(prog='dot')
     G.draw(release['name'] + "_tasks.png", format='png')
     #G.write(release['name'] + "_tasks.dot")
+
 
 def release_graph_to_image(object_graph, release_graph, release):
     G=gv.AGraph(directed=True)
@@ -201,6 +201,7 @@ def release_graph_to_image(object_graph, release_graph, release):
     G.layout(prog='dot')
     G.draw(release['name'] + "_release.png", format='png')
     #G.write(release['name'] + "_release.dot")
+
 
 def commit_graph_to_image(commit_graph, release, task_graph):
 
@@ -228,6 +229,7 @@ def commit_graph_to_image(commit_graph, release, task_graph):
     G.layout(prog='dot')
     G.draw(release['name'] + ".png", format='png')
 
+
 def create_label(node, release, task_graph):
     l = ["Task: " + node]
     l.append("\\l")
@@ -239,7 +241,9 @@ def create_label(node, release, task_graph):
 
     return ''.join(l)
 
+
 def fix_orphan_nodes(commit_graph, release):
     orphan_nodes = [node for node in commit_graph.nodes() if commit_graph.incidents(node) == []]
     [commit_graph.add_edge((release, node)) for node in orphan_nodes if node != release]
     return commit_graph
+
