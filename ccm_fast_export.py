@@ -15,7 +15,7 @@ from copy import copy
 from operator import itemgetter, attrgetter
 from collections import deque
 from pygraph.classes.digraph import digraph
-from pygraph.algorithms.searching import breadth_first_search
+from pygraph.algorithms.sorting import topological_sorting
 
 def ccm_fast_export(releases, graphs):
     logger.basicConfig(filename='ccm_fast_export.log',level=logger.DEBUG)
@@ -64,7 +64,7 @@ def ccm_fast_export(releases, graphs):
         commit_graph = fix_orphan_nodes(commit_graph, previous_release)
 
         # Get the commits order
-        spanning_tree, commits = breadth_first_search(commit_graph, previous_release)
+        commits = topological_sorting(commit_graph)
 
         # Fix the commits order list
         commits.remove(previous_release)
@@ -74,7 +74,7 @@ def ccm_fast_export(releases, graphs):
             logger.info("Commit %i/%i" % (counter, len(commits)))
 
             # Create the references lists. It lists the parents of the commit
-            reference = [commit_lookup[i] for i in commit_graph.incidents(commit)]
+            reference = [commit_lookup[parent] for parent in commit_graph.incidents(commit)]
 
             if len(reference) > 1:
                 # Merge commit
@@ -86,7 +86,8 @@ def ccm_fast_export(releases, graphs):
             # Update the lookup table
             commit_lookup[commit] = mark
 
-        reference = [commit_lookup[i] for i in commit_graph.incidents(release)]
+        print commit, commits, commit_lookup
+        reference = [commit_lookup[parent] for parent in commit_graph.incidents(release)]
         mark, merge_commit = create_release_merge_commit(releases, release, get_mark(mark), reference)
         print '\n'.join(merge_commit)
 
@@ -124,7 +125,8 @@ def create_merge_commit(n, release, releases, mark, reference, graphs):
     objects = get_objects_from_graph(n, graphs[release]['task'], releases[release]['objects'])
 
     # Also add all the objects of the parents
-    for parent in graphs[release]['task'].incidents(n):
+    # TODO: I suspect proplems here
+    for parent in graphs[release]['commit'].incidents(n):
         objects.extend(get_objects_from_graph(parent, graphs[release]['task'], releases[release]['objects']))
 
     # Get the correct task name so commit message can be filled
