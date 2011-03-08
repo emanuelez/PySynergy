@@ -78,10 +78,10 @@ class TaskObject(SynergyObject.SynergyObject):
     def get_attributes(self):
         return self.attributes
 
-    def find_status_time(self, status, status_log):
+    def find_status_time(self, status, status_log, db):
         earliest = datetime.today()
         for line in status_log.splitlines():
-            if status in line and 'ccm_root' not in line:
+            if status in line and db in line:
                 time = datetime.strptime(line.partition(': Status')[0], "%a %b %d %H:%M:%S %Y")
                 if time < earliest:
                     earliest = time
