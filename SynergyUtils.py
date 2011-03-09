@@ -8,6 +8,7 @@ Copyright (c) 2011 Nokia. All rights reserved.
 """
 
 import SynergySession
+import SynergySessions
 import FileObject
 import TaskObject
 from datetime import datetime
@@ -16,6 +17,8 @@ from operator import itemgetter
 from itertools import product
 import os.path
 import os
+from threading import Thread
+from Queue import Queue
 
 class CCMFilePath(object):
     """Get the file path of an object from Synergy"""
@@ -190,8 +193,22 @@ class TaskUtil(object):
                 time = datetime.strptime(line.partition(': Status')[0], "%a %b %d %H:%M:%S %Y")
                 if time < earliest:
                     earliest = time
-
         return earliest
+
+
+class ObjectHistoryPool(object):
+    """ Wrap a bunch of ObjectHistory objects in one indexable pool object, """
+    def __init__(self, ccmpool, current_release, old_release = None):
+        self.ccmpool = ccmpool
+        self.objectHistoryArray = {}
+        for i in range (self.ccmpool.nr_sessions):
+            self.objectHistoryArray[i] = ObjectHistory(ccmpool[i], current_release, old_release)
+
+    def __getitem__(self, index):
+        if ((index > self.ccmpool.max_session_index) or (index < 0)):
+            raise IndexError("ObjectHistoryPool, __getitem__, index " + str(index) + "is not between 0 and " + str(self.ccmpool.max_session_index))
+        historyobject = self.objectHistoryArray[index]
+        return historyobject
 
 
 class ObjectHistory(object):
@@ -216,7 +233,24 @@ class ObjectHistory(object):
         sub = self.ccm.query("recursive_is_member_of('{0}', 'none') and type='project'".format(current_release)).format('%objectname').run()
         self.current_subproject_list = [s['objectname'] for s in sub]
         self.current_subproject_list.append(current_release)
+        self.q = Queue()
 
+    def start_get_history(self, objectholder):
+        self.t = Thread(target=self.pget_history, args=(self.q, objectholder,))
+        self.t.start()
+
+    def join_get_history(self):
+        retval = self.q.get()
+        self.q.task_done()
+        self.q.join()
+        self.t.join()
+        return retval
+
+    def pget_history(self, q, objectholder):
+        self.q = q
+        retval = self.get_history(objectholder)
+        self.q.put(retval)
+        return retval
 
     def get_history(self, fileobject):
         #print ""
@@ -253,8 +287,7 @@ class ObjectHistory(object):
         print "Filepath:", path
         print ""
         self.history[fileobject.get_object_name()] = fileobject
-
-
+        
         return self.history
 
     def add_to_history(self, fileobject):
@@ -311,7 +344,7 @@ class ObjectHistory(object):
 
 
 
-             # Check if predecessor is already added to history - if so add this as successor to fileobject, else add new predecessor to history
+            # Check if predecessor is already added to history - if so add this as successor to fileobject, else add new predecessor to history
             if self.history.has_key(predecessor.get_object_name()):
                 print "Updating", predecessor.get_object_name(), predecessor.get_status(),  "in history. Path:", path
                 predecessor = self.history[predecessor.get_object_name()]
