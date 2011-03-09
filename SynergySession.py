@@ -16,6 +16,8 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
 import os
 import re
+import time
+import random
 from threading import Thread
 from Queue import Queue
 from subprocess import Popen, PIPE
@@ -28,7 +30,7 @@ class SynergySession(object):
         self.database = database
         self.engine = engine
         self.num_of_cmds = 0
-        self.sessionID = 0 # for multiple sessions, populate after creating the session
+        self.sessionID = -1 # set to -1 for singular sessions; for multiple sessions populate from zero and up after creating the individual sessions
         self.q = Queue()
 
         # This dictionary will contain the status of the next command and will be emptied by self.run()
@@ -97,6 +99,11 @@ class SynergySession(object):
         """Execute a Synergy command"""
         if not command[0] == self.command_name:
             command.insert(0, self.command_name)
+        
+        # stagger parallelized commands... 
+        # to avoid random failures due to race conditions in synergy
+        if (self.sessionID >= 0):
+            time.sleep(1 * random.random())
 
         p = Popen(command, stdout=PIPE, stderr=PIPE, env=self.environment)
         self.num_of_cmds += 1
