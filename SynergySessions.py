@@ -44,13 +44,11 @@ class SynergySessions(object):
         
         """populate and array with synergy sessions"""
         self.sessionArray = {}
-        self.threadarrau = {}
         for i in range (self.nr_sessions):
             print "starting session [" + str(i) + "]"
             self.sessionArray[i] = SynergySession.SynergySession(self.database, self.engine, self.command_name, self.ccm_ui_path, self.ccm_eng_path)
             self.sessionArray[i].setSessionID(i)
             
-
 
     def __getitem__(self, index):
         if ((index > self.max_session_index) or (index < 0)):
