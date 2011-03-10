@@ -104,10 +104,10 @@ class SynergySession(object):
         for retrycount in range(3):
             # stagger parallel commands to patch over ccm concurrency issues
             if (self.sessionID >= 0):
-                time.sleep(1 * random.random())
+                time.sleep(0.2 * random.random())
 
             if (retrycount > 0): # more sleep on retry operations
-                time.sleep(1 * random.random())
+                time.sleep(0.2 * random.random())
 
             p = Popen(command, stdout=PIPE, stderr=PIPE, env=self.environment)
             self.num_of_cmds += 1
