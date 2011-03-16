@@ -16,17 +16,16 @@ from operator import itemgetter, attrgetter
 from collections import deque
 from pygraph.classes.digraph import digraph
 from pygraph.algorithms.sorting import topological_sorting
+from pygraph.algorithms.accessibility import accessibility
 
 def ccm_fast_export(releases, graphs):
     logger.basicConfig(filename='ccm_fast_export.log',level=logger.DEBUG)
 
     commit_lookup = {}
-    #Start at initial release
-    for k, v in releases.iteritems():
-        if v['previous'] is None:
-            release = k
-            break
-    logger.info("Starting at %s as initial release" %(release))
+
+    # Get the  initial release
+    release = next((key for key, value in releases.iteritems() if not value['previous']))
+    logger.info("Starting at %s as initial release" % release)
 
     #initial_release_time = time.mktime(releases[release]['created'].timetuple())
     initial_release_time = 0.0 # epoch for now since releases[release] has no 'created' key :(
@@ -63,6 +62,19 @@ def ccm_fast_export(releases, graphs):
         commit_graph = graphs[release]['commit']
         commit_graph = fix_orphan_nodes(commit_graph, previous_release)
 
+        # Create the reverse commit graph 
+        reverse_commit_graph = digraph()
+        reverse_commit_graph.add_nodes(commit_graph.nodes())
+        [reverse_commit_graph.add_edge((t, f)) for (f, t) in commit_graph.edges()]
+
+        # Compute the accessibility matrix of the reverse commit graph
+        ancestors = accessibility(reverse_commit_graph)
+
+        # Clean up the ancestors matrix
+        for k, v in ancestors.iteritems():
+            if k in v:
+                v.remove(k)
+
         # Get the commits order
         commits = topological_sorting(commit_graph)
 
@@ -74,7 +86,7 @@ def ccm_fast_export(releases, graphs):
             logger.info("Commit %i/%i" % (counter, len(commits)))
 
             # Create the references lists. It lists the parents of the commit
-            reference = [commit_lookup[parent] for parent in commit_graph.incidents(commit)]
+            reference = [commit_lookup[parent] for parent in ancestors[commit]]
 
             if len(reference) > 1:
                 # Merge commit
@@ -86,7 +98,6 @@ def ccm_fast_export(releases, graphs):
             # Update the lookup table
             commit_lookup[commit] = mark
 
-        print commit, commits, commit_lookup
         reference = [commit_lookup[parent] for parent in commit_graph.incidents(release)]
         mark, merge_commit = create_release_merge_commit(releases, release, get_mark(mark), reference)
         print '\n'.join(merge_commit)
@@ -125,9 +136,9 @@ def create_merge_commit(n, release, releases, mark, reference, graphs):
     objects = get_objects_from_graph(n, graphs[release]['task'], releases[release]['objects'])
 
     # Also add all the objects of the parents
-    # TODO: I suspect proplems here
-    for parent in graphs[release]['commit'].incidents(n):
-        objects.extend(get_objects_from_graph(parent, graphs[release]['task'], releases[release]['objects']))
+    [objects.extend(get_objects_from_graph(parent, graphs[release]['task'], releases[release]['objects']))
+    for parent in graphs[release]['commit'].incidents(n)
+    if parent in graphs[release]['task']]
 
     # Get the correct task name so commit message can be filled
     task_name = get_task_object_from_splitted_task_name(n)
@@ -323,12 +334,12 @@ def create_blob(obj, mark, release):
     blob =['blob']
     blob.append('mark :'+str(mark))
     fname = 'data/' + release + '/' + obj.get_object_name()
-    #f = open(fname, 'rb')
-    #content = f.read()
-    #f.close()
-    #length = len(content)
-    #blob.append('data '+ str(length))
-    #blob.append(content)
+    f = open(fname, 'rb')
+    content = f.read()
+    f.close()
+    length = len(content)
+    blob.append('data '+ str(length))
+    blob.append(content)
     print '\n'.join(blob)
     return mark
 
