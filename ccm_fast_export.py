@@ -15,19 +15,20 @@ from copy import copy
 from operator import itemgetter, attrgetter
 from collections import deque
 from pygraph.classes.digraph import digraph
+from pygraph.algorithms.sorting import topological_sorting
+from pygraph.algorithms.accessibility import accessibility
 
 def ccm_fast_export(releases, graphs):
     logger.basicConfig(filename='ccm_fast_export.log',level=logger.DEBUG)
 
     commit_lookup = {}
-    #Start at initial release
-    for k, v in releases.iteritems():
-        if v['previous'] is None:
-            release = k
-            break
-    logger.info("Starting at %s as initial release" %(release))
 
-    initial_release_time = time.mktime(releases[release]['created'].timetuple())
+    # Get the  initial release
+    release = next((key for key, value in releases.iteritems() if not value['previous']))
+    logger.info("Starting at %s as initial release" % release)
+
+    #initial_release_time = time.mktime(releases[release]['created'].timetuple())
+    initial_release_time = 0.0 # epoch for now since releases[release] has no 'created' key :(
     mark = 0
 
     files = []
@@ -38,6 +39,7 @@ def ccm_fast_export(releases, graphs):
             files.append('M 100644 :'+str(mark) + ' ' + o.get_path())
 
     mark = get_mark(mark)
+    
     commit_info = []
     commit_info.append('reset refs/tags/' + release)
     commit_info.append('commit refs/tags/' + release)
@@ -56,37 +58,53 @@ def ccm_fast_export(releases, graphs):
     # do the following releases (graphs)
     release = releases[release]['next']
     while release:
+        previous_release = releases[release]['previous']
         logger.info("Next release: %s" %(release))
         commit_graph = graphs[release]['commit']
-        commit_graph = fix_orphan_nodes(commit_graph, releases[release]['previous'])
-        neighbors = deque(commit_graph.neighbors(releases[release]['previous']))
+        commit_graph = fix_orphan_nodes(commit_graph, previous_release)
 
-        neighbors_left = len(neighbors)
+        # Create the reverse commit graph
+        logger.info("Building the reverse commit graph")
+        reverse_commit_graph = digraph()
+        reverse_commit_graph.add_nodes(commit_graph.nodes())
+        [reverse_commit_graph.add_edge((t, f)) for (f, t) in commit_graph.edges()]
 
-        while neighbors_left > 1:
-            n = neighbors.popleft()
-            logger.info("Neighbor: %s" %(n))
-            # Check is all incident objects are processed
-            if not set(commit_graph.incidents(n)).issubset(set(commit_lookup.keys())):
-                #print "Processing", n
-                #print "objects left:", neighbors
-                #print "missing", set(commit_graph.incidents(n)) - set(commit_lookup.keys())
-                #print "lookup", commit_lookup.keys()
-                neighbors.append(n)
-                continue
-            reference = [commit_lookup[i] for i in commit_graph.incidents(n)]
-            # create blobs and commit message for task/object
-            mark = create_commit(n, release, releases, mark, reference, graphs)
+        # Compute the accessibility matrix of the reverse commit graph
+        logger.info("Compute the ancestors")
+        ancestors = accessibility(reverse_commit_graph)
 
-            commit_lookup[n] = mark
-            # Get neighbors for this node
-            nbs = commit_graph.neighbors(n)
-            neighbors.extend(set(nbs) - set(neighbors))
+        logger.info("Ancestors of the release: %s" % str(ancestors[release]))
 
-            neighbors_left = len(neighbors)
+        # Clean up the ancestors matrix
+        for k, v in ancestors.iteritems():
+            if k in v:
+                v.remove(k)
 
-        reference = [commit_lookup[i] for i in commit_graph.incidents(release)]
-        mark, merge_commit = create_release_merge_commit(releases, release, get_mark(mark), reference)
+        # Get the commits order
+        commits = topological_sorting(commit_graph)
+
+        # Fix the commits order list
+        commits.remove(previous_release)
+        commits.remove(release)
+
+        for counter, commit in enumerate(commits):
+            logger.info("Commit %i/%i" % (counter+1, len(commits)))
+
+            # Create the references lists. It lists the parents of the commit
+            reference = [commit_lookup[parent] for parent in ancestors[commit]]
+
+            if len(reference) > 1:
+                # Merge commit
+                mark = create_merge_commit(commit, release, releases, mark, reference, graphs, ancestors[commit])
+            else:
+                # Normal commit
+                mark = create_commit(commit, release, releases, mark, reference, graphs)
+
+            # Update the lookup table
+            commit_lookup[commit] = mark
+
+        reference = [commit_lookup[parent] for parent in ancestors[release]]
+        mark, merge_commit = create_release_merge_commit(releases, release, get_mark(mark), reference, graphs, ancestors[release])
         print '\n'.join(merge_commit)
 
         commit_lookup[release] = mark
@@ -99,7 +117,42 @@ def ccm_fast_export(releases, graphs):
     logger.info("git-fast-import:\n%s" %('\n'.join(reset)))
     print '\n'.join(reset)
 
-def create_release_merge_commit(releases, release, mark, reference):
+def create_release_merge_commit(releases, release, mark, reference, graphs, ancestors):
+    object_lookup = {}
+    objects = []
+
+    logger.info("Ancestors: %i" % len(ancestors))
+
+    # Also add all the objects of the parents
+    for parent in ancestors:
+        if parent in graphs[release]['task'].edges():
+            logger.info("Parent %s is in the task hypergraph" % parent)
+            synergy_objects = get_objects_from_graph(parent, graphs[release]['task'], releases[release]['objects'])
+            logger.info("Synergy objects: %i" % len(synergy_objects))
+            objects.extend(synergy_objects)
+
+#    [objects.extend(get_objects_from_graph(parent, graphs[release]['task'], releases[release]['objects']))
+#    for parent in ancestors
+#    if parent in graphs[release]['task']]
+
+    # Sort objects to get correct commit order, if multiple versions of one file is in in the task
+    logger.info("Unfiltered objects: %i" % len(objects))
+
+    objects = reduce_objects_for_commit(objects)
+
+    logger.info("Filtered objects: %i" % len(objects))
+
+    for o in objects:
+        if not o.get_type() == 'dir':
+            mark = create_blob(o, get_mark(mark), release)
+            object_lookup[o.get_object_name()] = mark
+
+    logger.info("Object lookup: %i" % len(object_lookup))
+
+    file_list = create_file_list(objects, object_lookup)
+
+    logger.info("File list: %i" % len(file_list))
+
     msg = []
     msg.append('commit refs/tags/' + release)
     msg.append('mark :' + str(mark))
@@ -112,9 +165,40 @@ def create_release_merge_commit(releases, release, mark, reference):
     if len(reference) > 1:
         merge = ['merge :' + str(i) for i in reference[1:]]
         msg.append('\n'.join(merge))
-    msg.append('')
-    logger.info("git-fast-import MERGE-COMMIT:\n%s" %('\n'.join(msg)))
+    msg.append(file_list)
+    if(msg[-1] != ''):
+        msg.append('')
+    logger.info("git-fast-import RELEASE-MERGE-COMMIT:\n%s" %('\n'.join(msg)))
     return mark, msg
+
+def create_merge_commit(n, release, releases, mark, reference, graphs, ancestors):
+    logger.info("Creating commit for %s" % n)
+    object_lookup = {}
+
+    objects = get_objects_from_graph(n, graphs[release]['task'], releases[release]['objects'])
+
+    # Also add all the objects of the parents
+    [objects.extend(get_objects_from_graph(parent, graphs[release]['task'], releases[release]['objects']))
+    for parent in ancestors
+    if parent in graphs[release]['task'].edges()]
+
+    # Get the correct task name so commit message can be filled
+    task_name = get_task_object_from_splitted_task_name(n)
+    task = find_task_in_release(task_name, releases[release]['tasks'])
+
+    # Sort objects to get correct commit order, if multiple versions of one file is in in the task
+    objects = reduce_objects_for_commit(objects)
+
+    for o in objects:
+        if not o.get_type() == 'dir':
+            mark = create_blob(o, get_mark(mark), release)
+            object_lookup[o.get_object_name()] = mark
+
+
+    file_list = create_file_list(objects, object_lookup)
+    mark, commit = make_commit_from_task(task, get_mark(mark), reference, release, file_list)
+    print '\n'.join(commit)
+    return mark
 
 def create_commit(n, release, releases, mark, reference, graphs):
     logger.info("Creating commit for %s" %(n))
@@ -208,35 +292,32 @@ def create_file_list(objects, lookup):
 def create_commit_msg_from_task(task):
     msg = []
     attr = task.get_attributes()
-
     msg.append(attr['task_synopsis'])
-    msg.append('')
-    msg.append(attr['task_description'])
-    msg.append('')
 
+    msg.append('')
     insp = None
     for k, v in attr.iteritems():
         if k == 'task_synopsis':
-            continue
-        if k == 'task_description':
             continue
         if k == 'inspection_task':
             insp = v.copy()
             continue
         if k == 'status_log':
             continue
-        if len(v.strip()) == 0:
-            continue
-        msg.append('Synergy-'+k.replace('_', '-')+': '+v.strip().replace("\n", " "))
+        msg.append('<'+k+'>')
+        msg.append(v.strip())
+        msg.append('</'+k+'>')
+        msg.append('')
     if insp:
+        msg.append('<inspection information>')
         for k, v in insp.iteritems():
             if k == 'status_log':
                 continue
-            if len(v.strip()) == 0:
-                continue
-            k = k.replace('task_', '').replace('insp_', '').replace('_', '-')
-            for line in v.splitlines():
-                msg.append('Synergy-insp-'+k+': '+line.strip())
+            msg.append('<'+k+'>')
+            msg.append(v.strip())
+            msg.append('</'+k+'>')
+            msg.append('')
+        msg.append('</inspection information>')
     return '\n'.join(msg)
 
 def find_task_in_release(task, tasks):
@@ -295,12 +376,12 @@ def create_blob(obj, mark, release):
     blob =['blob']
     blob.append('mark :'+str(mark))
     fname = 'data/' + release + '/' + obj.get_object_name()
-    #f = open(fname, 'rb')
-    #content = f.read()
-    #f.close()
-    #length = len(content)
-    #blob.append('data '+ str(length))
-    #blob.append(content)
+    f = open(fname, 'rb')
+    content = f.read()
+    f.close()
+    length = len(content)
+    blob.append('data '+ str(length))
+    blob.append(content)
     print '\n'.join(blob)
     return mark
 

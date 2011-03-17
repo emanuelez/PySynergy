@@ -243,7 +243,7 @@ def create_label(node, release, task_graph):
 
 
 def fix_orphan_nodes(commit_graph, release):
-    orphan_nodes = [node for node in commit_graph.nodes() if commit_graph.incidents(node) == []]
+    orphan_nodes = [node for node in commit_graph.nodes() if not commit_graph.incidents(node)]
     [commit_graph.add_edge((release, node)) for node in orphan_nodes if node != release]
     return commit_graph
 
