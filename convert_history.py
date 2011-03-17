@@ -16,6 +16,8 @@ from pygraph.classes.hypergraph import hypergraph
 from pygraph.algorithms.cycles import find_cycle
 from pygraph.algorithms.critical import transitive_edges
 from pygraph.algorithms.accessibility import mutual_accessibility
+from pygraph.algorithms.accessibility import connected_components
+from pygraph.algorithms.accessibility import accessibility
 import logging as log
 
 def main():
@@ -195,6 +197,28 @@ def convert_history(files, tasks, releases, fileobjects):
 
     return commits
 
+def serialize_digraph(original, head, tail):
+    heads = original.neighbors(head)
+    tails = original.incidents(tail)
+    
+    if len(heads) != len(tails):
+        return original
+    
+    # Compute the accessibility matrix (which is really a dict)
+    am = accessibility(original)
+    
+    while len(heads) > 1:
+        h = heads[0] # Pick the first available head        
+        t = next((t for t in tails if t not in am[h])) # Pick the first tail which is not accessible by h
+        
+        original.add_edge((t,h))
+        original.del_edge((head, h))
+        original.del_edge((t, tail))
+        
+        heads.remove(h)
+        tails.remove(t)
+        
+    return original   
 
 def _sanitize_tasks(tasks):
     common_objects = [(t1, t2, set(tasks.links(t1)) & set(tasks.links(t2)))
