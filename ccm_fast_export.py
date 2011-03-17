@@ -65,9 +65,7 @@ def ccm_fast_export(releases, graphs):
 
         # Create the reverse commit graph
         logger.info("Building the reverse commit graph")
-        reverse_commit_graph = digraph()
-        reverse_commit_graph.add_nodes(commit_graph.nodes())
-        [reverse_commit_graph.add_edge((t, f)) for (f, t) in commit_graph.edges()]
+        reverse_commit_graph = commit_graph.reverse()
 
         # Compute the accessibility matrix of the reverse commit graph
         logger.info("Compute the ancestors")
