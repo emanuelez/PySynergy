@@ -39,6 +39,7 @@ def ccm_fast_export(releases, graphs):
             files.append('M 100644 :'+str(mark) + ' ' + o.get_path())
 
     mark = get_mark(mark)
+    
     commit_info = []
     commit_info.append('reset refs/tags/' + release)
     commit_info.append('commit refs/tags/' + release)
@@ -62,13 +63,17 @@ def ccm_fast_export(releases, graphs):
         commit_graph = graphs[release]['commit']
         commit_graph = fix_orphan_nodes(commit_graph, previous_release)
 
-        # Create the reverse commit graph 
+        # Create the reverse commit graph
+        logger.info("Building the reverse commit graph")
         reverse_commit_graph = digraph()
         reverse_commit_graph.add_nodes(commit_graph.nodes())
         [reverse_commit_graph.add_edge((t, f)) for (f, t) in commit_graph.edges()]
 
         # Compute the accessibility matrix of the reverse commit graph
+        logger.info("Compute the ancestors")
         ancestors = accessibility(reverse_commit_graph)
+
+        logger.info("Ancestors of the release: %s" % str(ancestors[release]))
 
         # Clean up the ancestors matrix
         for k, v in ancestors.iteritems():
@@ -83,14 +88,14 @@ def ccm_fast_export(releases, graphs):
         commits.remove(release)
 
         for counter, commit in enumerate(commits):
-            logger.info("Commit %i/%i" % (counter, len(commits)))
+            logger.info("Commit %i/%i" % (counter+1, len(commits)))
 
             # Create the references lists. It lists the parents of the commit
             reference = [commit_lookup[parent] for parent in ancestors[commit]]
 
             if len(reference) > 1:
                 # Merge commit
-                mark = create_merge_commit(commit, release, releases, mark, reference, graphs)
+                mark = create_merge_commit(commit, release, releases, mark, reference, graphs, ancestors[commit])
             else:
                 # Normal commit
                 mark = create_commit(commit, release, releases, mark, reference, graphs)
@@ -98,8 +103,8 @@ def ccm_fast_export(releases, graphs):
             # Update the lookup table
             commit_lookup[commit] = mark
 
-        reference = [commit_lookup[parent] for parent in commit_graph.incidents(release)]
-        mark, merge_commit = create_release_merge_commit(releases, release, get_mark(mark), reference)
+        reference = [commit_lookup[parent] for parent in ancestors[release]]
+        mark, merge_commit = create_release_merge_commit(releases, release, get_mark(mark), reference, graphs, ancestors[release])
         print '\n'.join(merge_commit)
 
         commit_lookup[release] = mark
@@ -112,7 +117,42 @@ def ccm_fast_export(releases, graphs):
     logger.info("git-fast-import:\n%s" %('\n'.join(reset)))
     print '\n'.join(reset)
 
-def create_release_merge_commit(releases, release, mark, reference):
+def create_release_merge_commit(releases, release, mark, reference, graphs, ancestors):
+    object_lookup = {}
+    objects = []
+
+    logger.info("Ancestors: %i" % len(ancestors))
+
+    # Also add all the objects of the parents
+    for parent in ancestors:
+        if parent in graphs[release]['task'].edges():
+            logger.info("Parent %s is in the task hypergraph" % parent)
+            synergy_objects = get_objects_from_graph(parent, graphs[release]['task'], releases[release]['objects'])
+            logger.info("Synergy objects: %i" % len(synergy_objects))
+            objects.extend(synergy_objects)
+
+#    [objects.extend(get_objects_from_graph(parent, graphs[release]['task'], releases[release]['objects']))
+#    for parent in ancestors
+#    if parent in graphs[release]['task']]
+
+    # Sort objects to get correct commit order, if multiple versions of one file is in in the task
+    logger.info("Unfiltered objects: %i" % len(objects))
+
+    objects = reduce_objects_for_commit(objects)
+
+    logger.info("Filtered objects: %i" % len(objects))
+
+    for o in objects:
+        if not o.get_type() == 'dir':
+            mark = create_blob(o, get_mark(mark), release)
+            object_lookup[o.get_object_name()] = mark
+
+    logger.info("Object lookup: %i" % len(object_lookup))
+
+    file_list = create_file_list(objects, object_lookup)
+
+    logger.info("File list: %i" % len(file_list))
+
     msg = []
     msg.append('commit refs/tags/' + release)
     msg.append('mark :' + str(mark))
@@ -125,11 +165,13 @@ def create_release_merge_commit(releases, release, mark, reference):
     if len(reference) > 1:
         merge = ['merge :' + str(i) for i in reference[1:]]
         msg.append('\n'.join(merge))
-    msg.append('')
-    logger.info("git-fast-import MERGE-COMMIT:\n%s" %('\n'.join(msg)))
+    msg.append(file_list)
+    if(msg[-1] != ''):
+        msg.append('')
+    logger.info("git-fast-import RELEASE-MERGE-COMMIT:\n%s" %('\n'.join(msg)))
     return mark, msg
 
-def create_merge_commit(n, release, releases, mark, reference, graphs):
+def create_merge_commit(n, release, releases, mark, reference, graphs, ancestors):
     logger.info("Creating commit for %s" % n)
     object_lookup = {}
 
@@ -137,8 +179,8 @@ def create_merge_commit(n, release, releases, mark, reference, graphs):
 
     # Also add all the objects of the parents
     [objects.extend(get_objects_from_graph(parent, graphs[release]['task'], releases[release]['objects']))
-    for parent in graphs[release]['commit'].incidents(n)
-    if parent in graphs[release]['task']]
+    for parent in ancestors
+    if parent in graphs[release]['task'].edges()]
 
     # Get the correct task name so commit message can be filled
     task_name = get_task_object_from_splitted_task_name(n)
