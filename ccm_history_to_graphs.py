@@ -228,6 +228,23 @@ def commit_graph_to_image(commit_graph, release, task_graph):
 
     G.layout(prog='dot')
     G.draw(release['name'] + ".png", format='png')
+    
+def digraph_to_image(g, name):
+    G = gv.AGraph(strict=False, directed=True)
+    G.node_attr['shape'] = 'box'
+    G.node_attr['rankdir'] = 'LR'
+    
+    for node in g.nodes():
+        G.add_node(node)
+        gv_node = G.get_node(node)
+        gv_node.attr['label'] = node
+        gv_node.attr['shape'] = 'box'
+        
+    for edge in g.edges():
+        G.add_edge(edge)
+        
+    G.layout(prog='dot')
+    G.draw("%s.png" % name, format='png')
 
 
 def create_label(node, release, task_graph):

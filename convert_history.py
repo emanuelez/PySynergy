@@ -12,6 +12,7 @@ from itertools import permutations
 from itertools import combinations
 from itertools import count
 from pygraph.classes.digraph import digraph
+from pygraph.classes.graph import graph
 from pygraph.classes.hypergraph import hypergraph
 from pygraph.algorithms.cycles import find_cycle
 from pygraph.algorithms.critical import transitive_edges
@@ -197,28 +198,72 @@ def convert_history(files, tasks, releases, fileobjects):
 
     return commits
 
-def serialize_digraph(original, head, tail):
-    heads = original.neighbors(head)
-    tails = original.incidents(tail)
+def spaghettify_digraph(g, head, tail):
+    original = digraph()
+    original.add_nodes(g.nodes())
+    [original.add_edge(edge) for edge in g.edges()]
     
-    if len(heads) != len(tails):
-        return original
+    heads = set(original.neighbors(head))
+    tails = set(original.incidents(tail))
     
-    # Compute the accessibility matrix (which is really a dict)
-    am = accessibility(original)
+    print "Heads:", str(heads)
+    print "Tails:", str(tails)
     
-    while len(heads) > 1:
-        h = heads[0] # Pick the first available head        
-        t = next((t for t in tails if t not in am[h])) # Pick the first tail which is not accessible by h
+    log.info("Heads: %s" % ", ".join(str(heads)))
+    log.info("Tails: %s" % ", ".join(str(tails)))
+    
+    trimmed = _trim_digraph(original, head, tail)
+    
+    components = connected_components(trimmed)
+    
+    print "Connected components:", str(components)
+    log.info("Connected components: %s" % str(components))
+    
+    hc = {} # {[heads], component}
+    tc = {} # {[tails], component}
+    
+    for component in set(components.values()):
+        # Find the nodes in the component
+        nodes = set([k for k, v in components.iteritems() if v == component])
+        hc[frozenset(heads & nodes)] = component
+        tc[frozenset(tails & nodes)] = component
         
-        original.add_edge((t,h))
-        original.del_edge((head, h))
-        original.del_edge((t, tail))
+    print "HC:", str(hc)
+    print "TC:", str(tc)
+    
         
-        heads.remove(h)
-        tails.remove(t)
+    log.info("HC: %s" % str(hc))
+    log.info("TC: %s" % str(tc))
+    
+    # TODO: CHANGE THIS!    
+    while len(hc) > 1:
+        current_heads, component1 = hc.popitem() # Pick a component and the heads related to it
+        current_tails = next((t for t, c in tc.iteritems() if c != component1))
+        component2 = tc.pop(current_tails)
         
-    return original   
+        print "Current heads:", current_heads
+        print "Current tails:", current_tails
+        
+        log.info("Current heads: %i/%s" % (component1, current_heads))
+        log.info("Current tails: %i/%s" % (component2, current_tails))
+        
+        for current_head, current_tail in product(current_heads, current_tails):
+            original.add_edge((current_tail, current_head))
+            if (head, current_head) in original.edges():
+                original.del_edge((head, current_head))
+            if (current_tail, tail) in original.edges():
+                original.del_edge((current_tail, tail))
+            
+    return original
+    
+def _trim_digraph(original, head, tail):
+    result = graph()
+    result.add_nodes(original.nodes())
+    [result.add_edge(edge) for edge in original.edges()]
+    
+    result.del_node(head)
+    result.del_node(tail)
+    return result   
 
 def _sanitize_tasks(tasks):
     common_objects = [(t1, t2, set(tasks.links(t1)) & set(tasks.links(t2)))

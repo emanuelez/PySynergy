@@ -17,6 +17,8 @@ from collections import deque
 from pygraph.classes.digraph import digraph
 from pygraph.algorithms.sorting import topological_sorting
 from pygraph.algorithms.accessibility import accessibility
+import convert_history as ch
+import ccm_history_to_graphs as htg
 
 def ccm_fast_export(releases, graphs):
     logger.basicConfig(filename='ccm_fast_export.log',level=logger.DEBUG)
@@ -59,9 +61,16 @@ def ccm_fast_export(releases, graphs):
     release = releases[release]['next']
     while release:
         previous_release = releases[release]['previous']
+        
         logger.info("Next release: %s" %(release))
         commit_graph = graphs[release]['commit']
         commit_graph = fix_orphan_nodes(commit_graph, previous_release)
+        
+        htg.digraph_to_image(commit_graph, "%s_before" % release)
+        
+        commit_graph = ch.spaghettify_digraph(commit_graph, previous_release, release)
+        
+        htg.digraph_to_image(commit_graph, "%s_after" % release)
 
         # Create the reverse commit graph
         logger.info("Building the reverse commit graph")
