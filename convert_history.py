@@ -206,18 +206,9 @@ def spaghettify_digraph(g, head, tail):
     heads = set(original.neighbors(head))
     tails = set(original.incidents(tail))
     
-    print "Heads:", str(heads)
-    print "Tails:", str(tails)
-    
-    log.info("Heads: %s" % ", ".join(str(heads)))
-    log.info("Tails: %s" % ", ".join(str(tails)))
-    
     trimmed = _trim_digraph(original, head, tail)
     
     components = connected_components(trimmed)
-    
-    print "Connected components:", str(components)
-    log.info("Connected components: %s" % str(components))
     
     hc = {} # {[heads], component}
     tc = {} # {[tails], component}
@@ -227,26 +218,11 @@ def spaghettify_digraph(g, head, tail):
         nodes = set([k for k, v in components.iteritems() if v == component])
         hc[frozenset(heads & nodes)] = component
         tc[frozenset(tails & nodes)] = component
-        
-    print "HC:", str(hc)
-    print "TC:", str(tc)
-    
-        
-    log.info("HC: %s" % str(hc))
-    log.info("TC: %s" % str(tc))
-    
-    # TODO: CHANGE THIS!    
-    while len(hc) > 1:
-        current_heads, component1 = hc.popitem() # Pick a component and the heads related to it
-        current_tails = next((t for t, c in tc.iteritems() if c != component1))
-        component2 = tc.pop(current_tails)
-        
-        print "Current heads:", current_heads
-        print "Current tails:", current_tails
-        
-        log.info("Current heads: %i/%s" % (component1, current_heads))
-        log.info("Current tails: %i/%s" % (component2, current_tails))
-        
+
+    for component in xrange(1, len(hc)):
+        current_heads = next((t for t, c in hc.iteritems() if c == component + 1))
+        current_tails = next((t for t, c in tc.iteritems() if c == component))
+
         for current_head, current_tail in product(current_heads, current_tails):
             original.add_edge((current_tail, current_head))
             if (head, current_head) in original.edges():
