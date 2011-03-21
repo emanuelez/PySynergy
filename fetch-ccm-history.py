@@ -363,8 +363,22 @@ def main():
         fh = open(fname, 'rb')
         history = cPickle.load(fh)
         fh.close()
-        print "history contains:", history.keys()
+    else:
+        cwd = os.getcwd()
+        content = os.listdir(cwd)
+        for f in content:
+            if not os.path.isdir(f):
+                if outputfile in f:
+                    if f.endswith('.p'):
+                        print "Loading file", f
+                        # Try to pickle it
+                        fh = open(f, 'rb')
+                        hist = cPickle.load(fh)
+                        fh.close()
+                        if 'name' in hist.keys():
+                            history[hist['name']] = hist
 
+    print "history contains:", history.keys()
     #print history
     fetch_ccm = CCMHistory(ccm, ccmpool, history, outputfile)
     history = fetch_ccm.get_project_history(project)
