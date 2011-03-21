@@ -1,3 +1,4 @@
 *.pyc
 *.p
 data/
+*.png
