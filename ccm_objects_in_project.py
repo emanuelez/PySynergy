@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-
 ccm_objects_in_project.py
 
 Get object hierarchy for project as a dict:
@@ -34,11 +33,13 @@ from multiprocessing import Process, Queue
 import time
 
 def get_objects_in_project(project, ccm=None, database=None, ccmpool=None):
+    start = time.time()
     if ccmpool:
-        return get_objects_in_project_parallel(project, ccmpool=ccmpool)
+        result = get_objects_in_project_parallel(project, ccmpool=ccmpool)
     else:
-        return get_objects_in_project_parallel(project, ccm=ccm, database=database)
-
+        result = get_objects_in_project_parallel(project, ccm=ccm, database=database)
+    print "Time used fetching all objects and paths in %s: %d s." %(project, time.time()-start)
+    return result
 
 def get_objects_in_project_serial(project, ccm=None, database=None):
     if not ccm:
