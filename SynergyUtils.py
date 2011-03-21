@@ -235,8 +235,8 @@ class ObjectHistory(object):
         self.current_subproject_list.append(current_release)
         self.q = Queue()
 
-    def start_get_history(self, objectholder):
-        self.t = Thread(target=self.pget_history, args=(self.q, objectholder,))
+    def start_get_history(self, objectholder, paths):
+        self.t = Thread(target=self.pget_history, args=(self.q, objectholder, paths,))
         self.t.start()
 
     def join_get_history(self):
@@ -246,21 +246,21 @@ class ObjectHistory(object):
         self.t.join()
         return retval
 
-    def pget_history(self, q, objectholder):
+    def pget_history(self, q, objectholder, paths):
         self.q = q
-        retval = self.get_history(objectholder)
+        retval = self.get_history(objectholder, paths)
         self.q.put(retval)
         return retval
 
-    def get_history(self, fileobject):
-        #print ""
+    def get_history(self, fileobject, paths):
+        fileobject = fileobject[0]
         print 'Processing:', fileobject.get_object_name(), "from", self.current_release, "to", self.old_release
 
         # clear old history
         self.history = {}
-        path = self.ccm_file_path.get_path(fileobject.get_object_name(), self.current_release)
+        #path = self.ccm_file_path.get_path(fileobject.get_object_name(), self.current_release)
 
-        fileobject.set_path(path)
+        fileobject.set_path(paths)
         content = self.ccm.cat(fileobject.get_object_name()).run()
         if not os.path.exists(self.dir):
             os.makedirs(self.dir)
@@ -284,10 +284,10 @@ class ObjectHistory(object):
                     print "New objects:    ", ', '.join(fileobject.get_dir_changes()['new'])
         else:
             self.recursive_get_history(fileobject)
-        print "Filepath:", path
+        print "Filepath:", paths
         print ""
         self.history[fileobject.get_object_name()] = fileobject
-        
+
         return self.history
 
     def add_to_history(self, fileobject):
@@ -314,7 +314,7 @@ class ObjectHistory(object):
             fileobject.add_predecessor(predecessor.get_object_name())
 
             # get toplevel project / toplevel release and path for predecessor
-            path = self.ccm_file_path.get_path(predecessor.get_object_name(), self.old_release)
+            #path = self.ccm_file_path.get_path(predecessor.get_object_name(), self.old_release)
             # check predecessor release to see if this object should be added to the set.
             if self.old_release:
 
@@ -346,16 +346,16 @@ class ObjectHistory(object):
 
             # Check if predecessor is already added to history - if so add this as successor to fileobject, else add new predecessor to history
             if self.history.has_key(predecessor.get_object_name()):
-                print "Updating", predecessor.get_object_name(), predecessor.get_status(),  "in history. Path:", path
+                print "Updating", predecessor.get_object_name(), predecessor.get_status(),  "in history"
                 predecessor = self.history[predecessor.get_object_name()]
                 predecessor.add_successor(fileobject.get_object_name())
                 self.add_to_history(predecessor)
             else:
-                print "Adding", predecessor.get_object_name(), predecessor.get_status(),  "to history. Path:", path
+                print "Adding", predecessor.get_object_name(), predecessor.get_status(),  "to history"
                 predecessor.set_attributes(self.synergy_utils.get_non_blacklisted_attributes(predecessor))
-                if not path:
+                #if not path:
                     #Path couldn't be found object is probably not released... use path of successor as that is the one we have...
-                    path = fileobject.get_path()
+                path = fileobject.get_path()
 
                 predecessor.set_path(path)
                 content = self.ccm.cat(predecessor.get_object_name()).run()
@@ -445,7 +445,7 @@ class SynergyUtils(object):
                 print "setting attribute:", attr
                 attributes[attr] = self.ccm.attr(obj.get_object_name()).option('-s').option(attr).run()
         return attributes
-    
+
     def get_all_attributes(self, obj):
         attr_list = self.ccm.attr(obj.get_object_name()).option('-l').run().splitlines()
         attributes = {}

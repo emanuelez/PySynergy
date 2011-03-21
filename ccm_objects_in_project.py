@@ -33,8 +33,14 @@ from collections import deque
 from multiprocessing import Process, Queue
 import time
 
+def get_objects_in_project(project, ccm=None, database=None, ccmpool=None):
+    if ccmpool:
+        return get_objects_in_project_parallel(project, ccmpool=ccmpool)
+    else:
+        return get_objects_in_project_parallel(project, ccm=ccm, database=database)
 
-def get_objects_in_project(project, ccm=None, database=None):
+
+def get_objects_in_project_serial(project, ccm=None, database=None):
     if not ccm:
         if not database:
             raise SynergyException('No ccm instance nor database given\nCannot start ccm session!\n')
@@ -130,7 +136,7 @@ class SynergyException(Exception):
 
 def do_project(obj, proj_lookup, delim, ccm, queue):
     res = {}
-    print 'Querying:', obj.get_object_name()
+    #print 'Querying:', obj.get_object_name()
     parent_proj = None
 
     if obj.get_type() == 'dir':
@@ -234,7 +240,7 @@ def get_objects_in_project_parallel(project, ccmpool=None):
             queue.extend(q)
             processes[i].join()
 
-        print "No of objects: %d" % (len(hierarchy.keys()))
+        print "No of objects so far: %d for project %s" % (len(hierarchy.keys()), project)
 
     return hierarchy
 
