@@ -18,8 +18,6 @@ import os
 import re
 import time
 import random
-from threading import Thread
-from Queue import Queue
 from subprocess import Popen, PIPE
 
 class SynergySession(object):
@@ -31,7 +29,6 @@ class SynergySession(object):
         self.engine = engine
         self.num_of_cmds = 0
         self.sessionID = -1 # set to -1 for singular sessions; for multiple sessions populate from zero and up after creating the individual sessions
-        self.q = Queue()
 
         # This dictionary will contain the status of the next command and will be emptied by self.run()
         self.command = ''
@@ -99,8 +96,8 @@ class SynergySession(object):
         """Execute a Synergy command"""
         if not command[0] == self.command_name:
             command.insert(0, self.command_name)
-        
-        # stagger parallelized commands... 
+
+        # stagger parallelized commands...
         # to avoid random failures due to race conditions in synergy
         if (self.sessionID >= 0):
             time.sleep(1 * random.random())
@@ -247,23 +244,6 @@ class SynergySession(object):
                 self.status['option'].append(element)
 
         return self
-
-    def start(self):
-        self.t = Thread(target=self.prun, args=(self.q,))
-        self.t.start()
-
-    def join(self):
-        retval = self.q.get()
-        self.q.task_done()
-        self.q.join()
-        self.t.join()
-        return retval
-
-    def prun(self, q):
-        self.q = q
-        retval = self.run()
-        self.q.put(retval)
-        return retval
 
     def run(self):
         """
