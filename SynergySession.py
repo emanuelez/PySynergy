@@ -97,21 +97,26 @@ class SynergySession(object):
         if not command[0] == self.command_name:
             command.insert(0, self.command_name)
 
-        # stagger parallelized commands...
-        # to avoid random failures due to race conditions in synergy
-        if (self.sessionID >= 0):
-            time.sleep(1 * random.random())
+        # retry all commands 3 times to patch over ccm concurrency issues
+        for retrycount in range(3):
+            # stagger parallel commands to patch over ccm concurrency issues
+            if (self.sessionID >= 0):
+                time.sleep(0.2 * random.random())
 
-        p = Popen(command, stdout=PIPE, stderr=PIPE, env=self.environment)
-        self.num_of_cmds += 1
+            if (retrycount > 0): # more sleep on retry operations
+                time.sleep(0.2 * random.random())
 
-        # Store the result as a single string. It will be splitted later
-        #p.wait()
-        stdout, stderr = p.communicate()
+            p = Popen(command, stdout=PIPE, stderr=PIPE, env=self.environment)
+            self.num_of_cmds += 1
+
+            # Store the result as a single string. It will be splitted later
+            stdout, stderr = p.communicate()
+
+            if not stderr:
+                break
 
         if stderr:
-            raise SynergyException(
-                    'Error while running the Synergy command: %s \nError message: %s' % (command, stderr))
+            raise SynergyException('Error while running the Synergy command: %s \nError message: %s' % (command, stderr))
 
         return stdout
 
