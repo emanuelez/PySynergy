@@ -15,8 +15,10 @@ from copy import copy
 from operator import itemgetter, attrgetter
 from collections import deque
 from pygraph.classes.digraph import digraph
+from pygraph.classes.graph import graph
 from pygraph.algorithms.sorting import topological_sorting
 from pygraph.algorithms.accessibility import accessibility
+from pygraph.algorithms.accessibility import cut_nodes
 import convert_history as ch
 import ccm_history_to_graphs as htg
 
@@ -71,6 +73,14 @@ def ccm_fast_export(releases, graphs):
         commit_graph = ch.spaghettify_digraph(commit_graph, previous_release, release)
         
         htg.digraph_to_image(commit_graph, "%s_after" % release)
+        
+        # Find the cutting nodes
+        logger.info("Finding the cutting nodes")
+        undirected = graph()
+        undirected.add_nodes(commit_graph.nodes())
+        [undirected.add_edge(edge) for edge in commit_graph.edges()]
+        cutting_nodes = cut_nodes(undirected)
+        del(undirected)
 
         # Create the reverse commit graph
         logger.info("Building the reverse commit graph")
@@ -79,6 +89,7 @@ def ccm_fast_export(releases, graphs):
         # Compute the accessibility matrix of the reverse commit graph
         logger.info("Compute the ancestors")
         ancestors = accessibility(reverse_commit_graph)
+        del(reverse_commit_graph)
 
         logger.info("Ancestors of the release: %s" % str(ancestors[release]))
 
@@ -93,25 +104,38 @@ def ccm_fast_export(releases, graphs):
         # Fix the commits order list
         commits.remove(previous_release)
         commits.remove(release)
+        
+        last_cutting_node = None
 
         for counter, commit in enumerate(commits):
             logger.info("Commit %i/%i" % (counter+1, len(commits)))
+            
+            acn_ancestors = []
+            if last_cutting_node != None:    
+                acn_ancestors = ancestors[last_cutting_node]            
 
             # Create the references lists. It lists the parents of the commit
-            reference = [commit_lookup[parent] for parent in ancestors[commit]]
+            reference = [commit_lookup[parent] for parent in ancestors[commit] if parent not in acn_ancestors]
 
             if len(reference) > 1:
                 # Merge commit
-                mark = create_merge_commit(commit, release, releases, mark, reference, graphs, ancestors[commit])
+                mark = create_merge_commit(commit, release, releases, mark, reference, graphs, set(ancestors[commit]) - set(acn_ancestors))
             else:
                 # Normal commit
                 mark = create_commit(commit, release, releases, mark, reference, graphs)
 
             # Update the lookup table
             commit_lookup[commit] = mark
+            
+            # Update the last cutting edge if necessary
+            if commit in cutting_nodes:
+                last_cutting_node = commit
 
-        reference = [commit_lookup[parent] for parent in ancestors[release]]
-        mark, merge_commit = create_release_merge_commit(releases, release, get_mark(mark), reference, graphs, ancestors[release])
+        if last_cutting_node != None:    
+            acn_ancestors = ancestors[last_cutting_node]
+
+        reference = [commit_lookup[parent] for parent in ancestors[release] if parent not in acn_ancestors]
+        mark, merge_commit = create_release_merge_commit(releases, release, get_mark(mark), reference, graphs, set(ancestors[release]) - set(acn_ancestors))
         print '\n'.join(merge_commit)
 
         commit_lookup[release] = mark
