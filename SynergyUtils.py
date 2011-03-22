@@ -160,12 +160,12 @@ class TaskUtil(object):
             attributes = self.synergy_utils.get_non_blacklisted_attributes(insp_task)
             task.get_attributes().update({'inspection_task': attributes})
 
-        task_objects = self.ccm.task(task.get_tasks(), True).option('-sh').option('obj').format("%objectname").format("%owner").format("%status").format("%create_time").format("%task").run()
+        #task_objects = self.ccm.task(task.get_tasks(), True).option('-sh').option('obj').format("%objectname").format("%owner").format("%status").format("%create_time").format("%task").run()
 
-        current_task_objects = task.get_objects()
-        for o in task_objects:
-            if o['objectname'] not in current_task_objects:
-                print "object:", o['objectname'], "not found in objects, but associated to:", task.get_object_name()
+        #current_task_objects = task.get_objects()
+        #for o in task_objects:
+        #    if o['objectname'] not in current_task_objects:
+        #        print "object:", o['objectname'], "not found in objects, but associated to:", task.get_object_name()
                 #fileobject = FileObject.FileObject(o['objectname'], self.delim, o['owner'], o['status'], o['create_time'], o['task'])
                 #content = self.ccm.cat(fileobject.get_object_name()).run()
                 #fileobject.set_content(content)

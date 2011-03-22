@@ -155,6 +155,7 @@ def do_project(obj, proj_lookup, delim, ccm, queue):
     res[obj] = objects
 
     queue.put(res)
+    queue.close()
 
 
 def do_results(res, hierarchy, dir_structure, proj_lookup):

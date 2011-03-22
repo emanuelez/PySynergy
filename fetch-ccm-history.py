@@ -24,7 +24,9 @@ import SynergyObject
 from SynergyUtils import ObjectHistory, TaskUtil, SynergyUtils, ObjectHistoryPool
 import ccm_objects_in_project as ccm_objects
 
+from collections import deque
 from operator import itemgetter, attrgetter
+from multiprocessing import Process, Queue
 
 class Timer():
     def __init__(self):
@@ -70,6 +72,7 @@ class CCMHistory(object):
         #print "Latest project:", latestproject.get_object_name(), "created:", latest
 
         latestproject = SynergyObject.SynergyObject(start_project, self.delim)
+        self.tag = latestproject.get_version()
 
         #find baseline of latestproject:
         base = self.ccm.query("is_baseline_project_of('{0}')".format(latestproject.get_object_name())).format("%objectname").format("%create_time").format('%version').format("%owner").format("%status").format("%task").run()[0]
@@ -82,6 +85,7 @@ class CCMHistory(object):
         while baseline_project:
             print "Toplevel Project:", latestproject.get_object_name()
             # do the history thing
+            self.history[self.tag]['name'] = self.tag
             self.find_project_diff(latestproject.get_object_name(), baseline_project.get_object_name())
             self.history[self.tag]['created'] = latestproject.get_created_time()
 
@@ -92,9 +96,8 @@ class CCMHistory(object):
             baseline = self.ccm.query("is_baseline_project_of('{0}')".format(latestproject.get_object_name())).format("%objectname").format("%create_time").format('%version').format("%owner").format("%status").format("%task").run()[0]
             baseline_project = SynergyObject.SynergyObject(baseline['objectname'], self.delim, baseline['owner'], baseline['status'], baseline['create_time'], baseline['task'])
 
-            #Set previous project and name of current release:
+            #Set previous project
             self.history[self.tag]['previous'] = latestproject.get_version()
-            self.history[self.tag]['name'] = self.tag
 
             #Store data
             fname = self.outputfile + '_' + self.tag
@@ -183,7 +186,7 @@ class CCMHistory(object):
         num_of_objects = len([o for o in objects_changed.keys() if ":project:" not in o])
         print "objects to process for",  latestproject, ": ", num_of_objects
         objects = {}
-        persist = 1
+        persist = 0
         if self.tag in self.history.keys():
             if 'objects' in self.history[self.tag]:
                 #Add all existin objects
@@ -254,14 +257,14 @@ class CCMHistory(object):
 
             persist += len(current_pool_ReturnObjectsArray)
 
-            if persist % 100 == 0:
+            if persist >= 100:
                 self.history[self.tag]['objects'] = objects.values()
                 fname = self.outputfile + '_' + self.tag + '_inc'
                 self.persist_data(fname, self.history[self.tag])
+                persist = 0
 
             num_of_objects -= len(current_pool_ObjectArray)
             print "objects left:", num_of_objects
-
 
         print "number of files:", str(len(objects.values()))
         self.history[self.tag]['objects'] = objects.values()
@@ -284,50 +287,67 @@ class CCMHistory(object):
 
         num_of_tasks = sum([len(o.get_tasks().split(',')) for o in objects])
         print "Tasks with associated objects:", num_of_tasks
-        #Find all tasks from the objects found
-        for o in objects:
-            for task in o.get_tasks().split(','):
-                if task != "<void>":
-                    if task not in tasks.keys():
-                        if task not in not_used:
-                            # create task object
-                            print "Task:", task
-                            if task_util.task_in_project(task, project):
-                                result = self.ccm.query("name='{0}' and instance='{1}'".format('task' + task.split('#')[1], task.split('#')[0])).format("%objectname").format("%owner").format("%status").format("%create_time").format("%task_synopsis").format("%release").run()
 
-                                t = result[0]
-                                # Only use completed tasks!
-                                if t['status'] == 'completed':
-                                    to = TaskObject.TaskObject(t['objectname'], self.delim, t['owner'], t['status'], t['create_time'], task)
-                                    to.set_synopsis(t['task_synopsis'])
-                                    to.set_release(t['release'])
-                                    print "adding", o.get_object_name(), "to", task
-                                    to.add_object(o.get_object_name())
+        #Build a list of all tasks
+        tasklist = [task for o in objects for task in o.get_tasks().split(',') if task != '<void>' ]
 
-                                    tasks[task] = to
-                            else:
-                                not_used.append(task)
-                    else:
-                        if o.get_object_name() not in tasks[task].get_objects():
-                            print "adding", o.get_object_name(), "to", task
-                            tasks[task].add_object(o.get_object_name())
-            num_of_tasks -= 1
-            print "tasks left:", num_of_tasks
+        queue = deque(set(tasklist))
+        #create task objects in parallel
+        while queue:
+            print "queue size:", len(queue)
+            processes = []
+            queues = []
+            for i in range(self.ccmpool.nr_sessions):
+                # Break if queue is empty
+                if not queue:
+                    break
+                # make processes
+                task = queue.popleft()
+                ccm = self.ccmpool[i]
+                queues.append(Queue())
+                processes.append(Process(target=self.create_task_object, args=(task, ccm, project, queues[i])))
 
-        num_of_tasks = len(tasks.keys())
-        print "Tasks in release to process for info:", num_of_tasks
+            for p in processes:
+                p.start()
 
-        # Fill out all task info
-        for task in tasks.values():
-            if not task.get_attributes():
-                task_util.fill_task_info(task)
-            num_of_tasks -= 1
-            print "tasks left:", num_of_tasks
+            for i in range(len(processes)):
+                res = queues[i].get()
+                if res:
+                    tasks[res.get_display_name()] = res
+                    print "res %s next %d" % (res.get_display_name(),i)
+                else:
+                    print "res %s next %d" % (res,i)
+                processes[i].join()
+
+            print "No of tasks added to release so far: %d for project %s" % (len(tasks.keys()), project)
+
+        # Add objects to tasks
+        [t.add_object(o.get_object_name()) for o in objects for t in tasks.values() if t.get_display_name() in o.get_tasks()]
 
         self.history[self.tag]['tasks'] = tasks.values()
         fname = self.outputfile + '_' + self.tag + '_inc'
         self.persist_data(fname, self.history[self.tag])
 
+    def create_task_object(self, task, ccm, project, q):
+        task_util = TaskUtil(ccm)
+        # create task object
+        print "Task:", task
+        if task_util.task_in_project(task, project):
+            result = ccm.query("name='{0}' and instance='{1}'".format('task' + task.split('#')[1], task.split('#')[0])).format("%objectname").format("%owner").format("%status").format("%create_time").format("%task_synopsis").format("%release").run()
+
+            t = result[0]
+            # Only use completed tasks!
+            if t['status'] == 'completed':
+                to = TaskObject.TaskObject(t['objectname'], self.delim, t['owner'], t['status'], t['create_time'], task)
+                to.set_synopsis(t['task_synopsis'])
+                to.set_release(t['release'])
+                # Fill all task info
+                task_util.fill_task_info(to)
+                q.put(to)
+        else:
+            print "Task %s not used in %s!" %(task, project)
+            q.put(None)
+        q.close()
 
     def persist_data(self, fname, data):
         fname = fname + '.p'
