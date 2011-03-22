@@ -55,19 +55,21 @@ class CCMHistory(object):
         self.project_objects = None
         self.baseline_objects = None
 
-    def get_project_history(self, project):
+    def get_project_history(self, start_project, end_project):
         # find latest top-level project
-        result = self.ccm.query("name='{0}' and create_time > time('%today_minus2months') and status='released'".format(project)).format("%objectname").format("%create_time").format('%version').format("%owner").format("%status").format("%task").run()
-        #objectname, delimiter, owner, status, create_time, task):
-        latest = datetime(1,1,1, tzinfo=None)
-        latestproject = []
-        for s in result:
-            time = datetime.strptime(s['create_time'], "%a %b %d %H:%M:%S %Y")
-            if time > latest:
-                latest = time
-                latestproject = SynergyObject.SynergyObject(s['objectname'], self.delim, s['owner'], s['status'], s['create_time'], s['task'])
-                self.tag = s['version']
-        print "Latest project:", latestproject.get_object_name(), "created:", latest
+        #result = self.ccm.query("name='{0}' and create_time > time('%today_minus2months') and status='released'".format(project)).format("%objectname").format("%create_time").format('%version').format("%owner").format("%status").format("%task").run()
+        ##objectname, delimiter, owner, status, create_time, task):
+        #latest = datetime(1,1,1, tzinfo=None)
+        #latestproject = []
+        #for s in result:
+        #    time = datetime.strptime(s['create_time'], "%a %b %d %H:%M:%S %Y")
+        #    if time > latest:
+        #        latest = time
+        #        latestproject = SynergyObject.SynergyObject(s['objectname'], self.delim, s['owner'], s['status'], s['create_time'], s['task'])
+        #        self.tag = s['version']
+        #print "Latest project:", latestproject.get_object_name(), "created:", latest
+
+        latestproject = SynergyObject.SynergyObject(start_project, self.delim)
 
         #find baseline of latestproject:
         base = self.ccm.query("is_baseline_project_of('{0}')".format(latestproject.get_object_name())).format("%objectname").format("%create_time").format('%version').format("%owner").format("%status").format("%task").run()[0]
@@ -125,8 +127,8 @@ class CCMHistory(object):
 
             print "baseline project version:", baseline_project.get_version()
 
-            if baseline_project.get_version() == "11w05_sb9_fam":
-                print "Stopping at 11w06_sb9_fam"
+            if latestproject.get_object_name() == end_project:
+                print "End project reached", latestproject.get_object_name()
                 baseline_project = None
 
         self.history[self.tag]['previous'] = None
@@ -347,13 +349,19 @@ class CCMHistory(object):
 
 
 def main():
+    # make all stdout stderr writes unbuffered/ instant/ inline
+    #sys.stdout =  os.fdopen(sys.stdout.fileno(), 'w', 0);
+    #sys.stderr =  os.fdopen(sys.stderr.fileno(), 'w', 0);
+
     ccm_db = sys.argv[1]
-    project = sys.argv[2]
-    outputfile = sys.argv[3]
+    start_project = sys.argv[2]
+    end_project = sys.argv[3]
+    outputfile = sys.argv[4]
+
 
     print "Starting Synergy session on", ccm_db, "..."
     ccm = SynergySession.SynergySession(ccm_db)
-    ccmpool = SynergySessions.SynergySessions(database=ccm_db, nr_sessions=10)
+    ccmpool = SynergySessions.SynergySessions(database=ccm_db, nr_sessions=15)
     print "session started"
     delim = ccm.delim()
     history = {}
@@ -381,7 +389,7 @@ def main():
     print "history contains:", history.keys()
     #print history
     fetch_ccm = CCMHistory(ccm, ccmpool, history, outputfile)
-    history = fetch_ccm.get_project_history(project)
+    history = fetch_ccm.get_project_history(start_project, end_project)
 
 
     fh = open(outputfile + '.p', 'wb')
