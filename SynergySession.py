@@ -29,6 +29,7 @@ class SynergySession(object):
         self.engine = engine
         self.num_of_cmds = 0
         self.sessionID = -1 # set to -1 for singular sessions; for multiple sessions populate from zero and up after creating the individual sessions
+        self.keep_session_alive = False  # Keep session alive then deleting the object
 
         # This dictionary will contain the status of the next command and will be emptied by self.run()
         self.command = ''
@@ -82,8 +83,9 @@ class SynergySession(object):
 
     def __del__(self):
         # Close the session
-        self.stop()
-        print "[" + str(self.sessionID) + "] Number of commands issued:", str(self.num_of_cmds)
+        if not self.keep_session_alive:
+            self.stop()
+            print "[" + str(self.sessionID) + "] Number of commands issued:", str(self.num_of_cmds)
 
     def _reset_status(self):
         """Reset the status of the object"""
