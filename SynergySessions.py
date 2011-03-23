@@ -25,8 +25,9 @@ import re
 import random
 from datetime import datetime, timedelta
 from subprocess import Popen, PIPE
-import SynergySession
-from multiprocessing import Process, Queue
+from SynergySession import SynergySession
+import time
+from multiprocessing import Pool, Process, Queue
 
 sys.stdout =  os.fdopen(sys.stdout.fileno(), 'w', 0);
 sys.stderr =  os.fdopen(sys.stderr.fileno(), 'w', 0);
@@ -42,12 +43,18 @@ class SynergySessions(object):
         self.engine = engine
         self.nr_sessions = nr_sessions
         self.max_session_index = nr_sessions-1
-        """populate and array with synergy sessions"""
         self.sessionArray = {}
-        for i in range (self.nr_sessions):
-            self.sessionArray[i] = SynergySession.SynergySession(self.database, self.engine, self.command_name, self.ccm_ui_path, self.ccm_eng_path)
-            self.sessionArray[i].setSessionID(i)
-            print "started ccm session [" + str(i) + "]",  self.sessionArray[i].environment['CCM_ADDR'].strip()
+        """populate and array with synergy sessions"""
+        create_sessions_pool(self.nr_sessions, self.database, self.engine, self.command_name, self.ccm_ui_path, self.ccm_eng_path, self)
+
+        for k, v in self.sessionArray.iteritems():
+            print "session %d: %s" %(k, v.getCCM_ADDR())
+            v.keep_session_alive = False
+
+    def put_session(self, res):
+        idx, ccm = res
+        self.sessionArray[idx] = ccm
+
 
     def __getitem__(self, index):
         if ((index > self.max_session_index) or (index < 0)):
@@ -61,15 +68,35 @@ class SynergySessions(object):
             retstring = retstring + "[" + str(i) + "] " + self.sessionArray[i].getCCM_ADDR() + "\n"
         return retstring
 
+def create_sessions_pool(nr_sessions, database, engine, command_name, ccm_ui_path, ccm_eng_path, session_cls):
+    session_array = {}
+    pool = Pool(nr_sessions)
+    for i in range(nr_sessions):
+        pool.apply_async(create_session, (database, engine, command_name, ccm_ui_path, ccm_eng_path, i), callback=session_cls.put_session )
+        print "starting session [" + str(i) + "]"
+
+    pool.close()
+
+    pool.join()
+
+def create_session(database, engine, command_name, ccm_ui_path, ccm_eng_path, i):
+    ccm = SynergySession(database, engine, command_name, ccm_ui_path, ccm_eng_path)
+    ccm.keep_session_alive = True
+    ccm.sessionID = i
+    return (i,ccm)
+
 
 def do_query(task, ccm, queue):
     result = ccm.query("is_associated_cv_of(task('%s'))" % task).format("%objectname").run()
     queue.put(result)
+    queue.close()
 
 def main():
+    start = time.time()
     """Test: start a bunch of sessions in parallel, start commands on each, wait for them all to return and print the result in execution order"""
     ccmpool = SynergySessions(database='/nokia/co_nmp/groups/gscm/dbs/co1asset', nr_sessions=2)
 
+    print "Time used starting %d sessions: %d" %(ccmpool.nr_sessions, time.time()-start)
     print "ccmpool:"
     print ccmpool
 
@@ -128,5 +155,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
