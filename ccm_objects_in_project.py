@@ -220,6 +220,7 @@ def get_objects_in_project_parallel(project, ccmpool=None):
     done = False
 
     while queue:
+        start = time.time()
         print "queue size:", len(queue)
         processes = []
         queues = []
@@ -242,7 +243,7 @@ def get_objects_in_project_parallel(project, ccmpool=None):
             queue.extend(q)
             processes[i].join()
 
-        print "No of objects so far: %d for project %s" % (len(hierarchy.keys()), project)
+        print "No of objects so far: %d for project %s. Time used: %8d ms" % (len(hierarchy.keys()), project, (time.time()-start)*1000)
 
     return hierarchy
 

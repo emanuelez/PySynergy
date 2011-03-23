@@ -322,7 +322,7 @@ class CCMHistory(object):
 
         # Add objects to tasks
         [t.add_object(o.get_object_name()) for o in objects for t in tasks.values() if t.get_display_name() in o.get_tasks()]
-
+        print "No of tasks in release %s: %d" % (project, len(tasks.keys()))
         self.history[self.tag]['tasks'] = tasks.values()
         fname = self.outputfile + '_' + self.tag + '_inc'
         self.persist_data(fname, self.history[self.tag])
