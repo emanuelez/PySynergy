@@ -275,7 +275,6 @@ class CCMHistory(object):
 
 
     def find_tasks_from_objects(self, objects, project):
-        task_util = TaskUtil(self.ccm)
         tasks = {}
         not_used = []
 
@@ -291,7 +290,7 @@ class CCMHistory(object):
         #Build a list of all tasks
         tasklist = [task for o in objects for task in o.get_tasks().split(',') if task != '<void>' ]
 
-        queue = deque(set(tasklist))
+        queue = deque(set(tasklist) - set(tasks.keys()))
         #create task objects in parallel
         while queue:
             print "queue size:", len(queue)
