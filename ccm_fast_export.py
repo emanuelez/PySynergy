@@ -43,7 +43,7 @@ def ccm_fast_export(releases, graphs):
             files.append('M 100644 :'+str(mark) + ' ' + o.get_path())
 
     mark = get_mark(mark)
-    
+
     commit_info = []
     commit_info.append('reset refs/tags/' + release)
     commit_info.append('commit refs/tags/' + release)
@@ -63,17 +63,17 @@ def ccm_fast_export(releases, graphs):
     release = releases[release]['next']
     while release:
         previous_release = releases[release]['previous']
-        
+
         logger.info("Next release: %s" %(release))
         commit_graph = graphs[release]['commit']
         commit_graph = fix_orphan_nodes(commit_graph, previous_release)
-        
+
         htg.digraph_to_image(commit_graph, "%s_before" % release)
-        
+
         commit_graph = ch.spaghettify_digraph(commit_graph, previous_release, release)
-        
+
         htg.digraph_to_image(commit_graph, "%s_after" % release)
-        
+
         # Find the cutting nodes
         logger.info("Finding the cutting nodes")
         undirected = graph()
@@ -104,15 +104,15 @@ def ccm_fast_export(releases, graphs):
         # Fix the commits order list
         commits.remove(previous_release)
         commits.remove(release)
-        
+
         last_cutting_node = None
 
         for counter, commit in enumerate(commits):
             logger.info("Commit %i/%i" % (counter+1, len(commits)))
-            
+
             acn_ancestors = []
-            if last_cutting_node != None:    
-                acn_ancestors = ancestors[last_cutting_node]            
+            if last_cutting_node != None:
+                acn_ancestors = ancestors[last_cutting_node]
 
             # Create the references lists. It lists the parents of the commit
             reference = [commit_lookup[parent] for parent in ancestors[commit] if parent not in acn_ancestors]
@@ -126,12 +126,12 @@ def ccm_fast_export(releases, graphs):
 
             # Update the lookup table
             commit_lookup[commit] = mark
-            
+
             # Update the last cutting edge if necessary
             if commit in cutting_nodes:
                 last_cutting_node = commit
 
-        if last_cutting_node != None:    
+        if last_cutting_node != None:
             acn_ancestors = ancestors[last_cutting_node]
 
         reference = [commit_lookup[parent] for parent in ancestors[release] if parent not in acn_ancestors]
@@ -311,12 +311,14 @@ def create_file_list(objects, lookup):
         if o.get_type() != 'dir':
             #exe = '100755' if o.is_executable() else '100644'
             exe = '100644'
-            l.append('M ' + exe + ' :' + str(lookup[o.get_object_name()]) + ' ' + o.get_path())
+            for p in o.get_path():
+                l.append('M ' + exe + ' :' + str(lookup[o.get_object_name()]) + ' ' + p)
         else:
             #Get deleted items:
             deleted = o.get_dir_changes()['deleted']
             for d in deleted:
-                l.append('D ' + o.get_path() + '/' + d)
+                for p in o.get_path():
+                    l.append('D ' + p + '/' + d)
 
     return '\n'.join(l)
 
