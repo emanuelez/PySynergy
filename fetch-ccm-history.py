@@ -88,6 +88,7 @@ class CCMHistory(object):
             self.history[self.tag]['name'] = self.tag
             self.find_project_diff(latestproject.get_object_name(), baseline_project.get_object_name())
             self.history[self.tag]['created'] = latestproject.get_created_time()
+            self.history[self.tag]['author'] = latestproject.get_author()
 
             next = latestproject.get_version()
 
