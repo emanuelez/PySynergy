@@ -266,7 +266,12 @@ class ObjectHistory(object):
         fileobject.set_path(paths)
         content = self.ccm.cat(fileobject.get_object_name()).run()
         if not os.path.exists(self.dir):
-            os.makedirs(self.dir)
+            try:
+               os.makedirs(self.dir)
+            except OSError:
+                # Could happen in parallel, just continue if it is already there
+                pass
+
         f = open(self.dir + '/' + fileobject.get_object_name(), 'wb')
         f.write(content)
         f.close()
