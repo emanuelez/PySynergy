@@ -214,9 +214,16 @@ def create_merge_commit(n, release, releases, mark, reference, graphs, ancestors
     for parent in ancestors
     if parent in graphs[release]['task'].edges()]
 
-    # Get the correct task name so commit message can be filled
-    task_name = get_task_object_from_splitted_task_name(n)
-    task = find_task_in_release(task_name, releases[release]['tasks'])
+    if ':task:' in n:
+        # Get the correct task name so commit message can be filled
+        task_name = get_task_object_from_splitted_task_name(n)
+        task = find_task_in_release(task_name, releases[release]['tasks'])
+
+    else:
+        # It's a single object
+        logger.info("Single Object: %s" %(n))
+        o = get_object(n, releases[release]['objects'])
+        objects.append(o)
 
     # Sort objects to get correct commit order, if multiple versions of one file is in in the task
     objects = reduce_objects_for_commit(objects)
@@ -228,7 +235,12 @@ def create_merge_commit(n, release, releases, mark, reference, graphs, ancestors
 
 
     file_list = create_file_list(objects, object_lookup)
-    mark, commit = make_commit_from_task(task, get_mark(mark), reference, release, file_list)
+
+    if ':task:' in n:
+        mark, commit = make_commit_from_task(task, get_mark(mark), reference, release, file_list)
+    else:
+        mark, commit = make_commit_from_object(o, get_mark(mark), reference, release, file_list)
+
     print '\n'.join(commit)
     return mark
 
