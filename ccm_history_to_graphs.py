@@ -37,10 +37,10 @@ def create_graphs_from_releases(releases):
         graphs[release]['release'] = release_graph
 
         #draw graphs:
-        object_graph_to_image(object_graph, releases[release])
-        task_graph_to_image(object_graph, task_graph, releases[release])
-        release_graph_to_image(object_graph, release_graph, releases[release])
-        commit_graph_to_image(commit_graph, releases[release], task_graph)
+        #object_graph_to_image(object_graph, releases[release])
+        #task_graph_to_image(object_graph, task_graph, releases[release])
+        #release_graph_to_image(object_graph, release_graph, releases[release])
+        #commit_graph_to_image(commit_graph, releases[release], task_graph)
         #next release
         release = releases[release]['next']
 
@@ -68,9 +68,16 @@ def create_graphs(release):
     objects = release['objects']
 
     object_graph = create_object_graph(objects)
+    object_graph_to_image(object_graph, release)
+
     task_graph = create_task_graph(tasks, objects)
+    task_graph_to_image(object_graph, task_graph, release)
+
     release_graph = create_release_graph(objects, release['name'], release['previous']);
+    release_graph_to_image(object_graph, release_graph, release)
+
     commit_graph = ch.convert_history(object_graph, task_graph, release_graph, objects)
+    commit_graph_to_image(commit_graph, release, task_graph)
 
     return object_graph, task_graph, release_graph, commit_graph
 
@@ -228,21 +235,21 @@ def commit_graph_to_image(commit_graph, release, task_graph):
 
     G.layout(prog='dot')
     G.draw(release['name'] + ".png", format='png')
-    
+
 def digraph_to_image(g, name):
     G = gv.AGraph(strict=False, directed=True)
     G.node_attr['shape'] = 'box'
     G.node_attr['rankdir'] = 'LR'
-    
+
     for node in g.nodes():
         G.add_node(node)
         gv_node = G.get_node(node)
         gv_node.attr['label'] = node
         gv_node.attr['shape'] = 'box'
-        
+
     for edge in g.edges():
         G.add_edge(edge)
-        
+
     G.layout(prog='dot')
     G.draw("%s.png" % name, format='png')
 
