@@ -327,12 +327,13 @@ def create_file_list(objects, lookup):
             for p in o.get_path():
                 l.append('M ' + exe + ' :' + str(lookup[o.get_object_name()]) + ' ' + p)
         else:
-            #Get deleted items:
-            deleted = o.get_dir_changes()['deleted']
-            for d in deleted:
-                for p in o.get_path():
-                    # p is the path of the directory
-                    l.append('D ' + p + '/' + d)
+            #Get deleted items
+            if o.get_dir_changes():
+                deleted = o.get_dir_changes()['deleted']
+                for d in deleted:
+                    for p in o.get_path():
+                        # p is the path of the directory
+                        l.append('D ' + p + '/' + d)
 
     return '\n'.join(l)
 
