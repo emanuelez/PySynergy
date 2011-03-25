@@ -127,6 +127,9 @@ class CCMHistory(object):
                 self.history[self.tag] = {'objects': [], 'tasks': []}
             self.history[self.tag]['next'] = next
 
+            # Add the objects and paths to the history, to be used for finding empty directories
+            self.history[self.tag]['empty_dirs'] = find_empty_dirs(self.project_objects)
+            # set the baseline_objects as objects for the next iteration
             self.project_objects = self.baseline_objects
 
             print "baseline project version:", baseline_project.get_version()
@@ -366,6 +369,12 @@ class CCMHistory(object):
 
         return objects_changed
 
+def find_empty_dirs(objects):
+    dirs = [d for o, paths in objects.iteritems() for d in paths if ':dir:' in o]
+    files = [d for o, paths in objects.iteritems() for d in paths if ':dir:' not in o]
+    used_dirs = [path.rsplit('/', 1)[0] for path in files]
+    empty_dirs = set(dirs)-set(used_dirs)
+    return empty_dirs
 
 
 def main():

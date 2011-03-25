@@ -179,9 +179,13 @@ def create_release_merge_commit(releases, release, mark, reference, graphs, ance
             mark = create_blob(o, get_mark(mark), release)
             object_lookup[o.get_object_name()] = mark
 
+    empty_dirs = releases[release]['empty_dirs']
+    logger.info("Empty dirs for release %s\n%s" %(release, empty_dirs))
+    mark = create_blob_for_empty_dir(get_mark(mark))
+
     logger.info("Object lookup: %i" % len(object_lookup))
 
-    file_list = create_file_list(objects, object_lookup)
+    file_list = create_file_list(objects, object_lookup, empty_dirs=empty_dirs, empty_dir_mark=mark)
 
     logger.info("File list: %i" % len(file_list))
 
@@ -318,7 +322,7 @@ def make_commit_from_object(o, mark, reference, release, file_list):
     logger.info("git-fast-import COMMIT:\n%s" %('\n'.join(commit_info)))
     return mark, commit_info
 
-def create_file_list(objects, lookup):
+def create_file_list(objects, lookup, empty_dirs=None, empty_dir_mark=None):
     l = []
     for o in objects:
         if o.get_type() != 'dir':
@@ -334,6 +338,11 @@ def create_file_list(objects, lookup):
                     for p in o.get_path():
                         # p is the path of the directory
                         l.append('D ' + p + '/' + d)
+    if empty_dirs:
+        for d in empty_dirs:
+            if empty_dir_mark:
+                path = d + '/.gitignore'
+                l.append('M 100644 :' + str(empty_dir_mark) + ' ' + path)
 
     return '\n'.join(l)
 
@@ -430,6 +439,13 @@ def create_blob(obj, mark, release):
     length = len(content)
     blob.append('data '+ str(length))
     blob.append(content)
+    print '\n'.join(blob)
+    return mark
+
+def create_blob_for_empty_dir(mark):
+    blob =['blob']
+    blob.append('mark :'+str(mark))
+    blob.append('data 0')
     print '\n'.join(blob)
     return mark
 
