@@ -40,7 +40,8 @@ def ccm_fast_export(releases, graphs):
     for o in releases[release]['objects']:
         if o.get_type() != 'dir':
             mark = create_blob(o, get_mark(mark), release)
-            files.append('M 100644 :'+str(mark) + ' ' + o.get_path())
+            for p in o.get_path():
+                files.append('M 100644 :'+str(mark) + ' ' + p)
 
     mark = get_mark(mark)
 
@@ -318,6 +319,7 @@ def create_file_list(objects, lookup):
             deleted = o.get_dir_changes()['deleted']
             for d in deleted:
                 for p in o.get_path():
+                    # p is the path of the directory
                     l.append('D ' + p + '/' + d)
 
     return '\n'.join(l)
