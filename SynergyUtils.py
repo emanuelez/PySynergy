@@ -198,11 +198,11 @@ class TaskUtil(object):
 
 class ObjectHistoryPool(object):
     """ Wrap a bunch of ObjectHistory objects in one indexable pool object, """
-    def __init__(self, ccmpool, current_release, old_release = None):
+    def __init__(self, ccmpool, current_release, old_objects, old_release = None):
         self.ccmpool = ccmpool
         self.objectHistoryArray = {}
         for i in range (self.ccmpool.nr_sessions):
-            self.objectHistoryArray[i] = ObjectHistory(ccmpool[i], current_release, old_release)
+            self.objectHistoryArray[i] = ObjectHistory(ccmpool[i], current_release, old_objects, old_release)
 
     def __getitem__(self, index):
         if ((index > self.ccmpool.max_session_index) or (index < 0)):
@@ -214,7 +214,7 @@ class ObjectHistoryPool(object):
 class ObjectHistory(object):
     """ Get the history of one object backwards in time """
 
-    def __init__(self, ccm, current_release, old_release = None):
+    def __init__(self, ccm, current_release, old_objects, old_release = None):
         self.ccm = ccm
         self.delim = ccm.delim()
         self.history = {}
@@ -225,6 +225,7 @@ class ObjectHistory(object):
         self.old_release = old_release
         self.dir = 'data/' + self.current_release.split(self.delim)[1].split(':')[0]
         self.release_lookup = {}
+        self.old_objects = old_objects
         if old_release:
             #Fill subproject old list
             sub = self.ccm.query("recursive_is_member_of('{0}', 'none') and type='project'".format(old_release)).format('%objectname').run()
@@ -356,6 +357,10 @@ class ObjectHistory(object):
                         # Object is already released, continue with the next predecessor
                         print predecessor.get_object_name(), "is already released"
                         continue
+                    print "Couldn't find release in current_subproject_list old_subproject_list"
+
+                    #Check if chain of successors contains previous object - if true discard the chain
+
                     #Check if projects are releated to old release. Latest first
                     rels = self.sort_releases_by_create_time(releases)
                     for r in rels:

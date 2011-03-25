@@ -105,8 +105,12 @@ class CCMHistory(object):
 
             # Find next baseline project
             latestproject = baseline_project
-            baseline = self.ccm.query("is_baseline_project_of('{0}')".format(latestproject.get_object_name())).format("%objectname").format("%create_time").format('%version').format("%owner").format("%status").format("%task").run()[0]
-            baseline_project = SynergyObject.SynergyObject(baseline['objectname'], self.delim, baseline['owner'], baseline['status'], baseline['create_time'], baseline['task'])
+            baseline = self.ccm.query("is_baseline_project_of('{0}')".format(latestproject.get_object_name())).format("%objectname").format("%create_time").format('%version').format("%owner").format("%status").format("%task").run()
+            if baseline:
+                baseline_object = baseline[0]
+                baseline_project = SynergyObject.SynergyObject(baseline_object['objectname'], self.delim, baseline_object['owner'], baseline_object['status'], baseline_object['create_time'], baseline_object['task'])
+            else:
+                baseline_project = None
 
             #Set previous project
             self.history[self.tag]['previous'] = latestproject.get_version()
@@ -140,8 +144,10 @@ class CCMHistory(object):
 
             # set the baseline_objects as objects for the next iteration
             self.project_objects = self.baseline_objects
-
-            print "baseline project version:", baseline_project.get_version()
+            if baseline_project:
+                print "baseline project version:", baseline_project.get_version()
+            else:
+                print "baseline project version:", baseline_project
 
             if latestproject.get_object_name() == end_project:
                 print "End project reached", latestproject.get_object_name()
@@ -180,28 +186,28 @@ class CCMHistory(object):
             self.project_objects = ccm_objects.get_objects_in_project(latestproject, ccmpool=self.ccmpool)
 
         if baseline_project:
-            object_hist_pool = ObjectHistoryPool(self.ccmpool, toplevel_project, baseline_project)
             #Get all objects and paths for baseline project
             self.baseline_objects = ccm_objects.get_objects_in_project(baseline_project, ccmpool=self.ccmpool)
-            #objects_changed = self.ccm.query("recursive_is_member_of('{0}', 'none') and not recursive_is_member_of('{1}', 'none')".format(latestproject, baseline_project)).format("%objectname").format("%owner").format("%status").format("%create_time").format("%task").run()
+            #new_objects = self.ccm.query("recursive_is_member_of('{0}', 'none') and not recursive_is_member_of('{1}', 'none')".format(latestproject, baseline_project)).format("%objectname").format("%owner").format("%status").format("%create_time").format("%task").run()
             # Find difference between latestproject and baseline_project
-            objects_changed = self.get_objects_changed(self.project_objects, self.baseline_objects)
+            new_objects, old_objects = self.get_changed_objects(self.project_objects, self.baseline_objects)
+            object_hist_pool = ObjectHistoryPool(self.ccmpool, toplevel_project, old_objects, baseline_project)
 
         else:
             # root project, get ALL objects in release
-            object_hist_pool = ObjectHistoryPool(self.ccmpool, toplevel_project, toplevel_project)
-            objects_changed = self.project_objects
-            #objects_changed = self.ccm.query("recursive_is_member_of('{0}', 'none')".format(latestproject)).format("%objectname").format("%owner").format("%status").format("%create_time").format("%task").run()
+            object_hist_pool = ObjectHistoryPool(self.ccmpool, toplevel_project, None, toplevel_project)
+            new_objects = self.project_objects
+            #new_objects = self.ccm.query("recursive_is_member_of('{0}', 'none')".format(latestproject)).format("%objectname").format("%owner").format("%status").format("%create_time").format("%task").run()
 
         print "DEBUG: instantiated an object_hist_pool, type is: " + str(type(object_hist_pool))
         print "DEBUG: object_hist_pool[0]'s type is: " + str(type(object_hist_pool[0]))
 
-        # make the objects_changed dictionary into an array, to be able to walk it by index
-        objects_changed_indexable = []
-        for o in objects_changed.keys():
-            objects_changed_indexable.append(o)
+        # make the new_objects dictionary into an array, to be able to walk it by index
+        new_objects_indexable = []
+        for o in new_objects.keys():
+            new_objects_indexable.append(o)
 
-        num_of_objects = len([o for o in objects_changed.keys() if ":project:" not in o])
+        num_of_objects = len([o for o in new_objects.keys() if ":project:" not in o])
         print "objects to process for",  latestproject, ": ", num_of_objects
         objects = {}
         persist = 0
@@ -214,29 +220,29 @@ class CCMHistory(object):
             self.history[self.tag] = {'objects': [], 'tasks': []}
 
         # Check history for all objects and add them to history
-        objects_changed_processing_progress_idx = 0
-        while True: # this is the objects_changed progress outer loop, which is broken when the last object in objects_changed has been processed in a processing pool
+        new_objects_processing_progress_idx = 0
+        while True: # this is the new_objects progress outer loop, which is broken when the last object in new_objects has been processed in a processing pool
             # build the processing pool
             current_pool_fill_idx = 0
             current_pool_ObjectArray = []
             print "DEBUG: Populate a processing pool..."
             while True:
-                tempobject = objects_changed_indexable[objects_changed_processing_progress_idx]
+                tempobject = new_objects_indexable[new_objects_processing_progress_idx]
                 print "DEBUG: -  start checking: tempobject = " + str(tempobject) + " for pool inclusion"
                 if tempobject not in objects.keys():
                     print "DEBUG: --  tempobject = " + str(tempobject) + " not already in objects.keys()"
                     if ':project:' not in tempobject:
                         print "DEBUG: ---  ':project:' not in tempobject = " + str(tempobject)
-                        print "DEBUG:      objects_changed_indexable[objects_changed_processing_progress_idx] type = " + str(type(objects_changed_indexable[objects_changed_processing_progress_idx]))
-                        current_pool_ObjectArray.append(objects_changed_indexable[objects_changed_processing_progress_idx])
+                        print "DEBUG:      new_objects_indexable[new_objects_processing_progress_idx] type = " + str(type(new_objects_indexable[new_objects_processing_progress_idx]))
+                        current_pool_ObjectArray.append(new_objects_indexable[new_objects_processing_progress_idx])
                         print "DEBUG: current_pool_fill_idx = " + str(current_pool_fill_idx)
                         print "DEBUG: ----  current_pool_ObjectArray[" + str(current_pool_fill_idx) + "] = " + str(current_pool_ObjectArray[current_pool_fill_idx])
                         if (current_pool_fill_idx >= self.ccmpool.nr_sessions-1):
                             break
                         current_pool_fill_idx += 1
-                if (objects_changed_processing_progress_idx >= len(objects_changed_indexable)-1):
+                if (new_objects_processing_progress_idx >= len(new_objects_indexable)-1):
                     break
-                objects_changed_processing_progress_idx += 1
+                new_objects_processing_progress_idx += 1
 
             print "DEBUG: start processing pool"
             ccm_session_idx = 0
@@ -249,8 +255,8 @@ class CCMHistory(object):
                 #create FileObject
                 so = SynergyObject.SynergyObject(workobject, self.delim)
                 res = self.ccm.query("name='{0}' and version='{1}' and type='{2}' and instance='{3}'".format(so.get_name(), so.get_version(), so.get_type(), so.get_instance())).format("%objectname").format("%owner").format("%status").format("%create_time").format("%task").run()
-                fileobj = FileObject.FileObject(res[0]['objectname'], self.delim, res[0]['owner'], res[0]['status'], res[0]['create_time'], res[0]['task']), objects_changed[workobject]
-                object_hist_pool[ccm_session_idx].start_get_history(fileobj, objects_changed[workobject])
+                fileobj = FileObject.FileObject(res[0]['objectname'], self.delim, res[0]['owner'], res[0]['status'], res[0]['create_time'], res[0]['task']), new_objects[workobject]
+                object_hist_pool[ccm_session_idx].start_get_history(fileobj, new_objects[workobject])
                 ccm_session_idx += 1
 
             # join the processing pool
@@ -270,7 +276,7 @@ class CCMHistory(object):
                     objects.update(retObject)
 
             # break out of the pool processing loop if all elemenets have been processed
-            if (objects_changed_processing_progress_idx >= len(objects_changed_indexable)-1):
+            if (new_objects_processing_progress_idx >= len(new_objects_indexable)-1):
                 break
 
             persist += len(current_pool_ReturnObjectsArray)
@@ -375,13 +381,18 @@ class CCMHistory(object):
         print "done..."
 
 
-    def get_objects_changed(self, new_release, old_release):
-        objects_changed = {}
+    def get_changed_objects(self, new_release, old_release):
+        new_objects = {}
+        old_objects = {}
         diff = set(new_release.keys())-set(old_release.keys())
         for o in diff:
-            objects_changed[o] = new_release[o]
+            new_objects[o] = new_release[o]
 
-        return objects_changed
+        diff = set(old_release.keys())-set(new_release.keys())
+        for o in diff:
+            old_objects[o] = old_release[o]
+
+        return (new_objects, old_objects)
 
 def find_empty_dirs(objects):
     dirs = [d for o, paths in objects.iteritems() for d in paths if ':dir:' in o]
@@ -429,7 +440,7 @@ def main():
                         if 'name' in hist.keys():
                             history[hist['name']] = hist
 
-    print "history contains:", history.keys()
+    print "history contains:", sorted(history.keys())
     #print history
     fetch_ccm = CCMHistory(ccm, ccmpool, history, outputfile)
     history = fetch_ccm.get_project_history(start_project, end_project)
