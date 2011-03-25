@@ -11,6 +11,7 @@ from itertools import product
 from itertools import permutations
 from itertools import combinations
 from itertools import count
+from collections import defaultdict
 from pygraph.classes.digraph import digraph
 from pygraph.classes.graph import graph
 from pygraph.classes.hypergraph import hypergraph
@@ -19,6 +20,7 @@ from pygraph.algorithms.critical import transitive_edges
 from pygraph.algorithms.accessibility import mutual_accessibility
 from pygraph.algorithms.accessibility import connected_components
 from pygraph.algorithms.accessibility import accessibility
+import networkx as nx
 import logging as log
 
 def main():
@@ -96,62 +98,107 @@ def main():
 
 def convert_history(files, tasks, releases, fileobjects):
     """Converts the Synergy history between two releases to a Git compatible one."""
+    
+    log.basicConfig(filename='convert_history.log',level=log.DEBUG)    
 
-    #print "Look for cycles in the File History graph"
+    log.info("Looking for cycles in the File History graph")
     while find_cycle(files):
         cycle = find_cycle(files)
-        #print "A cycle was found!"
-        #print "Cycle:", cycle
+        log.info("\tA cycle was found!")
+        log.info("\tCycle: %s" % ", ".join(cycle))
 
         # Find the newest file
         newest = max(cycle, key=lambda x: [fileobject.get_integrate_time() for fileobject in fileobjects if fileobject.get_objectname == x][0])
-        #print "Object %s is the newest in the cycle: it should not have successors!" % newest
+        log.info("\tObject %s is the newest in the cycle: it should not have successors!" % newest)
 
         # Remove the outgoing link from the newest file
         for successor in files.neighbors(newest):
             if successor in cycle:
                 files.del_edge((newest, successor))
-                #print "Removed the %s -> %s edge" % (newest, successor)
+                log.info("\tRemoved the %s -> %s edge" % (newest, successor))
 
-    [files.del_edge(edge) for i, edge in transitive_edges(files)]
-    #print "Removed transitive edges from the File History graph."
+    log.info("Remove transitive edges in the File History graph")
+    for edge in transitive_edges(files):
+        if edge in files.edges():
+            files.del_edge(edge)
+        else:
+            log.warning("Weird, transitive edge not found!")
 
+    log.info("Sanitize tasks")
     sanitized_tasks = _sanitize_tasks(tasks)
-    #print "Tasks hypergraph sanitized."
 
+    log.info("Create commits graph")
     commits = create_commits_graph(files, sanitized_tasks, releases)
 
     #print "First commits graph created."
 
-    # Cycles detection
+    log.info("Looking for cycles in the Commits graph")
     while find_cycle(commits):
-        cycle = find_cycle(commits)
-        #print "Cycles found!"
-        #print "Cycle:", cycle
+        log.info("Finding strictly connected components")
+        cycle = max(mutual_accessibility(commits).values(), key=len)
 
-        # Generate the reduced file history graph
-        reduced_graph = _create_reduced_graph(files, tasks, cycle)
-        #print "Reduced graph:", reduced_graph
+        #cycle = find_cycle(commits)
 
-        # Find the longest cycle in the reduced graph
-        longest_cycle = max(mutual_accessibility(reduced_graph).values(), key=len)
+        log.info("\tA cycle was found!")
+        log.info("\tCycle: %s" % ", ".join(cycle))
+        
+        log.info("Find the nodes in the cycle going from one task to another")
+        culpript_edges = []
+        for task in cycle:
+            for obj in tasks.links(task):
+                for neighbor in files.neighbors(obj):
+                    if neighbor not in tasks.links(task) and tasks.links(neighbor)[0] in cycle:
+                        culpript_edges.append((obj, neighbor))
+
+
+        log.info("Connect the nodes found")
+        culpript_nodes = set()
+        for head, tail in culpript_edges:
+            culpript_nodes.add(head)
+            culpript_nodes.add(tail)
+        for head, tail in permutations(culpript_nodes, 2):
+            if tasks.links(head)[0] == tasks.links(tail)[0] and (head, tail) not in culpript_edges:
+                log.info("\tAdding edge (%s, %s)" % (head, tail))
+                culpript_edges.append((head, tail))
+
+        reduced_digraph = digraph()
+        reduced_digraph.add_nodes(culpript_nodes)
+        [reduced_digraph.add_edge(edge) for edge in culpript_edges]
+
+        shortest_cycle = max(mutual_accessibility(reduced_digraph).values(), key=len)
+        log.info("Cycle in objects: %s" % shortest_cycle)
 
         candidate_cuts = []
 
-        for edge in zip(longest_cycle, longest_cycle[1:] + longest_cycle[0:1]):
-            node1, node2 = edge
-            # Find to which task the edge belongs to
-            if tasks.links(node1) == tasks.links(node2):
-                task = tasks.links(node1)[0]
-                # Find which cuts are compatible and add them to the candidates list
-                candidate_cuts.extend( [cut for cut in _find_cuts(tasks.links(task))
-                        if (node1 in cut and node2 not in cut)
-                        or (node2 in cut and node2 not in cut)])
+        # Find the tasks
+        t = set()
+        for node in shortest_cycle:
+            t.add(tasks.links(node)[0])
+        log.info("T: %s" % str(t))
 
-        #print "Candidate_cuts:", candidate_cuts
+        for i in t:
+            log.info("Cuts for task %s" % i)
+            # Find the objects in the cycle belonging to task i
+            obj_in_task = set(tasks.links(i)) & set(shortest_cycle)
+            log.info("Objects in cycle and task: %s" % obj_in_task)
+            if len(obj_in_task) > 1:
+                for j in range(1, len(obj_in_task)/2+1):
+                    candidate_cuts.extend([k for k in combinations(obj_in_task, j)])
+
+
+        #for node1, node2 in zip(shortest_cycle, shortest_cycle[1:] + shortest_cycle[0:1]):
+        #    # Find to which task the edge belongs to
+        #    if tasks.links(node1) == tasks.links(node2):
+        #        task = tasks.links(node1)[0]
+        #        # Find which cuts are compatible and add them to the candidates list
+        #        candidate_cuts.extend( [cut for cut in _find_cuts(tasks.links(task))
+        #                if (node1 in cut and node2 not in cut)
+        #                or (node2 in cut and node2 not in cut)])
+
+        log.info("Candidate_cuts: %s" % str(candidate_cuts))
 
         for (counter, cut) in enumerate(candidate_cuts):
-            #print "Cut:", cut
+            log.info("Cut: %s" % cut)
 
             # Apply the cut
             task = tasks.links(cut[0])[0] # All the nodes in the cut belong to the same task and there are no overlapping tasks
@@ -160,15 +207,15 @@ def convert_history(files, tasks, releases, fileobjects):
             for i in count(1):
                 task_name = task + "_" + str(i)
                 if task_name not in tasks.edges():
-                    #print "Adding task", task_name
+                    log.info("Adding task %s" % task_name)
                     tasks.add_edge(task_name)
                     break
 
             for node in cut:
-                #print "Unlinking file %s from task %s" % (node, task)
+                log.info("Unlinking file %s from task %s" % (node, task))
                 tasks.unlink(node, task)
                 tasks.graph.del_edge(((node,'n'), (task,'h'))) # An ugly hack to work around a bug in pygraph
-                #print "Linking file %s to task %s" % (node, task_name)
+                log.info("Linking file %s to task %s" % (node, task_name))
                 tasks.link(node, task_name)
 
             # If no more cycles are found in the updated reduced graph then break
@@ -177,24 +224,25 @@ def convert_history(files, tasks, releases, fileobjects):
             cycle2 = find_cycle(commits2)
             if set(cycle) & set(cycle2) == set(cycle):
                 # Undo the changes!
-                #print "The cycle was not removed. Undoing changes..."
-                #print "\tDeleting task", task_name
+                log.info("The cycle was not removed. Undoing changes...")
+                log.info("\tDeleting task %s" % task_name)
                 tasks.del_edge(task_name)
 
                 for node in cut:
-                    #print "\tLinking file %s to task %s" % (node, task)
+                    log.info("\tLinking file %s to task %s" % (node, task))
                     tasks.link(node, task)
-                #print "Done."
+                log.info("Done.")
             else:
-                #print "Cut found."
+                log.info("Cut found.")
                 commits = create_commits_graph(files, tasks, releases)
                 break
-        #else:
+        else:
             # Error! This should not happen
-            #print "Cut not found."
+            log.info("Cut not found.")
+            raise Exception("Cut not found")
 
-    #else:
-        #print "No cycles found"
+    else:
+        log.info("No cycles found")
 
     return commits
 
@@ -268,8 +316,6 @@ def _complementary_set(s, ss):
 
 def create_commits_graph(files, tasks, releases):
     """Create a commits graph from files, tasks and releases"""
-    log.basicConfig(filename='convert_history.log',level=log.DEBUG)
-
     commits = digraph()
 
     # Create the nodes

@@ -115,7 +115,8 @@ def create_task_graph(tasks, objects):
     for t in tasks:
         for o in t.get_objects():
             #print "linking:", o, "and", t.get_object_name()
-            task_graph.link(o, t.get_object_name())
+            if t.get_object_name() not in task_graph.links(o):
+                task_graph.link(o, t.get_object_name())
     # Add single_objects to task_graph
     for o in find_objects_without_associated_tasks(objects, tasks):
         task_graph.add_hyperedge(o.get_object_name())
