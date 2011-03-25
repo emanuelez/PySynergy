@@ -218,6 +218,7 @@ class ObjectHistory(object):
         self.ccm = ccm
         self.delim = ccm.delim()
         self.history = {}
+        self.temp_history = {}
         self.synergy_utils = SynergyUtils(self.ccm)
         self.current_release = current_release
         self.ccm_file_path = CCMFilePath(ccm)
@@ -253,11 +254,13 @@ class ObjectHistory(object):
         return retval
 
     def get_history(self, fileobject, paths):
+        recursion_depth = 1
         fileobject = fileobject[0]
         print 'Processing:', fileobject.get_object_name(), "from", self.current_release, "to", self.old_release
 
         # clear old history
         self.history = {}
+        self.temp_history = {}
         #path = self.ccm_file_path.get_path(fileobject.get_object_name(), self.current_release)
 
         fileobject.set_path(paths)
@@ -283,7 +286,19 @@ class ObjectHistory(object):
                     print "Deleted objects:", ', '.join(fileobject.get_dir_changes()['deleted'])
                     print "New objects:    ", ', '.join(fileobject.get_dir_changes()['new'])
         else:
-            self.recursive_get_history(fileobject)
+            history_ok = self.recursive_get_history(fileobject, recursion_depth)
+
+            if history_ok:
+                # Add temp_history to real history dictionary
+                self.history.update(self.temp_history)
+            else:
+                print "history marked not ok"
+                print "history was:"
+                for o in self.temp_history.values():
+                    for s in o.get_successors():
+                        print '%s -> %s' %(o.get_object_name(), s)
+                print ''
+
         print "Filepath:", paths
         print ""
         self.history[fileobject.get_object_name()] = fileobject
@@ -291,14 +306,23 @@ class ObjectHistory(object):
         return self.history
 
     def add_to_history(self, fileobject):
-        self.history[fileobject.get_object_name()] = fileobject
+        self.temp_history[fileobject.get_object_name()] = fileobject
 
-    def recursive_get_history(self, fileobject):
+    def recursive_get_history(self, fileobject, recursion_depth):
         """ Recursivly find the history of the file object, optionally stopping at the 'old_release' project """
         next_iter = False
         delim = fileobject.get_separator()
         print ""
         print 'Processing:', fileobject.get_object_name(), fileobject.get_status()
+        print 'Recursion depth %d' % recursion_depth
+        retval = True
+        #Check if recursion_depth is reached
+        if recursion_depth > 20:
+            print 'Giving up on %s' % fileobject.get_object_name()
+
+            return False
+        recursion_depth += 1
+
         predecessors = self.ccm.query("is_predecessor_of('{0}')".format(fileobject.get_object_name())).format("%owner").format("%status").format("%create_time").format("%task").run()
         for p in predecessors:
             predecessor = FileObject.FileObject(p['objectname'], delim, p['owner'], p['status'], p['create_time'], p['task'])
@@ -342,12 +366,10 @@ class ObjectHistory(object):
                         print "Successor is already released", fileobject.get_object_name()
                         continue
 
-
-
             # Check if predecessor is already added to history - if so add this as successor to fileobject, else add new predecessor to history
-            if self.history.has_key(predecessor.get_object_name()):
+            if self.temp_history.has_key(predecessor.get_object_name()):
                 print "Updating", predecessor.get_object_name(), predecessor.get_status(),  "in history"
-                predecessor = self.history[predecessor.get_object_name()]
+                predecessor = self.temp_history[predecessor.get_object_name()]
                 predecessor.add_successor(fileobject.get_object_name())
                 self.add_to_history(predecessor)
             else:
@@ -367,8 +389,12 @@ class ObjectHistory(object):
                 f.write(content)
                 f.close()
                 predecessor.add_successor(fileobject.get_object_name())
-                self.recursive_get_history(predecessor)
                 self.add_to_history(predecessor)
+                retval &= self.recursive_get_history(predecessor, recursion_depth)
+                if not retval:
+                    # Giving up on history break out of loop
+                    break
+        return retval
 
     def sort_releases_by_create_time(self, releases):
         rels = [(r['objectname'], datetime.strptime(r['create_time'], "%a %b %d %H:%M:%S %Y")) for r in releases]
