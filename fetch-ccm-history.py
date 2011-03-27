@@ -89,6 +89,8 @@ class CCMHistory(object):
             self.find_project_diff(latestproject.get_object_name(), baseline_project.get_object_name())
             self.history[self.tag]['created'] = latestproject.get_created_time()
             self.history[self.tag]['author'] = latestproject.get_author()
+            # Add the objects and paths to the history, to be used for finding empty directories
+            self.history[self.tag]['empty_dirs'] = find_empty_dirs(self.project_objects)
 
             next = latestproject.get_version()
 
@@ -127,8 +129,6 @@ class CCMHistory(object):
                 self.history[self.tag] = {'objects': [], 'tasks': []}
             self.history[self.tag]['next'] = next
 
-            # Add the objects and paths to the history, to be used for finding empty directories
-            self.history[self.tag]['empty_dirs'] = find_empty_dirs(self.project_objects)
             # set the baseline_objects as objects for the next iteration
             self.project_objects = self.baseline_objects
 
