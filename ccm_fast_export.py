@@ -43,6 +43,17 @@ def ccm_fast_export(releases, graphs):
             for p in o.get_path():
                 files.append('M 100644 :'+str(mark) + ' ' + p)
 
+    empty_dirs = releases[release]['empty_dirs']
+    logger.info("Empty dirs for release %s\n%s" %(release, empty_dirs))
+    mark = create_blob_for_empty_dir(get_mark(mark))
+
+    #file_list = create_file_list(objects, object_lookup, empty_dirs=empty_dirs, empty_dir_mark=mark)
+    if empty_dirs:
+        for d in empty_dirs:
+            if mark:
+                path = d + '/.gitignore'
+                files.append('M 100644 :' + str(mark) + ' ' + path)
+
     mark = get_mark(mark)
 
     commit_info = []
