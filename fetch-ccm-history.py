@@ -76,7 +76,7 @@ class CCMHistory(object):
         info = self.ccm.query("name='%s' and version='%s' and type='%s' and instance='%s'" %(latestproject.get_name(), latestproject.get_version(), latestproject.get_type(), latestproject.get_instance()) ).format("%objectname").format("%create_time").format('%version').format("%owner").format("%status").format("%task").run()[0]
         latestproject.author = info['owner']
         latestproject.status = info['status']
-        latestproject.created_time = info['create_time']
+        latestproject.created_time = datetime.strptime(info['create_time'], "%a %b %d %H:%M:%S %Y")
         latestproject.tasks = info['task']
 
         self.tag = latestproject.get_version()
