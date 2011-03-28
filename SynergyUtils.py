@@ -360,6 +360,9 @@ class ObjectHistory(object):
                     print "Couldn't find release in current_subproject_list old_subproject_list"
 
                     #Check if chain of successors contains previous object - if true discard the chain
+                    if self.successor_is_released(predecessor, fileobject):
+                        print "Successor is already released", fileobject.get_object_name()
+                        continue
 
                     #Check if projects are releated to old release. Latest first
                     rels = self.sort_releases_by_create_time(releases)
