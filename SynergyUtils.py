@@ -292,7 +292,13 @@ class ObjectHistory(object):
                     print "Deleted objects:", ', '.join(fileobject.get_dir_changes()['deleted'])
                     print "New objects:    ", ', '.join(fileobject.get_dir_changes()['new'])
         else:
-            history_ok = self.recursive_get_history(fileobject, recursion_depth)
+            # Check if a newer version of the file was already released
+            old_objects = [o for o in old_objects if fileobject.get_name() in o and fileobject.get_type() in o and fileobject.get_instance() in o]
+            for o in old_objects:
+                old_object = SynergyObject.SynergyObject(o)
+                scan_history = self.check_successor_chain_for_object(fileobject, old_object)
+            if scan_history or len(old_objects) == 0:
+                history_ok = self.recursive_get_history(fileobject, recursion_depth)
 
             if history_ok:
                 # Add temp_history to real history dictionary
@@ -459,7 +465,19 @@ class ObjectHistory(object):
                     self.release_lookup[s.get_object_name()] = ret_val
         return ret_val
 
-
+    def check_successor_chain_for_object(fileobject, old_object):
+        print "Checking if successor chain for %s contains %s" % (fileobject.get_object_name(), old_object.get_object_name())
+        ret_val = False
+        successors = self.ccm.query("is_successor_of('{0}')".format(fileobject.get_object_name())).format("%owner").format("%status").format("%create_time").format("%task").run()
+        for s in successors:
+            if s['objectname'] == old_object.get_object_name())
+                return True
+            s = FileObject.FileObject(s['objectname'], fileobject.get_separator(), s['owner'], s['status'], s['create_time'], s['task'])
+            print "successor:", s.get_object_name()
+            ret_val = self.check_successor_chain_for_object(s, old_object)
+            if ret_val:
+                    break
+        return ret_val
 
 class SynergyUtils(object):
     """Misc synergy utils"""
