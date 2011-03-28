@@ -72,6 +72,13 @@ class CCMHistory(object):
         #print "Latest project:", latestproject.get_object_name(), "created:", latest
 
         latestproject = SynergyObject.SynergyObject(start_project, self.delim)
+        # fill latestproject object with information
+        info = self.ccm.query("name='%s' and version='%s' and type='%s' and instance='%s'" %(latestproject.get_name(), latestproject.get_version(), latestproject.get_type(), latestproject.get_instance()) ).format("%objectname").format("%create_time").format('%version').format("%owner").format("%status").format("%task").run()[0]
+        latestproject.author = info['owner']
+        latestproject.status = info['status']
+        latestproject.created_time = info['create_time']
+        latestproject.tasks = info['task']
+
         self.tag = latestproject.get_version()
 
         #find baseline of latestproject:
@@ -90,7 +97,9 @@ class CCMHistory(object):
             self.history[self.tag]['created'] = latestproject.get_created_time()
             self.history[self.tag]['author'] = latestproject.get_author()
             # Add the objects and paths to the history, to be used for finding empty directories
-            self.history[self.tag]['empty_dirs'] = find_empty_dirs(self.project_objects)
+            empty_dirs = find_empty_dirs(self.project_objects)
+            print "Empty dirs:\n%s" % '\n'.join(empty_dirs)
+            self.history[self.tag]['empty_dirs'] = empty_dirs
 
             next = latestproject.get_version()
 
@@ -144,8 +153,13 @@ class CCMHistory(object):
         self.find_project_diff(latestproject.get_object_name(), baseline_project)
         self.history[self.tag]['name'] = self.tag
         self.history[self.tag]['created'] = latestproject.get_created_time()
+        self.history[self.tag]['author'] = latestproject.get_author()
+        # Add the objects and paths to the history, to be used for finding empty directories
+        empty_dirs = find_empty_dirs(self.project_objects)
+        print "Empty dirs:\n%s" % '\n'.join(empty_dirs)
+        self.history[self.tag]['empty_dirs'] = empty_dirs
+
         #Print Info
-        self.history[self.tag]['previous'] = None
         print self.tag, "done processing, Info:"
         print "Name        ", self.tag
         print "Previous <- ", self.history[self.tag]['previous']
