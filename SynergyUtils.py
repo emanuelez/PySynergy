@@ -296,10 +296,11 @@ class ObjectHistory(object):
             # Check if a newer version of the file was already released
             old_objects = [o for o in self.old_objects if fileobject.get_name() in o and fileobject.get_type() in o and fileobject.get_instance() in o]
             print "old objects: %s" % old_objects
+            old_object_is_in_newer_release = False
             for o in old_objects:
                 old_object = SynergyObject.SynergyObject(o, fileobject.get_separator())
-                old_object_is_newer = self.check_successor_chain_for_object(fileobject, old_object, 0)
-            if not old_object_is_newer or len(old_objects) == 0:
+                old_object_is_in_newer_release = self.check_successor_chain_for_object(fileobject, old_object, 0)
+            if not old_object_is_in_newer_release or len(old_objects) == 0:
                 history_ok = self.recursive_get_history(fileobject, recursion_depth)
             else:
                 history_ok = False
