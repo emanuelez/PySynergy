@@ -296,7 +296,7 @@ class ObjectHistory(object):
             old_objects = [o for o in old_objects if fileobject.get_name() in o and fileobject.get_type() in o and fileobject.get_instance() in o]
             for o in old_objects:
                 old_object = SynergyObject.SynergyObject(o)
-                scan_history = self.check_successor_chain_for_object(fileobject, old_object)
+                scan_history = self.check_successor_chain_for_object(fileobject, old_object, 0)
             if scan_history or len(old_objects) == 0:
                 history_ok = self.recursive_get_history(fileobject, recursion_depth)
 
@@ -366,14 +366,14 @@ class ObjectHistory(object):
                     print "Couldn't find release in current_subproject_list old_subproject_list"
 
                     #Check if chain of successors contains previous object - if true discard the chain
-                    if self.successor_is_released(predecessor, fileobject):
+                    if self.successor_is_released(predecessor, fileobject, 0):
                         print "Successor is already released", fileobject.get_object_name()
                         continue
 
                     #Check if projects are releated to old release. Latest first
                     rels = self.sort_releases_by_create_time(releases)
                     for r in rels:
-                        if self.project_is_some_predecessor(r):
+                        if self.project_is_some_predecessor(r, 0):
                             print "Found Relationship between:", r, "and", self.old_release
                             next_iter = True
                             break
@@ -381,7 +381,7 @@ class ObjectHistory(object):
                         continue
                 else:
                     #Check if a successor is released
-                    if self.successor_is_released(predecessor, fileobject):
+                    if self.successor_is_released(predecessor, fileobject, 0):
                         print "Successor is already released", fileobject.get_object_name()
                         continue
 
@@ -421,7 +421,10 @@ class ObjectHistory(object):
         sorted_releases = [rel[0] for rel in r]
         return sorted_releases
 
-    def project_is_some_predecessor(self, project):
+    def project_is_some_predecessor(self, project, recursion_depth):
+        if recursion_depth > 100:
+            return False
+        recursion_depth += 1
         print "Checking if", project, "is some predecessor of", self.current_release, "or", self.old_release, "..."
         successors = self.ccm.query("has_baseline_project('{0}') and status='released'".format(project)).format("%objectname").run()
         for successor in successors:
@@ -434,12 +437,15 @@ class ObjectHistory(object):
                 print "Found", successor, "in current subprojects"
                 return True
             else:
-                if self.project_is_some_predecessor(successor):
+                if self.project_is_some_predecessor(successor, recursion_depth):
                     return True
 
         return False
 
-    def successor_is_released(self, predecessor, fileobject):
+    def successor_is_released(self, predecessor, fileobject, recursion_depth):
+        if recursion_depth > 50:
+            return False
+        recursion_depth += 1
         print "Checking if successor is released, for", fileobject.get_object_name(), "by predecessor", predecessor.get_object_name()
         ret_val = False
         successors = self.ccm.query("is_successor_of('{0}')".format(predecessor.get_object_name())).format("%owner").format("%status").format("%create_time").format("%task").run()
@@ -461,20 +467,23 @@ class ObjectHistory(object):
                     return False
                     self.release_lookup[s.get_object_name()] = False
                 else:
-                    ret_val = self.successor_is_released(s, fileobject)
+                    ret_val = self.successor_is_released(s, fileobject, recursion_depth)
                     self.release_lookup[s.get_object_name()] = ret_val
         return ret_val
 
-    def check_successor_chain_for_object(fileobject, old_object):
+    def check_successor_chain_for_object(fileobject, old_object, recursion_depth):
+        if recursion_depth > 30:
+            return False
+        recursion_depth += 1
         print "Checking if successor chain for %s contains %s" % (fileobject.get_object_name(), old_object.get_object_name())
         ret_val = False
         successors = self.ccm.query("is_successor_of('{0}')".format(fileobject.get_object_name())).format("%owner").format("%status").format("%create_time").format("%task").run()
         for s in successors:
-            if s['objectname'] == old_object.get_object_name())
+            if s['objectname'] == old_object.get_object_name()
                 return True
             s = FileObject.FileObject(s['objectname'], fileobject.get_separator(), s['owner'], s['status'], s['create_time'], s['task'])
             print "successor:", s.get_object_name()
-            ret_val = self.check_successor_chain_for_object(s, old_object)
+            ret_val = self.check_successor_chain_for_object(s, old_object, recursion_depth)
             if ret_val:
                     break
         return ret_val
