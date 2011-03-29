@@ -479,7 +479,7 @@ class ObjectHistory(object):
         ret_val = False
         successors = self.ccm.query("is_successor_of('{0}')".format(fileobject.get_object_name())).format("%owner").format("%status").format("%create_time").format("%task").run()
         for s in successors:
-            if s['objectname'] == old_object.get_object_name()
+            if s['objectname'] == old_object.get_object_name():
                 return True
             s = FileObject.FileObject(s['objectname'], fileobject.get_separator(), s['owner'], s['status'], s['create_time'], s['task'])
             print "successor:", s.get_object_name()
