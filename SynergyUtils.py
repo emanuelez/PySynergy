@@ -11,6 +11,7 @@ import SynergySession
 import SynergySessions
 import FileObject
 import TaskObject
+import SynergyObject
 from datetime import datetime
 import re
 from operator import itemgetter
@@ -294,11 +295,14 @@ class ObjectHistory(object):
         else:
             # Check if a newer version of the file was already released
             old_objects = [o for o in self.old_objects if fileobject.get_name() in o and fileobject.get_type() in o and fileobject.get_instance() in o]
+            print "old objects: %s" % old_objects
             for o in old_objects:
-                old_object = SynergyObject.SynergyObject(o)
-                scan_history = self.check_successor_chain_for_object(fileobject, old_object, 0)
-            if scan_history or len(old_objects) == 0:
+                old_object = SynergyObject.SynergyObject(o, fileobject.get_separator())
+                old_object_is_newer = self.check_successor_chain_for_object(fileobject, old_object, 0)
+            if not old_object_is_newer or len(old_objects) == 0:
                 history_ok = self.recursive_get_history(fileobject, recursion_depth)
+            else:
+                history_ok = False
 
             if history_ok:
                 # Add temp_history to real history dictionary
@@ -471,7 +475,7 @@ class ObjectHistory(object):
                     self.release_lookup[s.get_object_name()] = ret_val
         return ret_val
 
-    def check_successor_chain_for_object(fileobject, old_object, recursion_depth):
+    def check_successor_chain_for_object(self, 	fileobject, old_object, recursion_depth):
         if recursion_depth > 30:
             return False
         recursion_depth += 1
