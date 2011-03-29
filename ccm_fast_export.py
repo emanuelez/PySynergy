@@ -203,8 +203,11 @@ def create_release_merge_commit(releases, release, mark, reference, graphs, ance
     msg = []
     msg.append('commit refs/tags/' + release)
     msg.append('mark :' + str(mark))
+    if 'author' not in releases[release]:
+        releases[release]['author'] = "Nobody"
     msg.append('author %s <%s@nokia.com> ' % (releases[release]['author'], releases[release]['author']) + str(int(time.mktime(releases[release]['created'].timetuple()))) + " +0000")
     msg.append('committer %s <%s@nokia.com> ' % (releases[release]['author'], releases[release]['author']) + str(int(time.mktime(releases[release]['created'].timetuple()))) + " +0000")
+
     commit_msg = "Release " + release
     msg.append('data ' + str(len(commit_msg)))
     msg.append(commit_msg)
