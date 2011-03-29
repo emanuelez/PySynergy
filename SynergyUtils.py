@@ -293,7 +293,7 @@ class ObjectHistory(object):
                     print "New objects:    ", ', '.join(fileobject.get_dir_changes()['new'])
         else:
             # Check if a newer version of the file was already released
-            old_objects = [o for o in old_objects if fileobject.get_name() in o and fileobject.get_type() in o and fileobject.get_instance() in o]
+            old_objects = [o for o in self.old_objects if fileobject.get_name() in o and fileobject.get_type() in o and fileobject.get_instance() in o]
             for o in old_objects:
                 old_object = SynergyObject.SynergyObject(o)
                 scan_history = self.check_successor_chain_for_object(fileobject, old_object, 0)
