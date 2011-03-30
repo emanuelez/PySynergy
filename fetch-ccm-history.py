@@ -98,7 +98,7 @@ class CCMHistory(object):
             self.history[self.tag]['author'] = latestproject.get_author()
             # Add the objects and paths to the history, to be used for finding empty directories
             empty_dirs = find_empty_dirs(self.project_objects)
-            print "Empty dirs:\n%s" % '\n'.join(empty_dirs)
+            print "Empty dirs:\n%s" % '\n'.join(sorted(empty_dirs))
             self.history[self.tag]['empty_dirs'] = empty_dirs
 
             next = latestproject.get_version()
