@@ -90,11 +90,11 @@ def get_objects_in_project_serial(project, ccm=None, database=None):
                     proj_lookup[o.get_object_name()] = obj.get_object_name()
                 elif obj.get_type() == 'dir':
                     proj_lookup[o.get_object_name()] = proj_lookup[obj.get_object_name()]
-                    # Also add the directory to the Hierachy to get empty dirs
-                    if o.get_object_name() in hierarchy.keys():
-                        hierarchy[o.get_object_name()].append('%s%s' % (cwd, o.get_name()))
-                    else:
-                        hierarchy[o.get_object_name()] = ['%s%s' % (cwd, o.get_name())]
+                # Also add the directory to the Hierachy to get empty dirs
+                if o.get_object_name() in hierarchy.keys():
+                    hierarchy[o.get_object_name()].append('%s%s' % (cwd, o.get_name()))
+                else:
+                    hierarchy[o.get_object_name()] = ['%s%s' % (cwd, o.get_name())]
             elif o.get_type() == 'project':
                 # Add the project to the queue
                 queue.append(o)
@@ -182,11 +182,11 @@ def do_results(res, hierarchy, dir_structure, proj_lookup):
                 proj_lookup[o.get_object_name()] = obj.get_object_name()
             elif obj.get_type() == 'dir':
                 proj_lookup[o.get_object_name()] = proj_lookup[obj.get_object_name()]
-                # Also add the directory to the Hierachy to get empty dirs
-                if o.get_object_name() in hierarchy.keys():
-                    hierarchy[o.get_object_name()].append('%s%s' % (cwd, o.get_name()))
-                else:
-                    hierarchy[o.get_object_name()] = ['%s%s' % (cwd, o.get_name())]
+            # Also add the directory to the Hierachy to get empty dirs
+            if o.get_object_name() in hierarchy.keys():
+                hierarchy[o.get_object_name()].append('%s%s' % (cwd, o.get_name()))
+            else:
+                hierarchy[o.get_object_name()] = ['%s%s' % (cwd, o.get_name())]
         elif o.get_type() == 'project':
             #print "object:", obj.get_object_name(), 'child', o.get_object_name(), 'cwd', cwd
             dir_structure[o.get_object_name()] = cwd
@@ -259,7 +259,7 @@ def main():
     ccmpool = SynergySessions(database=db, nr_sessions=10)
     start = time.time()
 
-    res = get_objects_in_project_parallel("sb9-11w03_sb9_fam:project:be1s30pr#1", ccmpool=ccmpool)
+    res = get_objects_in_project_parallel("sb9-11w05_sb9_fam:project:be1s30pr#1", ccmpool=ccmpool)
 
     end = time.time()
 
@@ -278,6 +278,10 @@ def main():
     print "paths:", paths
     print "Running time:", end - start
 
+    import cPickle
+    f = open("sb9-11w05_sb9_fam.p", 'wb')
+    cPickle.dump(result, f, 2)
+    f.close()
 
 if __name__ == '__main__':
     main()
