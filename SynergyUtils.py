@@ -427,7 +427,7 @@ class ObjectHistory(object):
         return sorted_releases
 
     def project_is_some_predecessor(self, project, recursion_depth):
-        if recursion_depth > 100:
+        if recursion_depth > 20:
             return False
         recursion_depth += 1
         print "Checking if", project, "is some predecessor of", self.current_release, "or", self.old_release, "..."
@@ -448,7 +448,7 @@ class ObjectHistory(object):
         return False
 
     def successor_is_released(self, predecessor, fileobject, recursion_depth):
-        if recursion_depth > 50:
+        if recursion_depth > 20:
             return False
         recursion_depth += 1
         print "Checking if successor is released, for", fileobject.get_object_name(), "by predecessor", predecessor.get_object_name()
@@ -477,7 +477,7 @@ class ObjectHistory(object):
         return ret_val
 
     def check_successor_chain_for_object(self, 	fileobject, old_object, recursion_depth):
-        if recursion_depth > 30:
+        if recursion_depth > 10:
             return False
         recursion_depth += 1
         print "Checking if successor chain for %s contains %s" % (fileobject.get_object_name(), old_object.get_object_name())
