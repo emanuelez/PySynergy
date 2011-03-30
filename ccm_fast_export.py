@@ -352,6 +352,13 @@ def create_file_list(objects, lookup, empty_dirs=None, empty_dir_mark=None):
                     for p in o.get_path():
                         # p is the path of the directory
                         l.append('D ' + p + '/' + d)
+            else:
+                #handle single directory objects with no changes ...?
+                for p in o.get_path():
+                    l.append('M 100644 inline ' + p)
+                    l.append('data 0')
+                    l.append('')
+
     if empty_dirs:
         for d in empty_dirs:
             if empty_dir_mark:
