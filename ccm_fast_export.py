@@ -363,32 +363,35 @@ def create_file_list(objects, lookup, empty_dirs=None, empty_dir_mark=None):
 def create_commit_msg_from_task(task):
     msg = []
     attr = task.get_attributes()
-    msg.append(attr['task_synopsis'])
 
+    msg.append(attr['task_synopsis'])
     msg.append('')
+    msg.append(attr['task_description'])
+    msg.append('')
+
     insp = None
     for k, v in attr.iteritems():
         if k == 'task_synopsis':
+            continue
+        if k == 'task_description':
             continue
         if k == 'inspection_task':
             insp = v.copy()
             continue
         if k == 'status_log':
             continue
-        msg.append('<'+k+'>')
-        msg.append(v.strip())
-        msg.append('</'+k+'>')
-        msg.append('')
+        if len(v.strip()) == 0:
+            continue
+        msg.append('Synergy-'+k.replace('_', '-')+': '+v.strip().replace("\n", " "))
     if insp:
-        msg.append('<inspection information>')
         for k, v in insp.iteritems():
             if k == 'status_log':
                 continue
-            msg.append('<'+k+'>')
-            msg.append(v.strip())
-            msg.append('</'+k+'>')
-            msg.append('')
-        msg.append('</inspection information>')
+            if len(v.strip()) == 0:
+                continue
+            k = k.replace('task_', '').replace('insp_', '').replace('_', '-')
+            for line in v.splitlines():
+                msg.append('Synergy-insp-'+k+': '+line.strip())
     return '\n'.join(msg)
 
 def find_task_in_release(task, tasks):
