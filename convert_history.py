@@ -25,8 +25,8 @@ import logging as log
 
 def main():
     """A test method"""
-
-       # The file history graph
+    
+    # The file history graph
     fh = digraph()
 
     fh.add_nodes(['F1-1', 'F1-2', 'F1-3', 'F1-4', 'F1-5', 'F1-6', 'F1-7'])
@@ -298,6 +298,8 @@ def _sanitize_tasks(tasks):
         for obj in common_objs:
             tasks.unlink(obj, t1)
             tasks.unlink(obj, t2)
+            
+            [tasks.del_edge(t) for t in (t1, t2) if not tasks.links(t)]
 
             task_name = '-'.join(['common', t1, t2])
             tasks.add_edge(task_name)
