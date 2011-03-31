@@ -215,7 +215,8 @@ def create_release_merge_commit(releases, release, mark, reference, graphs, ance
     if len(reference) > 1:
         merge = ['merge :' + str(i) for i in reference[1:]]
         msg.append('\n'.join(merge))
-    msg.append(file_list)
+    if file_list:
+        msg.append(file_list)
     if(msg[-1] != ''):
         msg.append('')
     logger.info("git-fast-import RELEASE-MERGE-COMMIT:\n%s" %('\n'.join(msg)))
@@ -313,7 +314,8 @@ def make_commit_from_task(task, mark, reference, release, file_list):
     if len(reference) > 1:
         merge = ['merge :' + str(i) for i in reference[1:]]
         commit_info.append('\n'.join(merge))
-    commit_info.append(file_list)
+    if file_list:
+        commit_info.append(file_list)
     commit_info.append('')
     logger.info("git-fast-import COMMIT:\n%s" %('\n'.join(commit_info)))
     return mark, commit_info
@@ -331,7 +333,8 @@ def make_commit_from_object(o, mark, reference, release, file_list):
     if len(reference) > 1:
         merge = ['merge :' + str(i) for i in reference[1:]]
         commit_info.append('\n'.join(merge))
-    commit_info.append(file_list)
+    if file_list:
+        commit_info.append(file_list)
     commit_info.append('')
     logger.info("git-fast-import COMMIT:\n%s" %('\n'.join(commit_info)))
     return mark, commit_info
@@ -352,12 +355,6 @@ def create_file_list(objects, lookup, empty_dirs=None, empty_dir_mark=None):
                     for p in o.get_path():
                         # p is the path of the directory
                         l.append('D ' + p + '/' + d)
-            else:
-                #handle single directory objects with no changes ...?
-                for p in o.get_path():
-                    l.append('M 100644 inline ' + p)
-                    l.append('data 0')
-                    l.append('')
 
     if empty_dirs:
         for d in empty_dirs:
@@ -365,6 +362,8 @@ def create_file_list(objects, lookup, empty_dirs=None, empty_dir_mark=None):
                 path = d + '/.gitignore'
                 l.append('M 100644 :' + str(empty_dir_mark) + ' ' + path)
 
+    if not l:
+        return None
     return '\n'.join(l)
 
 def create_commit_msg_from_task(task):
