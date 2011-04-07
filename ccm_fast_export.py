@@ -21,6 +21,7 @@ from pygraph.algorithms.accessibility import accessibility
 from pygraph.algorithms.accessibility import cut_nodes
 import convert_history as ch
 import ccm_history_to_graphs as htg
+import re
 
 def ccm_fast_export(releases, graphs):
     logger.basicConfig(filename='ccm_fast_export.log',level=logger.DEBUG)
@@ -233,16 +234,26 @@ def create_merge_commit(n, release, releases, mark, reference, graphs, ancestors
     for parent in ancestors
     if parent in graphs[release]['task'].edges()]
 
+    object_names = ', '.join(sorted([o.get_object_name() for o in objects]))
+
+    logger.info("Objects from graph\n%s" % object_names)
+
     if ':task:' in n:
         # Get the correct task name so commit message can be filled
         task_name = get_task_object_from_splitted_task_name(n)
+        if len(task_name) > 1:
+            # Use the first task, TODO use both
+            task_name = task_name[0]
+        else:
+            task_name = task_name[0]
         task = find_task_in_release(task_name, releases[release]['tasks'])
 
     else:
         # It's a single object
         logger.info("Single Object: %s" %(n))
-        o = get_object(n, releases[release]['objects'])
-        objects.append(o)
+        single_object = get_object(n, releases[release]['objects'])
+        logger.info("Single object from graph\n%s" % single_object.get_object_name())
+        objects.append(single_object)
 
     # Sort objects to get correct commit order, if multiple versions of one file is in in the task
     objects = reduce_objects_for_commit(objects)
@@ -258,7 +269,7 @@ def create_merge_commit(n, release, releases, mark, reference, graphs, ancestors
     if ':task:' in n:
         mark, commit = make_commit_from_task(task, get_mark(mark), reference, release, file_list)
     else:
-        mark, commit = make_commit_from_object(o, get_mark(mark), reference, release, file_list)
+        mark, commit = make_commit_from_object(single_object, get_mark(mark), reference, release, file_list)
 
     print '\n'.join(commit)
     return mark
@@ -273,6 +284,11 @@ def create_commit(n, release, releases, mark, reference, graphs):
         objects = get_objects_from_graph(n, graphs[release]['task'], releases[release]['objects'])
         # Get the correct task name so commit message can be filled
         task_name = get_task_object_from_splitted_task_name(n)
+        if len(task_name) > 1:
+            # Use the first task, TODO use both
+            task_name = task_name[0]
+        else:
+            task_name = task_name[0]
         task = find_task_in_release(task_name, releases[release]['tasks'])
 
         # sort objects to get correct commit order, if multiple versions of one file is in in the task
@@ -291,13 +307,13 @@ def create_commit(n, release, releases, mark, reference, graphs):
     else:
         # It's a single object
         logger.info("Single Object: %s" %(n))
-        o = get_object(n, releases[release]['objects'])
-        if not o.get_type() == 'dir':
-            mark = create_blob(o, get_mark(mark), release)
-            object_lookup[o.get_object_name()] = mark
+        single_object = get_object(n, releases[release]['objects'])
+        if not single_object.get_type() == 'dir':
+            mark = create_blob(single_object, get_mark(mark), release)
+            object_lookup[single_object.get_object_name()] = mark
 
-        file_list = create_file_list([o], object_lookup)
-        mark, commit = make_commit_from_object(o, get_mark(mark), reference, release, file_list)
+        file_list = create_file_list([single_object], object_lookup)
+        mark, commit = make_commit_from_object(single_object, get_mark(mark), reference, release, file_list)
         print '\n'.join(commit)
         return mark
 
@@ -428,7 +444,16 @@ def get_objects_from_graph(task, graph, objects):
     return objs
 
 def get_task_object_from_splitted_task_name(task):
-    return task.rsplit('_')[0]
+    # common task or splitted task
+    if task.startswith('common'):
+        # two tasks combined, strip common and split the tasks: common-task64827-1:task:ou1s40-task64849-1:task:ou1s40
+        p = re.compile("common-(.*:task:.*)-(task.*)")
+        m = p.match(task)
+        if m:
+            return [m.group(1), m.group(2)]
+    else:
+        #Splitted task
+        return [task.rsplit('_')[0]]
 
 def reduce_objects_for_commit(objects):
     ret_val = []
