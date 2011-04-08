@@ -79,7 +79,7 @@ class CCMHistory(object):
         latestproject.created_time = datetime.strptime(info['create_time'], "%a %b %d %H:%M:%S %Y")
         latestproject.tasks = info['task']
 
-        self.tag = latestproject.get_version()
+        self.tag = latestproject.get_name() + self.delim + latestproject.get_version()
 
         #find baseline of latestproject:
         base = self.ccm.query("is_baseline_project_of('{0}')".format(latestproject.get_object_name())).format("%objectname").format("%create_time").format('%version').format("%owner").format("%status").format("%task").run()[0]
@@ -101,7 +101,7 @@ class CCMHistory(object):
             print "Empty dirs:\n%s" % '\n'.join(sorted(empty_dirs))
             self.history[self.tag]['empty_dirs'] = empty_dirs
 
-            next = latestproject.get_version()
+            next = latestproject.get_name() + self.delim + latestproject.get_version()
 
             # Find next baseline project
             latestproject = baseline_project
@@ -113,7 +113,7 @@ class CCMHistory(object):
                 baseline_project = None
 
             #Set previous project
-            self.history[self.tag]['previous'] = latestproject.get_version()
+            self.history[self.tag]['previous'] = latestproject.get_name() + self.delim + latestproject.get_version()
 
             #Store data
             fname = self.outputfile + '_' + self.tag
@@ -137,7 +137,7 @@ class CCMHistory(object):
             #del self.history[self.tag]
 
             #Finally set the new (old) tag for the release
-            self.tag = latestproject.get_version()
+            self.tag = latestproject.get_name() + self.delim + latestproject.get_version()
             if self.tag not in self.history.keys():
                 self.history[self.tag] = {'objects': [], 'tasks': []}
             self.history[self.tag]['next'] = next
