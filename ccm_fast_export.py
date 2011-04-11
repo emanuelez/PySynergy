@@ -509,14 +509,15 @@ def rename_toplevel_dir(previous_name, current_name, release, releases, mark):
     mark = get_mark(mark)
     logger.info("Commit for project name change: %s -> %s" %(previous_name, current_name))
 
+    # Use the release author
     author = releases[release]['author']
+    # Use the release time from previous release
     create_time = time.mktime(releases[releases[release]['previous']]['created'].timetuple())
 
-    commit_info = []
-    commit_info.append('commit refs/tags/' + release)
-    commit_info.append('mark :' + str(mark))
-    commit_info.append('author %s <%s@nokia.com> ' % (author, author) + str(int(create_time)) + " +0000")
-    commit_info.append('committer %s <%s@nokia.com> ' % (author, author) + str(int(create_time)) + " +0000")
+    commit_info = ['commit refs/tags/' + release,
+                   'mark :' + str(mark),
+                   'author %s <%s@nokia.com> ' % (author, author) + str(int(create_time)) + " +0000",
+                   'committer %s <%s@nokia.com> ' % (author, author) + str(int(create_time)) + " +0000"]
     commit_msg = 'Renamed toplevel directory to %s' % current_name
     commit_info.append('data ' + str(len(commit_msg)))
     commit_info.append(commit_msg)
