@@ -112,6 +112,21 @@ def ccm_fast_export(releases, graphs):
 
         last_cutting_node = None
 
+        # Check if the release (Synergy project has changed name, if it has the
+        # 'base' directory name needs to be renamed
+        if releases.has_key('delimiter'):
+            delim = release['delimiter']
+        else:
+            delim = '-'
+        previous_name = previous_release.split(delim)[0]
+        current_name = release.split(delim)[0]
+        if current_name != previous_name:
+            logger.info("Name changed: %s -> %s" %(previous_name, current_name))
+            mark, commit = rename_toplevel_dir(previous_name, current_name, release, releases, mark)
+            print '\n'.join(commit)
+            # adjust the commit lookup
+            commit_lookup[previous_release] = mark
+
         for counter, commit in enumerate(commits):
             logger.info("Commit %i/%i" % (counter+1, len(commits)))
 
@@ -487,6 +502,30 @@ def create_blob_for_empty_dir(mark):
     blob = ['blob', 'mark :' + str(mark), 'data 0']
     print '\n'.join(blob)
     return mark
+
+def rename_toplevel_dir(previous_name, current_name, release, releases, mark):
+
+    from_mark = mark
+    mark = get_mark(mark)
+    logger.info("Commit for project name change: %s -> %s" %(previous_name, current_name))
+
+    author = releases[release]['author']
+    create_time = time.mktime(releases[releases[release]['previous']]['created'].timetuple())
+
+    commit_info = []
+    commit_info.append('commit refs/tags/' + release)
+    commit_info.append('mark :' + str(mark))
+    commit_info.append('author %s <%s@nokia.com> ' % (author, author) + str(int(create_time)) + " +0000")
+    commit_info.append('committer %s <%s@nokia.com> ' % (author, author) + str(int(create_time)) + " +0000")
+    commit_msg = 'Renamed toplevel directory to %s' % current_name
+    commit_info.append('data ' + str(len(commit_msg)))
+    commit_info.append(commit_msg)
+    commit_info.append('from :' + str(from_mark))
+    commit_info.append('R %s %s' %(previous_name, current_name))
+    commit_info.append('')
+    logger.info("git-fast-import NAME CHANGE COMMIT:\n%s" %('\n'.join(commit_info)))
+    return mark, commit_info
+
 
 def fix_orphan_nodes(commit_graph, release):
     orphan_nodes = [node for node in commit_graph.nodes() if commit_graph.incidents(node) == []]
