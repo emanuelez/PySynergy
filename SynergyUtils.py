@@ -224,7 +224,7 @@ class ObjectHistory(object):
         self.current_release = current_release
         self.ccm_file_path = CCMFilePath(ccm)
         self.old_release = old_release
-        self.dir = 'data/' + self.current_release.split(self.delim)[1].split(':')[0]
+        self.dir = 'data/' + self.current_release.split(':project:')[0]
         self.release_lookup = {}
         self.old_objects = old_objects
         if old_release:

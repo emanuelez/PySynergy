@@ -88,6 +88,7 @@ class CCMHistory(object):
         if self.tag not in self.history.keys():
             self.history[self.tag] = {'objects': [], 'tasks': []}
         self.history[self.tag]['next'] = None
+        self.history['delimiter'] = self.delim
 
         while baseline_project:
             print "Toplevel Project:", latestproject.get_object_name()
