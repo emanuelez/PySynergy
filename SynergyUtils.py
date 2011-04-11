@@ -18,8 +18,9 @@ from operator import itemgetter
 from itertools import product
 import os.path
 import os
-from threading import Thread
-from Queue import Queue
+from multiprocessing import Queue, Process
+#from threading import Thread
+#from Queue import Queue
 
 class CCMFilePath(object):
     """Get the file path of an object from Synergy"""
@@ -197,25 +198,10 @@ class TaskUtil(object):
         return earliest
 
 
-class ObjectHistoryPool(object):
-    """ Wrap a bunch of ObjectHistory objects in one indexable pool object, """
-    def __init__(self, ccmpool, current_release, old_objects, old_release = None):
-        self.ccmpool = ccmpool
-        self.objectHistoryArray = {}
-        for i in range (self.ccmpool.nr_sessions):
-            self.objectHistoryArray[i] = ObjectHistory(ccmpool[i], current_release, old_objects, old_release)
-
-    def __getitem__(self, index):
-        if ((index > self.ccmpool.max_session_index) or (index < 0)):
-            raise IndexError("ObjectHistoryPool, __getitem__, index " + str(index) + "is not between 0 and " + str(self.ccmpool.max_session_index))
-        historyobject = self.objectHistoryArray[index]
-        return historyobject
-
-
 class ObjectHistory(object):
     """ Get the history of one object backwards in time """
 
-    def __init__(self, ccm, current_release, old_objects, old_release = None):
+    def __init__(self, ccm, current_release, old_objects, old_release = None, new_projects=None, old_projects=None):
         self.ccm = ccm
         self.delim = ccm.delim()
         self.history = {}
@@ -227,43 +213,24 @@ class ObjectHistory(object):
         self.dir = 'data/' + self.current_release.split(':project:')[0]
         self.release_lookup = {}
         self.old_objects = old_objects
-        if old_release:
-            #Fill subproject old list
-            sub = self.ccm.query("recursive_is_member_of('{0}', 'none') and type='project'".format(old_release)).format('%objectname').run()
-            self.old_subproject_list = [s['objectname'] for s in sub]
-            self.old_subproject_list.append(old_release)
-        #Fill subproject current list
-        sub = self.ccm.query("recursive_is_member_of('{0}', 'none') and type='project'".format(current_release)).format('%objectname').run()
-        self.current_subproject_list = [s['objectname'] for s in sub]
-        self.current_subproject_list.append(current_release)
-        self.q = Queue()
+        self.old_subproject_list = old_projects
+        if old_projects:
+            print "Length of old subproject list %d" % len(self.old_subproject_list)
+        self.current_subproject_list = new_projects
+        print "Length of current subproject list %d" % len(self.current_subproject_list)
 
-    def start_get_history(self, objectholder, paths):
-        self.t = Thread(target=self.pget_history, args=(self.q, objectholder, paths,))
-        self.t.start()
-
-    def join_get_history(self):
-        retval = self.q.get()
-        self.q.task_done()
-        self.q.join()
-        self.t.join()
-        return retval
-
-    def pget_history(self, q, objectholder, paths):
-        self.q = q
-        retval = self.get_history(objectholder, paths)
-        self.q.put(retval)
-        return retval
+    def get_history_process(self, fileobj, paths, queue):
+        retval = self.get_history(fileobj, paths)
+        queue.put(retval)
+        queue.close()
 
     def get_history(self, fileobject, paths):
         recursion_depth = 1
-        fileobject = fileobject[0]
         print 'Processing:', fileobject.get_object_name(), "from", self.current_release, "to", self.old_release
 
         # clear old history
         self.history = {}
         self.temp_history = {}
-        #path = self.ccm_file_path.get_path(fileobject.get_object_name(), self.current_release)
 
         fileobject.set_path(paths)
         content = self.ccm.cat(fileobject.get_object_name()).run()
@@ -354,8 +321,6 @@ class ObjectHistory(object):
                     print "New objects:    ", ', '.join(fileobject.get_dir_changes()['new'])
             fileobject.add_predecessor(predecessor.get_object_name())
 
-            # get toplevel project / toplevel release and path for predecessor
-            #path = self.ccm_file_path.get_path(predecessor.get_object_name(), self.old_release)
             # check predecessor release to see if this object should be added to the set.
             if self.old_release:
 
@@ -399,13 +364,11 @@ class ObjectHistory(object):
             else:
                 print "Adding", predecessor.get_object_name(), predecessor.get_status(),  "to history"
                 predecessor.set_attributes(self.synergy_utils.get_non_blacklisted_attributes(predecessor))
-                #if not path:
-                    #Path couldn't be found object is probably not released... use path of successor as that is the one we have...
                 path = fileobject.get_path()
 
                 predecessor.set_path(path)
+                # Get file content and write to disk
                 content = self.ccm.cat(predecessor.get_object_name()).run()
-                #predecessor.set_content(content)
                 if not os.path.exists(self.dir):
                     os.makedirs(self.dir)
                 fname = self.dir + '/' + predecessor.get_object_name()

@@ -50,14 +50,15 @@ def get_objects_in_project_serial(project, ccm=None, database=None):
         print "ccm instance:", ccm.environment['CCM_ADDR']
 
     delim = ccm.delim()
-    queue = deque([SynergyObject(project, delim)])
+    so = SynergyObject(project, delim)
+    queue = deque([so])
 
     hierarchy = {}
     dir_structure = {}
     proj_lookup = {}
     cwd = ''
     count = 0
-
+    hierarchy[so.get_object_name()] = ''
     while queue:
         obj = queue.popleft()
         #print 'Processing:', obj.get_object_name()
@@ -98,6 +99,11 @@ def get_objects_in_project_serial(project, ccm=None, database=None):
             elif o.get_type() == 'project':
                 # Add the project to the queue
                 queue.append(o)
+                # Add the project to the hierarchy, so the subprojects for the release/project is known
+                if o.get_object_name() in hierarchy.keys():
+                    hierarchy[o.get_object_name()].append('%s%s' % (cwd, o.get_name()))
+                else:
+                    hierarchy[o.get_object_name()] = ['%s%s' % (cwd, o.get_name())]
             else:
                 # Add the object to the hierarchy
                 if obj.get_type() == 'dir':
@@ -192,6 +198,11 @@ def do_results(res, hierarchy, dir_structure, proj_lookup):
             dir_structure[o.get_object_name()] = cwd
             # Add the project to the queue
             q.append(o)
+            # Add the project to the hierarchy, so the subprojects for the release/project is known
+            if o.get_object_name() in hierarchy.keys():
+                hierarchy[o.get_object_name()].append('%s%s' % (cwd, o.get_name()))
+            else:
+                hierarchy[o.get_object_name()] = ['%s%s' % (cwd, o.get_name())]
         else:
             # Add the object to the hierarchy
             if o.get_object_name() in hierarchy.keys():
@@ -217,6 +228,7 @@ def get_objects_in_project_parallel(project, ccmpool=None):
     dir_structure = dict()
 
     dir_structure[so.get_object_name()] = ''
+    hierarchy[so.get_object_name()] = ''
     done = False
 
     while queue:
@@ -274,6 +286,12 @@ def main():
     print "objs:", str(len(result.keys()))
 
     paths = sum([len(p) for p in result.values()])
+    projects = [o for o in result.keys() if ':project:' in o]
+    for p in sorted(projects):
+        print p, result[p]
+#    print '\n'.join(projects)
+
+    print 'num of projects %d' %len(projects)
 
     print "paths:", paths
     print "Running time:", end - start
