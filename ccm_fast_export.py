@@ -8,13 +8,10 @@ Output Synergy data as git fast import/export format
 Created by Aske Olsson 2011-02-23.
 Copyright (c) 2011 Nokia. All rights reserved.
 """
+
 import logging as logger
 import time
-from datetime import datetime
-from copy import copy
-from operator import itemgetter, attrgetter
-from collections import deque
-from pygraph.classes.digraph import digraph
+from operator import attrgetter
 from pygraph.classes.graph import graph
 from pygraph.algorithms.sorting import topological_sorting
 from pygraph.algorithms.accessibility import accessibility
@@ -24,6 +21,7 @@ import ccm_history_to_graphs as htg
 import re
 
 def ccm_fast_export(releases, graphs):
+    global acn_ancestors
     logger.basicConfig(filename='ccm_fast_export.log',level=logger.DEBUG)
 
     commit_lookup = {}
@@ -57,16 +55,10 @@ def ccm_fast_export(releases, graphs):
 
     mark = get_mark(mark)
 
-    commit_info = []
-    commit_info.append('reset refs/tags/' + release)
-    commit_info.append('commit refs/tags/' + release)
-    commit_info.append('mark :' + str(mark))
-    commit_info.append('author Nokia <nokia@nokia.com> ' + str(int(initial_release_time)) + " +0000")
-    commit_info.append('committer Nokia <nokia@nokia.com> ' + str(int(initial_release_time)) + " +0000")
-    commit_info.append('data 15')
-    commit_info.append('Initial commit')
-    commit_info.append('\n'.join(files))
-    commit_info.append('')
+    commit_info = ['reset refs/tags/' + release, 'commit refs/tags/' + release, 'mark :' + str(mark),
+                   'author Nokia <nokia@nokia.com> ' + str(int(initial_release_time)) + " +0000",
+                   'committer Nokia <nokia@nokia.com> ' + str(int(initial_release_time)) + " +0000", 'data 15',
+                   'Initial commit', '\n'.join(files), '']
     print '\n'.join(commit_info)
 
     logger.info("git-fast-import:\n%s" %('\n'.join(commit_info)))
@@ -77,7 +69,7 @@ def ccm_fast_export(releases, graphs):
     while release:
         previous_release = releases[release]['previous']
 
-        logger.info("Next release: %s" %(release))
+        logger.info("Next release: %s" % release)
         commit_graph = graphs[release]['commit']
         commit_graph = fix_orphan_nodes(commit_graph, previous_release)
 
@@ -93,7 +85,7 @@ def ccm_fast_export(releases, graphs):
         undirected.add_nodes(commit_graph.nodes())
         [undirected.add_edge(edge) for edge in commit_graph.edges()]
         cutting_nodes = cut_nodes(undirected)
-        del(undirected)
+        del undirected
 
         # Create the reverse commit graph
         logger.info("Building the reverse commit graph")
@@ -102,7 +94,7 @@ def ccm_fast_export(releases, graphs):
         # Compute the accessibility matrix of the reverse commit graph
         logger.info("Compute the ancestors")
         ancestors = accessibility(reverse_commit_graph)
-        del(reverse_commit_graph)
+        del reverse_commit_graph
 
         logger.info("Ancestors of the release: %s" % str(ancestors[release]))
 
@@ -124,7 +116,7 @@ def ccm_fast_export(releases, graphs):
             logger.info("Commit %i/%i" % (counter+1, len(commits)))
 
             acn_ancestors = []
-            if last_cutting_node != None:
+            if last_cutting_node is not None:
                 acn_ancestors = ancestors[last_cutting_node]
 
             # Create the references lists. It lists the parents of the commit
@@ -144,7 +136,7 @@ def ccm_fast_export(releases, graphs):
             if commit in cutting_nodes:
                 last_cutting_node = commit
 
-        if last_cutting_node != None:
+        if last_cutting_node is not None:
             acn_ancestors = ancestors[last_cutting_node]
 
         reference = [commit_lookup[parent] for parent in ancestors[release] if parent not in acn_ancestors]
@@ -156,8 +148,7 @@ def ccm_fast_export(releases, graphs):
         #release = None
 
     #reset to master
-    reset = ['reset refs/heads/master']
-    reset.append('from :' + str(mark))
+    reset = ['reset refs/heads/master', 'from :' + str(mark)]
     logger.info("git-fast-import:\n%s" %('\n'.join(reset)))
     print '\n'.join(reset)
 
@@ -201,9 +192,7 @@ def create_release_merge_commit(releases, release, mark, reference, graphs, ance
 
     logger.info("File list: %i" % len(file_list))
 
-    msg = []
-    msg.append('commit refs/tags/' + release)
-    msg.append('mark :' + str(mark))
+    msg = ['commit refs/tags/' + release, 'mark :' + str(mark)]
     if 'author' not in releases[release]:
         releases[release]['author'] = "Nobody"
     msg.append('author %s <%s@nokia.com> ' % (releases[release]['author'], releases[release]['author']) + str(int(time.mktime(releases[release]['created'].timetuple()))) + " +0000")
@@ -218,12 +207,13 @@ def create_release_merge_commit(releases, release, mark, reference, graphs, ance
         msg.append('\n'.join(merge))
     if file_list:
         msg.append(file_list)
-    if(msg[-1] != ''):
+    if msg[-1] != '':
         msg.append('')
     logger.info("git-fast-import RELEASE-MERGE-COMMIT:\n%s" %('\n'.join(msg)))
     return mark, msg
 
 def create_merge_commit(n, release, releases, mark, reference, graphs, ancestors):
+    global task, single_object
     logger.info("Creating commit for %s" % n)
     object_lookup = {}
 
@@ -250,7 +240,7 @@ def create_merge_commit(n, release, releases, mark, reference, graphs, ancestors
 
     else:
         # It's a single object
-        logger.info("Single Object: %s" %(n))
+        logger.info("Single Object: %s" % n)
         single_object = get_object(n, releases[release]['objects'])
         logger.info("Single object from graph\n%s" % single_object.get_object_name())
         objects.append(single_object)
@@ -275,12 +265,12 @@ def create_merge_commit(n, release, releases, mark, reference, graphs, ancestors
     return mark
 
 def create_commit(n, release, releases, mark, reference, graphs):
-    logger.info("Creating commit for %s" %(n))
+    logger.info("Creating commit for %s" % n)
     object_lookup = {}
     # Find n in release
     if ':task:' in n:
         # It's a task
-        logger.info("Task: %s" %(n))
+        logger.info("Task: %s" % n)
         objects = get_objects_from_graph(n, graphs[release]['task'], releases[release]['objects'])
         # Get the correct task name so commit message can be filled
         task_name = get_task_object_from_splitted_task_name(n)
@@ -306,7 +296,7 @@ def create_commit(n, release, releases, mark, reference, graphs):
 
     else:
         # It's a single object
-        logger.info("Single Object: %s" %(n))
+        logger.info("Single Object: %s" % n)
         single_object = get_object(n, releases[release]['objects'])
         if not single_object.get_type() == 'dir':
             mark = create_blob(single_object, get_mark(mark), release)
@@ -318,11 +308,11 @@ def create_commit(n, release, releases, mark, reference, graphs):
         return mark
 
 def make_commit_from_task(task, mark, reference, release, file_list):
-    commit_info = []
-    commit_info.append('commit refs/tags/' + release)
-    commit_info.append('mark :' + str(mark))
-    commit_info.append('author %s <%s@nokia.com> ' % (task.get_author(), task.get_author()) + str(int(time.mktime(task.get_complete_time().timetuple()))) + " +0000")
-    commit_info.append('committer %s <%s@nokia.com> ' % (task.get_author(), task.get_author()) + str(int(time.mktime(task.get_complete_time().timetuple()))) + " +0000")
+    commit_info = ['commit refs/tags/' + release, 'mark :' + str(mark),
+                   'author %s <%s@nokia.com> ' % (task.get_author(), task.get_author()) + str(
+                       int(time.mktime(task.get_complete_time().timetuple()))) + " +0000",
+                   'committer %s <%s@nokia.com> ' % (task.get_author(), task.get_author()) + str(
+                       int(time.mktime(task.get_complete_time().timetuple()))) + " +0000"]
     commit_msg = create_commit_msg_from_task(task)
     commit_info.append('data ' + str(len(commit_msg)))
     commit_info.append(commit_msg)
@@ -337,11 +327,11 @@ def make_commit_from_task(task, mark, reference, release, file_list):
     return mark, commit_info
 
 def make_commit_from_object(o, mark, reference, release, file_list):
-    commit_info = []
-    commit_info.append('commit refs/tags/' + release)
-    commit_info.append('mark :' + str(mark))
-    commit_info.append('author %s <%s@nokia.com> ' % (o.get_author(), o.get_author()) + str(int(time.mktime(o.get_integrate_time().timetuple()))) + " +0000")
-    commit_info.append('committer %s <%s@nokia.com> ' % (o.get_author(), o.get_author()) + str(int(time.mktime(o.get_integrate_time().timetuple()))) + " +0000")
+    commit_info = ['commit refs/tags/' + release, 'mark :' + str(mark),
+                   'author %s <%s@nokia.com> ' % (o.get_author(), o.get_author()) + str(
+                       int(time.mktime(o.get_integrate_time().timetuple()))) + " +0000",
+                   'committer %s <%s@nokia.com> ' % (o.get_author(), o.get_author()) + str(
+                       int(time.mktime(o.get_integrate_time().timetuple()))) + " +0000"]
     commit_msg = "Object not associated to task in release: " + o.get_object_name()
     commit_info.append('data ' + str(len(commit_msg)))
     commit_info.append(commit_msg)
@@ -406,14 +396,14 @@ def create_commit_msg_from_task(task):
             continue
         if k == 'status_log':
             continue
-        if len(v.strip()) == 0:
+        if not len(v.strip()):
             continue
         msg.append('Synergy-'+k.replace('_', '-')+': '+v.strip().replace("\n", " "))
     if insp:
         for k, v in insp.iteritems():
             if k == 'status_log':
                 continue
-            if len(v.strip()) == 0:
+            if not len(v.strip()):
                 continue
             k = k.replace('task_', '').replace('insp_', '').replace('_', '-')
             for line in v.splitlines():
@@ -482,8 +472,7 @@ def get_object(o, objects):
             return obj
 
 def create_blob(obj, mark, release):
-    blob =['blob']
-    blob.append('mark :'+str(mark))
+    blob = ['blob', 'mark :' + str(mark)]
     fname = 'data/' + release + '/' + obj.get_object_name()
     f = open(fname, 'rb')
     content = f.read()
@@ -495,9 +484,7 @@ def create_blob(obj, mark, release):
     return mark
 
 def create_blob_for_empty_dir(mark):
-    blob =['blob']
-    blob.append('mark :'+str(mark))
-    blob.append('data 0')
+    blob = ['blob', 'mark :' + str(mark), 'data 0']
     print '\n'.join(blob)
     return mark
 
