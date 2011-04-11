@@ -11,7 +11,6 @@ from itertools import product
 from itertools import permutations
 from itertools import combinations
 from itertools import count
-from collections import defaultdict
 from pygraph.classes.digraph import digraph
 from pygraph.classes.graph import graph
 from pygraph.classes.hypergraph import hypergraph
@@ -19,7 +18,6 @@ from pygraph.algorithms.cycles import find_cycle
 from pygraph.algorithms.critical import transitive_edges
 from pygraph.algorithms.accessibility import mutual_accessibility
 from pygraph.algorithms.accessibility import connected_components
-from pygraph.algorithms.accessibility import accessibility
 import networkx as nx
 import logging as log
 
@@ -108,7 +106,7 @@ def convert_history(files, tasks, releases, fileobjects):
         log.info("\tCycle: %s" % ", ".join(cycle))
 
         # Find the newest file
-        newest = max(cycle, key=lambda x: [fileobject.get_integrate_time() for fileobject in fileobjects if fileobject.get_objectname == x][0])
+        newest = max(cycle, key=lambda x: [fileobject.get_integrate_time() for fileobject in fileobjects if fileobject.get_objectname() == x][0])
         log.info("\tObject %s is the newest in the cycle: it should not have successors!" % newest)
 
         # Remove the outgoing link from the newest file
@@ -264,7 +262,7 @@ def spaghettify_digraph(g, head, tail):
     for component in set(components.values()):
         # Find the nodes in the component
         nodes = set([k for k, v in components.iteritems() if v == component])
-        hc[frozenset(heads & nodes)] = component
+        hc[frozenset(heads.intersection(nodes))] = component
         tc[frozenset(tails & nodes)] = component
 
     for component in xrange(1, len(hc)):
