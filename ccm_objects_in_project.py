@@ -29,7 +29,7 @@ from SynergySession import SynergySession
 from SynergySessions import SynergySessions
 from SynergyObject import SynergyObject
 from collections import deque
-from multiprocessing import Process, Queue
+from multiprocessing import Pool, Manager, Semaphore, Queue, Process
 import time
 
 def get_objects_in_project(project, ccm=None, database=None, ccmpool=None):
@@ -77,7 +77,7 @@ def get_objects_in_project_serial(project, ccm=None, database=None):
         # project associated as the directory's parent
         if obj.get_type() == 'project':
             if len(objects) > 1:
-                objects = find_root_project(obj, objects, ccm)
+                objects = find_root_project(obj, objects, ccm, delim)
 
         for o in objects:
             count +=1
@@ -116,8 +116,8 @@ def get_objects_in_project_serial(project, ccm=None, database=None):
 
     return hierarchy
 
-def find_root_project(project, objects, ccm):
-    delim = ccm.delim()
+def find_root_project(project, objects, ccm, delim):
+    #delim = ccm.delim()
     for o in objects:
         result = ccm.query("has_child('{0}', '{1}')".format(o.get_object_name(), project.get_object_name())).format('%objectname').run()
         for r in result:
@@ -141,33 +141,31 @@ class SynergyException(Exception):
     def __str__(self):
         return repr(self.value)
 
-def do_project(obj, proj_lookup, delim, ccm, queue):
-    res = {}
-    #print 'Querying:', obj.get_object_name()
-    parent_proj = None
 
-    if obj.get_type() == 'dir':
-        parent_proj = proj_lookup[obj.get_object_name()]
-
-    result = get_members(obj, ccm, parent_proj)
+def do_query(next, free_ccm, semaphore, delim, p_queue):
+    (project, parent_proj) = next
+    #print 'Querying:', project.get_object_name()
+    ccm_addr = get_and_lock_free_ccm_addr(free_ccm)
+    ccm = SynergySession(None, ccm_addr=ccm_addr)
+    ccm.keep_session_alive = True
+    result = get_members(project, ccm, parent_proj)
     objects = [SynergyObject(o['objectname'], delim) for o in result]
 
     # if a project is being queried it might have more than one dir with the
     # same name as the project associated, find the directory that has the
     # project associated as the directory's parent
-    if obj.get_type() == 'project':
+    if project.get_type() == 'project':
         if len(objects) > 1:
-            objects = find_root_project(obj, objects, ccm)
-    res[obj] = objects
+            objects = find_root_project(project, objects, ccm, delim)
 
-    queue.put(res)
-    queue.close()
+    p_queue.put((project, objects))
+    free_ccm[ccm_addr] = True
+    semaphore.release()
 
+def do_results(next, hierarchy, dir_structure, proj_lookup):
+    (obj, objects) = next
 
-def do_results(res, hierarchy, dir_structure, proj_lookup):
-    #start = time.time()
     q = []
-    obj = res.keys()[0]
     #print 'Processing:', obj.get_object_name()
     cwd = ''
 
@@ -176,9 +174,8 @@ def do_results(res, hierarchy, dir_structure, proj_lookup):
         cwd = dir_structure[obj.get_object_name()]
         #print 'setting cwd:', cwd
 
-    objects = res.values()[0]
-
     for o in objects:
+        #print o.get_object_name()
         if o.get_type() == 'dir':
             # add the directory to the queue and record its parent project
             q.append(o)
@@ -212,53 +209,109 @@ def do_results(res, hierarchy, dir_structure, proj_lookup):
             #print "Object:", o.get_object_name(), 'has path:'
             #print '%s%s' % (cwd, o.get_name())
 
-    #print "time used %5d ms, no of objects: %4d for %s" % ((time.time()-start)*1000, len(objects), obj.get_object_name())
     return (q, hierarchy, dir_structure, proj_lookup)
 
+def get_and_lock_free_ccm_addr(free_ccm):
+    # get a free session
+    for k in free_ccm.keys():
+        if free_ccm[k]:
+            free_ccm[k] = False
+            return k
 
 def get_objects_in_project_parallel(project, ccmpool=None):
+    mgr = Manager()
+    free_ccm = mgr.dict()
 
-    ccm = ccmpool.sessionArray[0]
+    for ccm in ccmpool.sessionArray.values():
+        free_ccm[ccm.getCCM_ADDR()] = True
+    ccm_addr = get_and_lock_free_ccm_addr(free_ccm)
+    ccm = SynergySession(None, ccm_addr=ccm_addr)
+    ccm.keep_session_alive = True
     delim = ccm.delim()
+    # unlock
+    free_ccm[ccm_addr] = True
+
+    semaphore = mgr.Semaphore(ccmpool.nr_sessions)
     so = SynergyObject(project, delim)
-    queue = deque([so])
+    p_queue = mgr.Queue()
+    c_queue = mgr.Queue()
+    c_queue.put((so, None))
+    p_queue.put(so)
 
-    hierarchy = dict()
-    proj_lookup = dict()
-    dir_structure = dict()
+    # start the produce and consumer thread
+    prod = Process(target=producer, args=(c_queue, p_queue, free_ccm))
+    cons = Process(target=consumer, args=(c_queue, p_queue, free_ccm, semaphore, delim))
 
-    dir_structure[so.get_object_name()] = ''
-    hierarchy[so.get_object_name()] = ''
-    done = False
-
-    while queue:
-        start = time.time()
-        print "queue size:", len(queue)
-        processes = []
-        queues = []
-        for i in range(ccmpool.nr_sessions):
-            # Break if queue is empty
-            if not queue:
-                break
-            # make processes
-            proj = queue.popleft()
-            ccm = ccmpool[i]
-            queues.append(Queue())
-            processes.append(Process(target=do_project, args=(proj, proj_lookup, delim, ccm, queues[i])))
-
-        for p in processes:
-            p.start()
-
-        for i in range(len(processes)):
-            res = queues[i].get()
-            (q, hierarchy, dir_structure, proj_lookup) = do_results(res, hierarchy, dir_structure, proj_lookup)
-            queue.extend(q)
-            processes[i].join()
-
-        print "No of objects so far: %d for project %s. Time used: %8d ms" % (len(hierarchy.keys()), project, (time.time()-start)*1000)
+    prod.start()
+    cons.start()
+    print "Waiting to join"
+    cons.join()
+    hierarchy = p_queue.get()
+    prod.join()
 
     return hierarchy
 
+
+def consumer(c_queue, p_queue, free_ccm, semaphore, delim):
+    done = False
+    pool = Pool(len(free_ccm.keys()))
+
+    while not done:
+        #get item from queue
+        #print "Object count ------ ... P queue length %6d ... C queue length %6d" % (p_queue.qsize(), c_queue.qsize())
+        next = c_queue.get()
+        if next == "DONE":
+            done = True
+            break
+
+        semaphore.acquire()
+        pool.apply_async(do_query, (next, free_ccm, semaphore, delim, p_queue))
+
+    pool.close()
+    pool.join()
+
+def producer(c_queue, p_queue, free_ccm):
+    project_hierarchy = {}
+    dir_structure = {}
+    proj_lookup = {}
+
+    start_project = p_queue.get()
+    dir_structure[start_project.get_object_name()] = ''
+    project_hierarchy[start_project.get_object_name()] = ''
+    done = False
+    while not done or p_queue.qsize() > 0:
+        # check if all ccm's are free for half a'sec if they are it's all done
+        if p_queue.qsize() == 0:
+            done = True
+            for i in range(6):
+                if [v for v in free_ccm.values() if v == False]:
+                    done = False
+                    break
+                else:
+                    print "sleep..."
+                    time.sleep(0.1)
+
+        if done:
+            break
+
+        print "Object count %6d ... P queue length %6d ... C queue length %6d" % (len(project_hierarchy.keys()), p_queue.qsize(), c_queue.qsize())
+
+        # Get results from ccm query and put new objects on the queue
+        next = p_queue.get()
+        (objects, hierarchy, dir_structure, proj_lookup) = do_results(next, project_hierarchy, dir_structure, proj_lookup)
+
+        # put on queue
+        for o in objects:
+            parent_proj = None
+            if o.get_type() == 'dir':
+                parent_proj = proj_lookup[o.get_object_name()]
+            c_queue.put((o, parent_proj))
+
+
+    print "we're done..."
+    if done:
+        c_queue.put("DONE")
+    p_queue.put(project_hierarchy)
 
 
 def main():
@@ -282,8 +335,6 @@ def main():
             count += 1
             print '%s\n\t\t%s' % (k, '\n\t\t'.join(v))
 
-    print "Number of objects used in several places:", count
-    print "objs:", str(len(result.keys()))
 
     paths = sum([len(p) for p in result.values()])
     projects = [o for o in result.keys() if ':project:' in o]
@@ -292,12 +343,13 @@ def main():
 #    print '\n'.join(projects)
 
     print 'num of projects %d' %len(projects)
-
+    print "Number of objects used in several places:", count
+    print "objs:", str(len(result.keys()))
     print "paths:", paths
-    print "Running time:", end - start
+    print "Running time: %d seconds" % (end - start)
 
     import cPickle
-    f = open("sb9-11w05_sb9_fam.p", 'wb')
+    f = open("sb9-11w05_sb9_fam_2.p", 'wb')
     cPickle.dump(result, f, 2)
     f.close()
 

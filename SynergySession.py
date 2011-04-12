@@ -23,13 +23,13 @@ from subprocess import Popen, PIPE
 class SynergySession(object):
     """This class is a wrapper around the Synergy command line client"""
 
-    def __init__(self, database, engine=None, command_name='ccm', ccm_ui_path='/dev/null', ccm_eng_path='/dev/null'):
+    def __init__(self, database, engine=None, command_name='ccm', ccm_ui_path='/dev/null', ccm_eng_path='/dev/null', ccm_addr=None):
         self.command_name = command_name
         self.database = database
         self.engine = engine
         self.num_of_cmds = 0
         self.sessionID = -1 # set to -1 for singular sessions; for multiple sessions populate from zero and up after creating the individual sessions
-        self.keep_session_alive = False  # Keep session alive then deleting the object
+        self.keep_session_alive = False  # Keep session alive when deleting the object
 
         # This dictionary will contain the status of the next command and will be emptied by self.run()
         self.command = ''
@@ -57,17 +57,21 @@ class SynergySession(object):
         self.environment['CCM_UILOG'] = ccm_ui_path
         self.environment['CCM_ENGLOG'] = ccm_eng_path
 
-        # Open the session
-        p = Popen(args, stdout=PIPE, stderr=PIPE, env=self.environment)
-        self.num_of_cmds += 1
-        # Store the session data
-        #p.wait()
-        stdout, stderr = p.communicate()
-        if stderr:
-            raise SynergyException('Error while starting a synergy Session: ' + stderr)
+        #Check if an existing session should be used
+        if not ccm_addr:
+            # Open the session
+            p = Popen(args, stdout=PIPE, stderr=PIPE, env=self.environment)
+            self.num_of_cmds += 1
+            # Store the session data
+            #p.wait()
+            stdout, stderr = p.communicate()
+            if stderr:
+                raise SynergyException('Error while starting a synergy Session: ' + stderr)
 
-        # Set the environment variable for the Synergy session
-        self.environment['CCM_ADDR'] = stdout
+            # Set the environment variable for the Synergy session
+            self.environment['CCM_ADDR'] = stdout
+        else:
+            self.environment['CCM_ADDR'] = ccm_addr
 
         # Get the delimiter and store it
         self.delimiter = self.delim()
