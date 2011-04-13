@@ -35,9 +35,12 @@ import time
 def get_objects_in_project(project, ccm=None, database=None, ccmpool=None):
     start = time.time()
     if ccmpool:
-        result = get_objects_in_project_parallel(project, ccmpool=ccmpool)
+        if ccmpool.nr_sessions == 1:
+            result = get_objects_in_project_serial(project, ccm=ccmpool[0], database=database)
+        else:
+            result = get_objects_in_project_parallel(project, ccmpool=ccmpool)
     else:
-        result = get_objects_in_project_parallel(project, ccm=ccm, database=database)
+        result = get_objects_in_project_serial(project, ccm=ccm, database=database)
     print "Time used fetching all objects and paths in %s: %d s." %(project, time.time()-start)
     return result
 
@@ -57,8 +60,9 @@ def get_objects_in_project_serial(project, ccm=None, database=None):
     dir_structure = {}
     proj_lookup = {}
     cwd = ''
-    count = 0
+    count = 1
     hierarchy[so.get_object_name()] = ''
+    dir_structure[so.get_object_name()] = ''
     while queue:
         obj = queue.popleft()
         #print 'Processing:', obj.get_object_name()
@@ -81,8 +85,6 @@ def get_objects_in_project_serial(project, ccm=None, database=None):
 
         for o in objects:
             count +=1
-            if count % 100 == 0:
-                print count, "objects done, currently in:", obj.get_object_name()
             if o.get_type() == 'dir':
                 # add the directory to the queue and record its parent project
                 queue.append(o)
@@ -113,7 +115,7 @@ def get_objects_in_project_serial(project, ccm=None, database=None):
                         hierarchy[o.get_object_name()] = ['%s%s' % (cwd, o.get_name())]
                     #print "Object:", o.get_object_name(), 'has path:'
                     #print '%s%s' % (cwd, o.get_name())
-
+        print "Object count: %6d" % count
     return hierarchy
 
 def find_root_project(project, objects, ccm, delim):
@@ -321,11 +323,12 @@ def main():
     #result = get_objects_in_project("sb9-11w03_sb9_fam:project:be1s30pr#1", database=db)
     #result = get_objects_in_project("sb9-11w03_sb9_fam:project:be1s30pr#1", ccm=ccm)
 
-    ccmpool = SynergySessions(database=db, nr_sessions=10)
+    ccmpool = SynergySessions(database=db, nr_sessions=20)
     start = time.time()
 
-    res = get_objects_in_project_parallel("sb9-11w05_sb9_fam:project:be1s30pr#1", ccmpool=ccmpool)
-
+#    res = get_objects_in_project_parallel("sb9-11w05_sb9_fam:project:be1s30pr#1", ccmpool=ccmpool)
+    project = "sb9-11w05_sb9_fam:project:be1s30pr#1"
+    res = get_objects_in_project(project, ccmpool=ccmpool)
     end = time.time()
 
     result = dict(res)
