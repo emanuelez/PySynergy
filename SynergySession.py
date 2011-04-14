@@ -27,7 +27,6 @@ class SynergySession(object):
         self.command_name = command_name
         self.database = database
         self.engine = engine
-        self.num_of_cmds = 0
         self.sessionID = -1 # set to -1 for singular sessions; for multiple sessions populate from zero and up after creating the individual sessions
         self.keep_session_alive = False  # Keep session alive when deleting the object
 
@@ -61,7 +60,6 @@ class SynergySession(object):
         if not ccm_addr:
             # Open the session
             p = Popen(args, stdout=PIPE, stderr=PIPE, env=self.environment)
-            self.num_of_cmds += 1
             # Store the session data
             #p.wait()
             stdout, stderr = p.communicate()
@@ -89,7 +87,7 @@ class SynergySession(object):
         # Close the session
         if not self.keep_session_alive:
             self.stop()
-            print "[" + str(self.sessionID) + "] Number of commands issued:", str(self.num_of_cmds)
+            print "Stopping %s" % self.getCCM_ADDR()
 
     def _reset_status(self):
         """Reset the status of the object"""
@@ -113,7 +111,6 @@ class SynergySession(object):
                 time.sleep(0.2 * random.random())
 
             p = Popen(command, stdout=PIPE, stderr=PIPE, env=self.environment)
-            self.num_of_cmds += 1
 
             # Store the result as a single string. It will be splitted later
             stdout, stderr = p.communicate()
@@ -355,4 +352,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
