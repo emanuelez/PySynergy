@@ -115,7 +115,7 @@ def ccm_fast_export(releases, graphs):
         # Check if the release (Synergy project has changed name, if it has the
         # 'base' directory name needs to be renamed
         if releases.has_key('delimiter'):
-            delim = release['delimiter']
+            delim = releases['delimiter']
         else:
             delim = '-'
         previous_name = previous_release.split(delim)[0]
