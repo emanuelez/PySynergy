@@ -439,7 +439,7 @@ class ObjectHistory(object):
                     self.release_lookup[s.get_object_name()] = ret_val
             else:
                 # if there is only one successor and it is the fileobject assume it to be released if the predecessor is in released state
-                if len(successors) == 1 and s.get_status() == 'released':
+                if len(successors) == 1 and s['status'] == 'released':
                     return True
 
 
