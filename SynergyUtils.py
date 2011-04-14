@@ -333,7 +333,7 @@ class ObjectHistory(object):
                         # Object is already released, continue with the next predecessor
                         print predecessor.get_object_name(), "is already released"
                         continue
-                    print "Couldn't find release in current_subproject_list old_subproject_list"
+                    print "Couldn't find release in current_subproject_list or old_subproject_list"
 
                     #Check if chain of successors contains previous object - if true discard the chain
                     if self.successor_is_released(predecessor, fileobject, 0):
@@ -432,11 +432,17 @@ class ObjectHistory(object):
                     return True
                 elif [r['objectname'] for r in releases if r['objectname'] in self.current_subproject_list]:
                     print "successor:", s.get_object_name(), "is released in current project, don't continue"
-                    return False
                     self.release_lookup[s.get_object_name()] = False
+                    return False
                 else:
                     ret_val = self.successor_is_released(s, fileobject, recursion_depth)
                     self.release_lookup[s.get_object_name()] = ret_val
+            else:
+                # if there is only one successor and it is the fileobject assume it to be released if the predecessor is in released state
+                if len(successors) == 1 and s.get_status() == 'released':
+                    return True
+
+
         return ret_val
 
     def check_successor_chain_for_object(self, 	fileobject, old_object, recursion_depth):
