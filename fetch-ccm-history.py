@@ -176,7 +176,7 @@ class CCMHistory(object):
 
         # Get the different types in the db and their corresponding file permissions
         ccm_types = ccm_type.get_types_and_permissions(self.ccm)
-        history['ccm_types'] = ccm_types
+        self.history['ccm_types'] = ccm_types
 
         return self.history
 
