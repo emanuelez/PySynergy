@@ -23,6 +23,7 @@ import TaskObject
 import SynergyObject
 from SynergyUtils import ObjectHistory, TaskUtil, SynergyUtils#, ObjectHistoryPool
 import ccm_objects_in_project as ccm_objects
+import ccm_type_to_file_permissions as ccm_type
 
 from collections import deque
 from operator import itemgetter, attrgetter
@@ -172,6 +173,10 @@ class CCMHistory(object):
         print "    Tasks:  ", str(len(self.history[self.tag]['tasks']))
         print "    Files:  ", str(len(self.history[self.tag]['objects']))
         print ""
+
+        # Get the different types in the db and their corresponding file permissions
+        ccm_types = ccm_type.get_types_and_permissions(self.ccm)
+        history['ccm_types'] = ccm_types
 
         return self.history
 

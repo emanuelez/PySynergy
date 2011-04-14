@@ -40,13 +40,13 @@ def ccm_fast_export(releases, graphs):
         if o.get_type() != 'dir':
             mark = create_blob(o, get_mark(mark), release)
             for p in o.get_path():
-                files.append('M 100644 :'+str(mark) + ' ' + p)
+                files.append('M ' + releases['ccm_types'][o.get_type()] + ' :'+str(mark) + ' ' + p)
 
     empty_dirs = releases[release]['empty_dirs']
     logger.info("Empty dirs for release %s\n%s" %(release, empty_dirs))
     mark = create_blob_for_empty_dir(get_mark(mark))
 
-    #file_list = create_file_list(objects, object_lookup, empty_dirs=empty_dirs, empty_dir_mark=mark)
+    #file_list = create_file_list(objects, object_lookup, releases['ccm_types'], empty_dirs=empty_dirs, empty_dir_mark=mark)
     if empty_dirs:
         for d in empty_dirs:
             if mark:
@@ -203,7 +203,7 @@ def create_release_merge_commit(releases, release, mark, reference, graphs, ance
 
     logger.info("Object lookup: %i" % len(object_lookup))
 
-    file_list = create_file_list(objects, object_lookup, empty_dirs=empty_dirs, empty_dir_mark=mark)
+    file_list = create_file_list(objects, object_lookup, releases['ccm_types'], empty_dirs=empty_dirs, empty_dir_mark=mark)
 
     logger.info("File list: %i" % len(file_list))
 
@@ -269,7 +269,7 @@ def create_merge_commit(n, release, releases, mark, reference, graphs, ancestors
             object_lookup[o.get_object_name()] = mark
 
 
-    file_list = create_file_list(objects, object_lookup)
+    file_list = create_file_list(objects, object_lookup, releases['ccm_types'])
 
     if ':task:' in n:
         mark, commit = make_commit_from_task(task, get_mark(mark), reference, release, file_list)
@@ -304,7 +304,7 @@ def create_commit(n, release, releases, mark, reference, graphs):
                 object_lookup[o.get_object_name()] = mark
 
 
-        file_list = create_file_list(objects, object_lookup)
+        file_list = create_file_list(objects, object_lookup, releases['ccm_types'])
         mark, commit = make_commit_from_task(task, get_mark(mark), reference, release, file_list)
         print '\n'.join(commit)
         return mark
@@ -317,7 +317,7 @@ def create_commit(n, release, releases, mark, reference, graphs):
             mark = create_blob(single_object, get_mark(mark), release)
             object_lookup[single_object.get_object_name()] = mark
 
-        file_list = create_file_list([single_object], object_lookup)
+        file_list = create_file_list([single_object], object_lookup, releases['ccm_types'])
         mark, commit = make_commit_from_object(single_object, get_mark(mark), reference, release, file_list)
         print '\n'.join(commit)
         return mark
@@ -360,14 +360,13 @@ def make_commit_from_object(o, mark, reference, release, file_list):
     logger.info("git-fast-import COMMIT:\n%s" %('\n'.join(commit_info)))
     return mark, commit_info
 
-def create_file_list(objects, lookup, empty_dirs=None, empty_dir_mark=None):
+def create_file_list(objects, lookup, ccm_types, empty_dirs=None, empty_dir_mark=None):
     l = []
     for o in objects:
         if o.get_type() != 'dir':
-            #exe = '100755' if o.is_executable() else '100644'
-            exe = '100644'
+            perm = ccm_types[o.get_type()]
             for p in o.get_path():
-                l.append('M ' + exe + ' :' + str(lookup[o.get_object_name()]) + ' ' + p)
+                l.append('M ' + perm + ' :' + str(lookup[o.get_object_name()]) + ' ' + p)
         else:
             #Get deleted items
             if o.get_dir_changes():
