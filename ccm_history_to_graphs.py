@@ -20,9 +20,14 @@ from pygraph.classes.hypergraph import hypergraph
 def create_graphs_from_releases(releases):
     # Find first release i.e. where previous is none
     for k, v in releases.iteritems():
+        if k == 'delimiter':
+            continue
+        if k == 'ccm_types':
+            continue
         if v['previous'] is None:
             release = k
             break
+
     #print release, "is initial release, skipping graphing"
     release = releases[release]['next']
 

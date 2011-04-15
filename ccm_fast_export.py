@@ -27,7 +27,14 @@ def ccm_fast_export(releases, graphs):
     commit_lookup = {}
 
     # Get the  initial release
-    release = next((key for key, value in releases.iteritems() if not value['previous']))
+    for k, v in releases.iteritems():
+        if k == 'delimiter':
+            continue
+        if k == 'ccm_types':
+            continue
+        if v['previous'] is None:
+            release = k
+            break
     logger.info("Starting at %s as initial release" % release)
 
     #initial_release_time = time.mktime(releases[release]['created'].timetuple())
