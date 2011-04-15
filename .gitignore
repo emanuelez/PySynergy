@@ -2,3 +2,4 @@
 *.p
 data/
 *.png
+.idea/
