@@ -37,8 +37,10 @@ def ccm_fast_export(releases, graphs):
             break
     logger.info("Starting at %s as initial release" % release)
 
-    #initial_release_time = time.mktime(releases[release]['created'].timetuple())
-    initial_release_time = 0.0 # epoch for now since releases[release] has no 'created' key :(
+    if 'created' not in releases[release]:
+        initial_release_time = 0.0 # epoch for now since releases[release] has no 'created' key :(
+    else:
+        initial_release_time = time.mktime(releases[release]['created'].timetuple())
     mark = 0
 
     files = []
