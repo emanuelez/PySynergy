@@ -516,7 +516,7 @@ class SynergyUtils(object):
 
 
     def strip_non_ascii(self, str):
-        return ''.join([c for c in str if ord(c) in string.printable])
+        return ''.join([c for c in str if c in string.printable])
 
 
 
