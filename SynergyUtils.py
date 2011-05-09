@@ -6,6 +6,7 @@ SynergyUtils.py
 Created by Emanuele Zattin and Aske Olsson on 2011-01-26.
 Copyright (c) 2011 Nokia. All rights reserved.
 """
+import string
 
 import SynergySession
 import SynergySessions
@@ -488,7 +489,7 @@ class SynergyUtils(object):
             attr = attr.partition(' ')[0]
             if attr not in self.attribute_blacklist:
                 print "setting attribute:", attr
-                attributes[attr] = self.ccm.attr(obj.get_object_name()).option('-s').option(attr).run()
+                attributes[attr] = self.strip_non_ascii(self.ccm.attr(obj.get_object_name()).option('-s').option(attr).run())
         return attributes
 
     def get_all_attributes(self, obj):
@@ -497,7 +498,7 @@ class SynergyUtils(object):
         for attr in attr_list:
             attr = attr.partition(' ')[0]
             print "setting attribute:", attr
-            attributes[attr] = self.ccm.attr(obj.get_object_name()).option('-s').option(attr).run()
+            attributes[attr] = self.strip_non_ascii(self.ccm.attr(obj.get_object_name()).option('-s').option(attr).run())
         return attributes
 
     def get_dir_changes(self, fileobject, predecessor):
@@ -514,6 +515,8 @@ class SynergyUtils(object):
         return content
 
 
+    def strip_non_ascii(self, str):
+        return ''.join([c for c in str if ord(c) in string.printable])
 
 
 
