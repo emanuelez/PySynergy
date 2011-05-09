@@ -19,10 +19,9 @@ class FileObject(SynergyObject.SynergyObject):
         self.content = None
         self.commit_message = None
         self.integrate_time = None
-        self.predecessors = None
-        self.successors = None
         self.path = None
         self.dir_changes = None
+        self.releases = None
 
 
     def get_integrate_time(self):
@@ -30,30 +29,6 @@ class FileObject(SynergyObject.SynergyObject):
 
     def set_integrate_time(self, time):
         self.integrate_time = time
-
-    def get_predecessors(self):
-        return self.predecessors
-
-    def set_predecessors(self, predecessors):
-        self.predecessors = predecessors
-
-    def add_predecessor(self, predecessor):
-        if self.predecessors is None:
-            self.predecessors = [predecessor]
-        else:
-            self.predecessors.append(predecessor)
-
-    def set_successors(self, successors):
-        self.successors = successors
-
-    def add_successor(self, successor):
-        if self.successors is None:
-            self.successors = [successor]
-        else:
-            self.successors.append(successor)
-
-    def get_successors(self):
-        return self.successors
 
     def get_path(self):
         return self.path
@@ -87,22 +62,6 @@ class FileObject(SynergyObject.SynergyObject):
     def set_attributes(self, attributes):
         self.attributes = attributes
         self.integrate_time = self.find_status_time('integrate', self.attributes['status_log'])
-        #self.content = self.attributes['source']
-        #self.commit_message = self.find_commit_message_from_content()
-
-    def get_attributes(self):
-        return attributes
-
-
-    def find_status_time(self, status, status_log):
-        earliest = datetime.today()
-        for line in status_log.splitlines():
-            if status in line and 'ccm_root' not in line:
-                time = datetime.strptime(line.partition(': Status')[0], "%a %b %d %H:%M:%S %Y")
-                if time < earliest:
-                    earliest = time
-
-        return earliest
 
     def find_commit_message_from_content(self):
         start = self.content.find('REASON')

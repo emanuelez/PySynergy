@@ -23,7 +23,9 @@ class TaskObject(SynergyObject.SynergyObject):
         self.release = None
         self.objects = None
         self.complete_time = None
-        self.attributes = None
+        self.released_projects = None
+        self.baselines = None
+
 
     def get_display_name(self):
         name = [self.get_instance()]
@@ -74,19 +76,5 @@ class TaskObject(SynergyObject.SynergyObject):
             self.description = self.attributes['task_description']
         if 'task_number' in self.attributes.keys():
             self.attributes['task_number'] = self.get_display_name()
-
-    def get_attributes(self):
-        return self.attributes
-
-    def find_status_time(self, status, status_log, db):
-        earliest = datetime.today()
-        for line in status_log.splitlines():
-            if status in line and db in line:
-                time = datetime.strptime(line.partition(': Status')[0], "%a %b %d %H:%M:%S %Y")
-                if time < earliest:
-                    earliest = time
-
-        return earliest
-
 
 
