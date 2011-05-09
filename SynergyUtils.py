@@ -155,10 +155,10 @@ class TaskUtil(object):
         print "Fetching task info", task.get_object_name()
         task.set_attributes(self.synergy_utils.get_non_blacklisted_attributes(task))
         #Find related task (s30)
-        releated_task = self.ccm.query("has_task_in_CUIinsp('{0}')".format(task.get_object_name())).format('%objectname').format("%owner").format("%status").format("%create_time").format("%task").run()
-        #There should be only one releated task - inspection task
-        if len(releated_task) == 1:
-            insp_task = TaskObject.TaskObject(releated_task[0]['objectname'], self.delim, releated_task[0]['owner'], releated_task[0]['status'], releated_task[0]['create_time'], releated_task[0]['task'])
+        related_task = self.ccm.query("has_task_in_CUIinsp('{0}')".format(task.get_object_name())).format('%objectname').format("%owner").format("%status").format("%create_time").format("%task").run()
+        #There should be only one related task - inspection task
+        if len(related_task) == 1:
+            insp_task = TaskObject.TaskObject(related_task[0]['objectname'], self.delim, related_task[0]['owner'], related_task[0]['status'], related_task[0]['create_time'], related_task[0]['task'])
             attributes = self.synergy_utils.get_non_blacklisted_attributes(insp_task)
             task.get_attributes().update({'inspection_task': attributes})
 
@@ -212,6 +212,7 @@ class ObjectHistory(object):
         self.old_release = old_release
         self.dir = 'data/' + self.current_release.split(':project:')[0]
         self.release_lookup = {}
+        self.successor_chain_lookup ={}
         self.old_objects = old_objects
         self.old_subproject_list = old_projects
         if old_projects:
@@ -453,11 +454,15 @@ class ObjectHistory(object):
         ret_val = False
         successors = self.ccm.query("is_successor_of('{0}')".format(fileobject.get_object_name())).format("%owner").format("%status").format("%create_time").format("%task").run()
         for s in successors:
+            if self.successor_chain_lookup.has_key(s['objectname']):
+                return self.successor_chain_lookup[s['objectname']]
             if s['objectname'] == old_object.get_object_name():
+                self.successor_chain_lookup[s['objectname']] = True
                 return True
             s = FileObject.FileObject(s['objectname'], fileobject.get_separator(), s['owner'], s['status'], s['create_time'], s['task'])
             print "successor:", s.get_object_name()
             ret_val = self.check_successor_chain_for_object(s, old_object, recursion_depth)
+            self.successor_chain_lookup[s.get_object_name()] = ret_val
             if ret_val:
                     break
         return ret_val
