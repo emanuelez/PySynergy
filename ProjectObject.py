@@ -65,5 +65,3 @@ class ProjectObject(SynergyObject):
         self.released_time = self.find_status_time('released', self.attributes['status_log'])
 
 
-        return earliest
-

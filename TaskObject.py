@@ -77,4 +77,12 @@ class TaskObject(SynergyObject.SynergyObject):
         if 'task_number' in self.attributes.keys():
             self.attributes['task_number'] = self.get_display_name()
 
+    def find_status_time(self, status, status_log, db):
+        earliest = datetime.today()
+        for line in status_log.splitlines():
+            if status in line and db in line:
+                time = datetime.strptime(line.partition(': Status')[0], "%a %b %d %H:%M:%S %Y")
+                if time < earliest:
+                    earliest = time
 
+        return earliest
