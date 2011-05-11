@@ -8,7 +8,7 @@ Copyright (c) 2011 Nokia. All rights reserved.
 """
 
 import SynergyObject
-import SynergySession
+#import SynergySession
 
 from datetime import datetime
 
@@ -16,8 +16,8 @@ class TaskObject(SynergyObject.SynergyObject):
     """ This class wraps a Synergy object with information about author, create time, tasks, status etc. """
 
     def __init__(self, objectname, delimiter, owner, status, create_time, task):
-        super(TaskObject, self).__init__(objectname, delimiter, owner, status, create_time, task)
-
+        super(TaskObject, self).__init__(objectname, delimiter, owner, status, task)
+        self.created_time = create_time
         self.synopsis = None
         self.description = None
         self.release = None
@@ -28,9 +28,7 @@ class TaskObject(SynergyObject.SynergyObject):
 
 
     def get_display_name(self):
-        name = [self.get_instance()]
-        name.append("#")
-        name.append(self.get_name().strip('task'))
+        name = [self.get_instance(), "#", self.get_name().strip('task')]
         return ''.join(name)
 
     def get_synopsis(self):
@@ -68,6 +66,18 @@ class TaskObject(SynergyObject.SynergyObject):
 
     def set_complete_time(self, complete_time):
         self.complete_time = complete_time
+
+    def get_released_projects(self):
+        return self.released_projects
+
+    def set_released_projects(self, released_projects):
+        self.released_projects = released_projects
+
+    def get_baselines(self):
+        return self.baselines
+
+    def set_baselines(self, baselines):
+        self.baselines = baselines
 
     def set_attributes(self, attributes):
         self.attributes = attributes

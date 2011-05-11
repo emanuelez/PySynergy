@@ -18,7 +18,9 @@ FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
 (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
 CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
+from datetime import datetime
 import sys
+from DirectoryObject import DirectoryObject
 
 from SynergyObject import SynergyObject
 from ProjectObject import ProjectObject
@@ -32,36 +34,45 @@ import hashlib
 import os
 import os.path
 
-def get_object_data(obj, ccm):
+def get_object(obj, ccm=None):
     """Get the object's meta data from either the cache or directly from ccm"""
+    if obj is None:
+        return None
+    ccm_cache_path = load_ccm_cache_path()
     #try the object cache first
     try:
-        object_data = get_object_data_from_cache(obj)
+        object_data = get_object_data_from_cache(obj, ccm_cache_path)
     except ObjectCacheException:
-        object_data = get_object_from_ccm(obj, ccm)
+        if not ccm:
+            ccm = create_ccm_session_from_config()
+        object_data = get_object_from_ccm(obj, ccm, ccm_cache_path)
 
     return object_data
 
-def get_object(obj, ccm):
+def get_source(obj, ccm=None):
     """Get the object's meta data from either the cache or directly from ccm"""
+    if obj is None:
+        return None
+    ccm_cache_path = load_ccm_cache_path()
     #try the object cache first
     try:
-        object = get_object_from_cache(obj)
+        object = get_object_source_from_cache(obj, ccm_cache_path)
     except ObjectCacheException:
-        object_data = get_object_from_ccm(obj, ccm)
-        object = get_object_from_cache(obj)
+        if not ccm:
+            ccm = create_ccm_session_from_config()
+        get_object_from_ccm(obj, ccm, ccm_cache_path)
+        object = get_object_source_from_cache(obj, ccm_cache_path)
 
     return object
 
 
-
-def get_object_data_from_cache(obj):
+def get_object_data_from_cache(obj, ccm_cache_path):
     """Try to get the object's meta data from the cache"""
     #sha1 the object name:
     m = hashlib.sha1()
     m.update(obj)
     sha = m.hexdigest()
-    dir = 'data/' + sha[0:2]
+    dir = ccm_cache_path + sha[0:2]
     filename = dir + '/' + sha[2:-1] + '_data'
     # check if object exists
     if os.path.exists(filename):
@@ -74,13 +85,13 @@ def get_object_data_from_cache(obj):
     else:
         raise ObjectCacheException("Object %s not in cache" %obj)
 
-def get_object_from_cache(obj):
+def get_object_source_from_cache(obj, ccm_cache_path):
     """Try to get the object from the cache"""
     #sha1 the object name:
     m = hashlib.sha1()
     m.update(obj.get_object_name())
     sha = m.hexdigest()
-    dir = 'data/' + sha[0:2]
+    dir = ccm_cache_path + sha[0:2]
     filename = dir + '/' + sha[2:-1]
     # check if object exists
     if os.path.exists(filename):
@@ -93,12 +104,49 @@ def get_object_from_cache(obj):
     else:
         raise ObjectCacheException("Object %s not in cache" %obj)
 
-def update_cache(object, ccm):
+
+def update_cache_for_object(object, ccm=None, ccm_cache_path=None):
+    if ccm_cache_path is None:
+        ccm_cache_path = load_ccm_cache_path()
     #sha1 the object name:
     m = hashlib.sha1()
     m.update(object.get_object_name())
     sha = m.hexdigest()
-    dir = 'data/' + sha[0:2]
+    dir = ccm_cache_path + sha[0:2]
+    filename = dir + '/' + sha[2:-1]
+    datafile = filename + '_data'
+    # check if object exists
+    if os.path.exists(datafile):
+        #delete it
+        os.remove(datafile)
+    if not os.path.exists(dir):
+        try:
+           os.makedirs(dir)
+        except OSError:
+            # just continue if it is already there
+            pass
+    f = open(datafile, 'wb')
+    cPickle.dump(object, f)
+    f.close()
+
+    type = object.get_type()
+    if type != 'project' and type != 'task' and type != 'dir':
+        # Store the content of the object
+        if not os.path.exists(filename):
+            if ccm is None:
+                ccm = create_ccm_session_from_config()
+            content = ccm.cat(object.get_object_name()).run()
+            f = open(filename, 'wb')
+            f.write(content)
+            f.close()
+
+
+def update_cache(object, ccm, ccm_cache_path):
+    #sha1 the object name:
+    m = hashlib.sha1()
+    m.update(object.get_object_name())
+    sha = m.hexdigest()
+    dir = ccm_cache_path + sha[0:2]
     filename = dir + '/' + sha[2:-1]
     datafile = filename + '_data'
     # check if object exists
@@ -109,14 +157,14 @@ def update_cache(object, ccm):
             try:
                os.makedirs(dir)
             except OSError:
-                # Could happen in parallel, just continue if it is already there
+                # just continue if it is already there
                 pass
         f = open(datafile, 'wb')
         cPickle.dump(object, f)
         f.close()
 
     type = object.get_type()
-    if type != 'project' or type != 'task' or type != 'dir':
+    if type != 'project' and type != 'task' and type != 'dir':
         # Store the content of the object
         content = ccm.cat(object.get_object_name()).run()
         f = open(filename, 'wb')
@@ -175,8 +223,11 @@ def create_task_object(synergy_object, ccm):
     return object
 
 
-def create_file_object(synergy_object, ccm):
-    object = FileObject(synergy_object.get_object_name(), synergy_object.get_separator(), synergy_object.get_author(), synergy_object.get_status(), synergy_object.get_created_time(), synergy_object.get_tasks())
+def create_file_or_dir_object(synergy_object, ccm):
+    if synergy_object.get_type() == 'dir':
+        object = DirectoryObject(synergy_object.get_object_name(), synergy_object.get_separator(), synergy_object.get_author(), synergy_object.get_status(), synergy_object.get_created_time(), synergy_object.get_tasks())
+    else:
+        object = FileObject(synergy_object.get_object_name(), synergy_object.get_separator(), synergy_object.get_author(), synergy_object.get_status(), synergy_object.get_created_time(), synergy_object.get_tasks())
     # releases
     releases = []
     res = ccm.query("has_member('{0}') and status='released'".format(synergy_object.get_object_name())).format('%objectname').run()
@@ -186,8 +237,21 @@ def create_file_object(synergy_object, ccm):
 
     return object
 
+def fill_changed_entries(object, ccm):
+    deleted = []
+    new = []
+    for p in object.get_predecessors():
+        diff = ccm.diff(object.get_object_name(), p).run().splitlines()
+        for line in diff:
+            if line.startswith('<'):
+                deleted.append(line.split()[1])
+            if line.startswith('>'):
+                new.append(line.split()[1])
+    object.set_new_objects(set(new))
+    object.set_deleted_objects(set(deleted))
+    return object
 
-def get_object_from_ccm(four_part_name, ccm):
+def get_object_from_ccm(four_part_name, ccm, ccm_cache_path):
     """Try to get the object's meta data from Synergy"""
     print 'Loading object %s from ccm' %four_part_name
     # convert the four-part-name to a synergy object:
@@ -196,18 +260,22 @@ def get_object_from_ccm(four_part_name, ccm):
     res = ccm.query("name='{0}' and version='{1}' and type='{2}' and instance='{3}'".format(synergy_object.get_name(), synergy_object.get_version(), synergy_object.get_type(), synergy_object.get_instance())).format("%objectname").format("%owner").format("%status").format("%create_time").format("%task").run()
     synergy_object.status = res[0]['status']
     synergy_object.author =  res[0]['owner']
-    synergy_object.created_time = res[0]['create_time']
-    synergy_object.tasks = res[0]['task']
+    synergy_object.created_time = datetime.strptime(res[0]['create_time'], "%a %b %d %H:%M:%S %Y")
+    tasks = []
+    for t in res[0]['task'].split(','):
+        if t != '<void>':
+            if ':task:' not in t:
+                tasks.append(task_to_four_part(t, delim))
+            else:
+                tasks.append(t)
+    synergy_object.tasks = tasks
 
     if synergy_object.get_type() == 'project':
         object = create_project_object(synergy_object, ccm)
-
     elif synergy_object.get_type() == 'task':
         object = create_task_object(synergy_object, ccm)
-
     else:
-        object = create_file_object(synergy_object, ccm)
-
+        object = create_file_or_dir_object(synergy_object, ccm)
 
     # Common among all objects
     # fill meta data for object:
@@ -226,10 +294,18 @@ def get_object_from_ccm(four_part_name, ccm):
     attributes = get_non_blacklisted_attributes(object, ccm)
     object.set_attributes(attributes)
 
+    if object.get_type() == 'dir':
+        object = fill_changed_entries(object, ccm)
+
     # write the file to the cache and return it
-    update_cache(object, ccm)
+    update_cache(object, ccm, ccm_cache_path)
 
     return object
+
+def task_to_four_part(task, delim):
+    split = task.split('#')
+    four_part = ['task', split[1], delim, '1:task:', split[0]]
+    return ''.join(four_part)
 
 def get_non_blacklisted_attributes(obj, ccm):
     attribute_blacklist = ['_archive_info', '_modify_time', 'binary_scan_file_time',
@@ -258,7 +334,25 @@ def get_all_attributes(obj, ccm):
     return attributes
 
 def strip_non_ascii(str):
-    return ''.join([c for c in str if ord(c) in string.printable])
+    return ''.join([c for c in str if c in string.printable])
+
+
+def load_ccm_cache_path():
+    f = open('config.p', 'rb')
+    config = cPickle.load(f)
+    f.close()
+
+    return config['ccm_cache_path']
+
+def create_ccm_session_from_config():
+    f = open('config.p', 'rb')
+    config = cPickle.load(f)
+    f.close()
+
+    ccm = SynergySession(config['database'])
+    return ccm
+
+
 
 class ObjectCacheException(Exception):
     """User defined exception raised by SynergySession"""
@@ -275,13 +369,23 @@ def main():
     if not object:
         object = 'em_hal_cha_usb_gazoo.c-31:csrc:co1core2#1'
 
+    #create a fake config file:
+    config = {'ccm_cache_path': '/nokia/co_nmp/groups/git_wip/users/asolsson/ccm_cache/',
+              'database': '/nokia/co_nmp/groups/gscm/dbs/co1s30pr'}
+
+    f = open('config.p', 'wb')
+    cPickle.dump(config, f)
+    f.close()
+
     ccm = SynergySession('/nokia/co_nmp/groups/gscm/dbs/co1core2')
-    obj = get_object_data(object, ccm)
-
+    obj = get_object(object, ccm)
     print obj.__dict__
+    if len(sys.argv) > 2:
+        obj = get_object(sys.argv[2])
+        print obj.__dict__
 
+    if os.path.isfile('config.p'):
+        os.remove('config.p')
 
 if __name__ == '__main__':
     main()
-
-

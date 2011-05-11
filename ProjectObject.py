@@ -26,14 +26,14 @@ class ProjectObject(SynergyObject):
     """ This class wraps a Synergy project object with information about author, create time, tasks, status etc. """
 
     def __init__(self, objectname, delimiter, owner, status, create_time, task):
-        super(ProjectObject, self).__init__(objectname, delimiter, owner, status, create_time, task)
-        self.predecessors = None
-        self.successors = None
+        super(ProjectObject, self).__init__(objectname, delimiter, owner, status, task)
+        self.created_time = create_time
         self.baseline_predecessor = None
         self.baseline_successor = None
         self.tasks_in_rp = None
         self.baselines = None
         self.released_time = datetime.min
+        self.members = None
 
 
     def get_baseline_predecessor(self):
@@ -64,4 +64,9 @@ class ProjectObject(SynergyObject):
         self.attributes = attributes
         self.released_time = self.find_status_time('released', self.attributes['status_log'])
 
+    def get_members(self):
+        return self.members
 
+    def set_members(self, members):
+        self.members = members
+        
