@@ -29,7 +29,7 @@ from SynergySession import SynergySession
 from SynergySessions import SynergySessions
 from SynergyObject import SynergyObject
 from collections import deque
-from multiprocessing import Pool, Manager, Semaphore, Queue, Process
+from multiprocessing import Pool, Manager, Process
 import time
 
 def get_objects_in_project(project, ccm=None, database=None, ccmpool=None):
@@ -81,7 +81,7 @@ def get_objects_in_project_serial(project, ccm=None, database=None):
         # project associated as the directory's parent
         if obj.get_type() == 'project':
             if len(objects) > 1:
-                objects = find_root_project(obj, objects, ccm, delim)
+                objects = find_root_project(obj, objects, ccm)
 
         for o in objects:
             count +=1
@@ -118,8 +118,7 @@ def get_objects_in_project_serial(project, ccm=None, database=None):
         print "Object count: %6d" % count
     return hierarchy
 
-def find_root_project(project, objects, ccm, delim):
-    #delim = ccm.delim()
+def find_root_project(project, objects, ccm):
     for o in objects:
         result = ccm.query("has_child('{0}', '{1}')".format(o.get_object_name(), project.get_object_name())).format('%objectname').run()
         for r in result:
@@ -158,7 +157,7 @@ def do_query(next, free_ccm, semaphore, delim, p_queue):
     # project associated as the directory's parent
     if project.get_type() == 'project':
         if len(objects) > 1:
-            objects = find_root_project(project, objects, ccm, delim)
+            objects = find_root_project(project, objects, ccm)
 
     p_queue.put((project, objects))
     free_ccm[ccm_addr] = True
@@ -211,7 +210,7 @@ def do_results(next, hierarchy, dir_structure, proj_lookup):
             #print "Object:", o.get_object_name(), 'has path:'
             #print '%s%s' % (cwd, o.get_name())
 
-    return (q, hierarchy, dir_structure, proj_lookup)
+    return q, hierarchy, dir_structure, proj_lookup
 
 def get_and_lock_free_ccm_addr(free_ccm):
     # get a free session
@@ -263,7 +262,7 @@ def consumer(c_queue, p_queue, free_ccm, semaphore, delim):
         #print "Object count ------ ... P queue length %6d ... C queue length %6d" % (p_queue.qsize(), c_queue.qsize())
         next = c_queue.get()
         if next == "DONE":
-            done = True
+            #done = True
             break
 
         semaphore.acquire()
@@ -283,7 +282,7 @@ def producer(c_queue, p_queue, free_ccm):
     done = False
     while not done or p_queue.qsize() > 0:
         # check if all ccm's are free for half a'sec if they are it's all done
-        if p_queue.qsize() == 0:
+        if not p_queue.qsize():
             done = True
             for i in range(6):
                 if [v for v in free_ccm.values() if v == False]:

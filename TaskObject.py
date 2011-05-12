@@ -8,7 +8,7 @@ Copyright (c) 2011 Nokia. All rights reserved.
 """
 
 import SynergyObject
-import SynergySession
+#import SynergySession
 
 from datetime import datetime
 
@@ -16,19 +16,19 @@ class TaskObject(SynergyObject.SynergyObject):
     """ This class wraps a Synergy object with information about author, create time, tasks, status etc. """
 
     def __init__(self, objectname, delimiter, owner, status, create_time, task):
-        super(TaskObject, self).__init__(objectname, delimiter, owner, status, create_time, task)
-
+        super(TaskObject, self).__init__(objectname, delimiter, owner, status, task)
+        self.created_time = create_time
         self.synopsis = None
         self.description = None
         self.release = None
         self.objects = None
         self.complete_time = None
-        self.attributes = None
+        self.released_projects = None
+        self.baselines = None
+
 
     def get_display_name(self):
-        name = [self.get_instance()]
-        name.append("#")
-        name.append(self.get_name().strip('task'))
+        name = [self.get_instance(), "#", self.get_name().strip('task')]
         return ''.join(name)
 
     def get_synopsis(self):
@@ -67,6 +67,18 @@ class TaskObject(SynergyObject.SynergyObject):
     def set_complete_time(self, complete_time):
         self.complete_time = complete_time
 
+    def get_released_projects(self):
+        return self.released_projects
+
+    def set_released_projects(self, released_projects):
+        self.released_projects = released_projects
+
+    def get_baselines(self):
+        return self.baselines
+
+    def set_baselines(self, baselines):
+        self.baselines = baselines
+
     def set_attributes(self, attributes):
         self.attributes = attributes
         self.complete_time = self.find_status_time('complete', self.attributes['status_log'], self.instance)
@@ -74,9 +86,6 @@ class TaskObject(SynergyObject.SynergyObject):
             self.description = self.attributes['task_description']
         if 'task_number' in self.attributes.keys():
             self.attributes['task_number'] = self.get_display_name()
-
-    def get_attributes(self):
-        return self.attributes
 
     def find_status_time(self, status, status_log, db):
         earliest = datetime.today()
@@ -87,6 +96,3 @@ class TaskObject(SynergyObject.SynergyObject):
                     earliest = time
 
         return earliest
-
-
-

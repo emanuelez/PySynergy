@@ -1,0 +1,36 @@
+; Configuration file for ccm->git converter
+; .ini file format
+;
+; Edit this file to match your needs and save it as 'configuration.conf' then it'll be loaded on startup.
+;
+;
+; Created by Aske Olsson on 2011-05-11.
+; Copyright (c) 2011, Nokia
+; All rights reserved.
+;
+; Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+;
+; Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+;
+; Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the
+; distribution.
+; Neither the name of the Nokia nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
+; THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+; FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.    IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+; (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+; CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+;
+;
+
+[synergy]
+database=                                                   ; database
+base_project=                                               ; starting point for initial commit in git
+end_project=                                                ; end project - latest release
+max_sessions=                                                ; max number of sessions to hammer at synergy
+ccm_cache_path=                                             ; where to store all data and meta data from synergy (lots of space is needed)
+data_file=                                                  ; pickle file to store meta data for the converter (is loaded upon start, so the conversion can resume)
+log_file=                                                   ;
+max_recursion_depth=                                        ; recursion depth to give up when reached, when traversing file history between two releases
+
+[history conversion]
+print_graphs=False                                          ; print png images of the different releases when converting history

@@ -22,11 +22,12 @@ CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING 
 from datetime import datetime
 
 import re
+from SynergySession import SynergyException
 
 class SynergyObject(object):
     """ This class wraps a basic Synergy object i.e. four-part-name """
 
-    def __init__(self, objectname, delimiter, owner=None, status=None, create_time=None, task=None):
+    def __init__(self, objectname, delimiter, owner=None, status=None, task=None):
 
         self.set_separator(delimiter.rstrip())
 
@@ -38,16 +39,15 @@ class SynergyObject(object):
             self.type = m.group(3)
             self.instance = m.group(4)
         else :
-            raise SynergySession.SynergyException('The provided description ' + description + ' is not an objectname')
+            raise SynergyException("The provided description %s is not an objectname" % objectname)
 
         self.author = owner
         self.status = status
-        if create_time:
-            self.created_time = datetime.strptime(create_time, "%a %b %d %H:%M:%S %Y")
-        else:
-            self.created_time = datetime.min
+        self.created_time = datetime.min
         self.tasks = task
-
+        self.predecessors = None
+        self.successors = None
+        self.attributes = None
 
     def get_separator(self):
         return self.separator
@@ -100,3 +100,28 @@ class SynergyObject(object):
     def get_tasks(self):
         return self.tasks
 
+    def get_predecessors(self):
+        return self.predecessors
+
+    def set_predecessors(self, predecessors):
+        self.predecessors = predecessors
+
+    def get_successors(self):
+        return self.successors
+
+    def set_successors(self, successors):
+        self.successors = successors
+
+    def get_attributes(self):
+        return self.attributes
+
+    def set_attributes(self, attributes):
+        self.attributes = attributes
+        
+    def find_status_time(self, status, status_log):
+        earliest = datetime.today()
+        for line in status_log.splitlines():
+            if status in line and 'ccm_root' not in line:
+                time = datetime.strptime(line.partition(': Status')[0], "%a %b %d %H:%M:%S %Y")
+                if time < earliest:
+                    earliest = time
