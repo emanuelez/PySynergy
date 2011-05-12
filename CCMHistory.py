@@ -1,47 +1,36 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-fetch-ccm-history.py
+CCMHistory.py
 
 Fetch ccm (Synergy, Continuus) history from a repository
 
 Created by Emanuele Zattin and Aske Olsson on 2011-01-26.
-Copyright (c) 2011 Nokia. All rights reserved.
+Copyright (c) 2011, Nokia
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+
+Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the
+distribution.
+Neither the name of the Nokia nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.    IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
-from datetime import datetime
-import time
 import cPickle
-import os.path
 import os
 import sys
 
 import SynergySession
 import SynergySessions
-import FileObject
-import TaskObject
-import SynergyObject
-from SynergyUtils import ObjectHistory, TaskUtil, SynergyUtils#, ObjectHistoryPool
+import ccm_cache
+from SynergyUtils import ObjectHistory, TaskUtil
 import ccm_objects_in_project as ccm_objects
 import ccm_type_to_file_permissions as ccm_type
-
-from collections import deque
-from operator import itemgetter, attrgetter
-from multiprocessing import Process, Queue
-
-class Timer():
-    def __init__(self):
-        self.time = []
-    def __enter__(self):
-        self.start = time.time()
-    def __exit__(self, *args):
-        end = time.time() - self.start
-        self.time.append(end)
-        if len(self.time) % 100 == 0:
-            print "time used processing last 100 objects:", sum(self.time[-100:])
-        if len(self.time) % 1000 == 0:
-            print "time used processing last 1000 objects:", sum(self.time[-1000:])
-            self.time = []
 
 class CCMHistory(object):
     """Get History (objects and tasks) in a Synergy (ccm) database between baseline projects"""
@@ -54,37 +43,14 @@ class CCMHistory(object):
         self.history_created = []
         self.tag = ""
         self.outputfile = outputfile
-        self.timer = Timer()
         self.project_objects = None
         self.baseline_objects = None
 
     def get_project_history(self, start_project, end_project):
-        # find latest top-level project
-        #result = self.ccm.query("name='{0}' and create_time > time('%today_minus2months') and status='released'".format(project)).format("%objectname").format("%create_time").format('%version').format("%owner").format("%status").format("%task").run()
-        ##objectname, delimiter, owner, status, create_time, task):
-        #latest = datetime(1,1,1, tzinfo=None)
-        #latestproject = []
-        #for s in result:
-        #    time = datetime.strptime(s['create_time'], "%a %b %d %H:%M:%S %Y")
-        #    if time > latest:
-        #        latest = time
-        #        latestproject = SynergyObject.SynergyObject(s['objectname'], self.delim, s['owner'], s['status'], s['create_time'], s['task'])
-        #        self.tag = s['version']
-        #print "Latest project:", latestproject.get_object_name(), "created:", latest
-
-        latestproject = SynergyObject.SynergyObject(start_project, self.delim)
-        # fill latestproject object with information
-        info = self.ccm.query("name='%s' and version='%s' and type='%s' and instance='%s'" %(latestproject.get_name(), latestproject.get_version(), latestproject.get_type(), latestproject.get_instance()) ).format("%objectname").format("%create_time").format('%version').format("%owner").format("%status").format("%task").run()[0]
-        latestproject.author = info['owner']
-        latestproject.status = info['status']
-        latestproject.created_time = datetime.strptime(info['create_time'], "%a %b %d %H:%M:%S %Y")
-        latestproject.tasks = info['task']
+        latestproject = ccm_cache.get_object(start_project, self.ccm)
 
         self.tag = latestproject.get_name() + self.delim + latestproject.get_version()
-
-        #find baseline of latestproject:
-        base = self.ccm.query("is_baseline_project_of('{0}')".format(latestproject.get_object_name())).format("%objectname").format("%create_time").format('%version').format("%owner").format("%status").format("%task").run()[0]
-        baseline_project = SynergyObject.SynergyObject(base['objectname'], self.delim, base['owner'], base['status'], base['create_time'], base['task'])
+        baseline_project = ccm_cache.get_object(latestproject.get_baseline_predecessor())
         print "Baseline project:", baseline_project.get_object_name()
         if self.tag not in self.history.keys():
             self.history[self.tag] = {'objects': [], 'tasks': []}
@@ -107,13 +73,7 @@ class CCMHistory(object):
 
             # Find next baseline project
             latestproject = baseline_project
-            baseline = self.ccm.query("is_baseline_project_of('{0}')".format(latestproject.get_object_name())).format("%objectname").format("%create_time").format('%version').format("%owner").format("%status").format("%task").run()
-            if baseline:
-                baseline_object = baseline[0]
-                baseline_project = SynergyObject.SynergyObject(baseline_object['objectname'], self.delim, baseline_object['owner'], baseline_object['status'], baseline_object['create_time'], baseline_object['task'])
-            else:
-                baseline_project = None
-
+            baseline_project = ccm_cache.get_object(latestproject.get_baseline_predecessor())
             #Set previous project
             self.history[self.tag]['previous'] = latestproject.get_name() + self.delim + latestproject.get_version()
 
@@ -182,27 +142,34 @@ class CCMHistory(object):
 
     def find_project_diff(self, latestproject, baseline_project):
         toplevel_project = latestproject
-        object_hist_pool = []
 
         #Get all objects and paths for latestproject
         if not self.project_objects:
-            self.project_objects = ccm_objects.get_objects_in_project(latestproject, ccmpool=self.ccmpool)
+            proj_obj = ccm_cache.get_object(latestproject, self.ccm)
+            self.project_objects = proj_obj.get_members()
+            if self.project_objects is None:
+                self.project_objects = ccm_objects.get_objects_in_project(latestproject, ccmpool=self.ccmpool)
+                proj_obj.set_members(self.project_objects)
+                ccm_cache.force_cache_update_for_object(proj_obj)
 
         if baseline_project:
             #Get all objects and paths for baseline project
-            self.baseline_objects = ccm_objects.get_objects_in_project(baseline_project, ccmpool=self.ccmpool)
+            proj_obj = ccm_cache.get_object(baseline_project, self.ccm)
+            self.baseline_objects = proj_obj.get_members()
+            if self.baseline_objects is None:
+                self.baseline_objects = ccm_objects.get_objects_in_project(baseline_project, ccmpool=self.ccmpool)
+                proj_obj.set_members(self.baseline_objects)
+                ccm_cache.force_cache_update_for_object(proj_obj)
             # Find difference between latestproject and baseline_project
             new_objects, old_objects = self.get_changed_objects(self.project_objects, self.baseline_objects)
             new_projects = [o for o in self.project_objects.keys() if ':project:' in o]
             old_projects = [o for o in self.baseline_objects.keys() if ':project:' in o]
-            for i in range(self.ccmpool.nr_sessions):
-                object_hist_pool.append(ObjectHistory(self.ccmpool[i], toplevel_project, old_objects, baseline_project, new_projects, old_projects))
+            object_history = ObjectHistory(self.ccm, toplevel_project, old_objects, baseline_project, new_projects, old_projects)
         else:
             # root project, get ALL objects in release
             new_objects = self.project_objects
             new_projects = [o for o in self.project_objects.keys() if ':project:' in o]
-            for i in range(self.ccmpool.nr_sessions):
-                object_hist_pool.append(ObjectHistory(self.ccmpool[i], toplevel_project, None, toplevel_project, new_projects))
+            object_history = ObjectHistory(self.ccm, toplevel_project, toplevel_project, None, toplevel_project, new_projects)
 
         num_of_objects = len([o for o in new_objects.keys() if ":project:" not in o])
         print "objects to process for",  latestproject, ": ", num_of_objects
@@ -217,42 +184,16 @@ class CCMHistory(object):
         else:
             self.history[self.tag] = {'objects': [], 'tasks': []}
 
-        #Fill the queue with objects not already in the dictionary
-        queue = deque(set([o for o in new_objects.keys() if ':project:' not in o]) - set(objects.keys()))
-        while queue:
-            print "objects left:", len(queue)
-            processes = []
-            queues = []
-            for i in range(self.ccmpool.nr_sessions):
-                # Break if queue is empty
-                if not queue:
-                    break
-                obj = queue.popleft()
-                ccm = self.ccmpool[i]
-                queues.append(Queue())
-                #create FileObject
-                so = SynergyObject.SynergyObject(obj, self.delim)
-                res = ccm.query("name='{0}' and version='{1}' and type='{2}' and instance='{3}'".format(so.get_name(), so.get_version(), so.get_type(), so.get_instance())).format("%objectname").format("%owner").format("%status").format("%create_time").format("%task").run()
-                fileobj = FileObject.FileObject(res[0]['objectname'], self.delim, res[0]['owner'], res[0]['status'], res[0]['create_time'], res[0]['task'])
-                processes.append(Process(target=object_hist_pool[i].get_history_process, args=(fileobj, new_objects[obj], queues[i])))
+        object_names = set([o for o in new_objects.keys() if ':project:' not in o]) - set(objects.keys())
+        for o in object_names:
+            object = ccm_cache.get_object(o, self.ccm)
+            objects.update(object_history.get_history(object, new_objects[object.get_object_name()]))
 
-            for p in processes:
-                p.start()
-
-            for i in range(len(processes)):
-                res = queues[i].get()
-                if res:
-                    objects.update(res)
-                processes[i].join()
-                persist += 1
-
-            if persist >= 100:
+            persist +=1
+            if persist % 100 == 0:
                 self.history[self.tag]['objects'] = objects.values()
                 fname = self.outputfile + '_' + self.tag + '_inc'
                 self.persist_data(fname, self.history[self.tag])
-                persist = 0
-
-            print "No of objects added to release so far: %d for project %s" % (len(objects.keys()), latestproject)
 
         print "number of files:", str(len(objects.values()))
         self.history[self.tag]['objects'] = objects.values()
@@ -262,87 +203,40 @@ class CCMHistory(object):
             self.find_tasks_from_objects(objects.values(), latestproject)
 
 
-    def find_tasks_from_objects(self, objects, project):
-        tasks = {}
-        not_used = []
-
-        if self.tag in self.history.keys():
-            if 'tasks' in self.history[self.tag]:
-                for t in self.history[self.tag]['tasks']:
-                    print "loading old task:", t.get_display_name()
-                    tasks[t.get_display_name()] = t
-
-        num_of_tasks = sum([len(o.get_tasks().split(',')) for o in objects])
-        print "Tasks with associated objects:", num_of_tasks
-
-        #Build a list of all tasks
-        tasklist = [task for o in objects for task in o.get_tasks().split(',') if task != '<void>' ]
-
-        queue = deque(set(tasklist) - set(tasks.keys()))
-        #create task objects in parallel
-        while queue:
-            print "queue size:", len(queue)
-            processes = []
-            queues = []
-            for i in range(self.ccmpool.nr_sessions):
-                # Break if queue is empty
-                if not queue:
-                    break
-                # make processes
-                task = queue.popleft()
-                ccm = self.ccmpool[i]
-                queues.append(Queue())
-                processes.append(Process(target=self.create_task_object, args=(task, ccm, project, queues[i])))
-
-            for p in processes:
-                p.start()
-
-            for i in range(len(processes)):
-                res = queues[i].get()
-                if res:
-                    tasks[res.get_display_name()] = res
-                    print "res %s next %d" % (res.get_display_name(),i)
-                else:
-                    print "res %s next %d" % (res,i)
-                processes[i].join()
-
-            print "No of tasks added to release so far: %d for project %s" % (len(tasks.keys()), project)
-
-        # Add objects to tasks
-        [t.add_object(o.get_object_name()) for o in objects for t in tasks.values() if t.get_display_name() in o.get_tasks()]
-        print "No of tasks in release %s: %d" % (project, len(tasks.keys()))
-        self.history[self.tag]['tasks'] = tasks.values()
-        fname = self.outputfile + '_' + self.tag + '_inc'
-        self.persist_data(fname, self.history[self.tag])
-
-    def create_task_object(self, task, ccm, project, q):
-        task_util = TaskUtil(ccm)
-        # create task object
-        print "Task:", task
-        if task_util.task_in_project(task, project):
-            result = ccm.query("name='{0}' and instance='{1}'".format('task' + task.split('#')[1], task.split('#')[0])).format("%objectname").format("%owner").format("%status").format("%create_time").format("%task_synopsis").format("%release").run()
-
-            t = result[0]
-            # Only use completed tasks!
-            if t['status'] == 'completed':
-                to = TaskObject.TaskObject(t['objectname'], self.delim, t['owner'], t['status'], t['create_time'], task)
-                to.set_synopsis(t['task_synopsis'])
-                to.set_release(t['release'])
-                # Fill all task info
-                task_util.fill_task_info(to)
-                q.put(to)
-        else:
-            print "Task %s not used in %s!" %(task, project)
-            q.put(None)
-        q.close()
-
     def persist_data(self, fname, data):
-        fname = fname + '.p'
+        fname += '.p'
         print "saving..."
         fh = open(fname, 'wb')
         cPickle.dump(data, fh, cPickle.HIGHEST_PROTOCOL)
         fh.close()
         print "done..."
+
+    def find_tasks_from_objects(self, objects, project_name):
+        tasks = {}
+        #        not_used = []
+        project = ccm_cache.get_object(project_name, self.ccm)
+        if self.tag in self.history.keys():
+            if 'tasks' in self.history[self.tag]:
+                for t in self.history[self.tag]['tasks']:
+                    print "loading old task:", t.get_display_name()
+                    tasks[t.get_object_name()] = t
+
+        #Build a list of all tasks
+        task_list = [task for o in objects for task in o.get_tasks()]
+        num_of_tasks = len(task_list)
+        print "Tasks with associated objects:", num_of_tasks
+
+        task_util = TaskUtil(self.ccm)
+        for t in set(task_list)-set(tasks.keys()):
+            task = ccm_cache.get_object(t, self.ccm)
+            if task_util.task_used_in_project(task, project):
+                tasks[task.get_object_name()] = task
+            # Add objects to tasks
+        [t.add_object(o.get_object_name()) for o in objects for t in tasks.values() if t.get_object_name() in o.get_tasks()]
+        print "No of tasks in release %s: %d" % (project, len(tasks.keys()))
+        self.history[self.tag]['tasks'] = tasks.values()
+        fname = self.outputfile + '_' + self.tag + '_inc'
+        self.persist_data(fname, self.history[self.tag])
 
 
     def get_changed_objects(self, new_release, old_release):
@@ -356,7 +250,7 @@ class CCMHistory(object):
         for o in diff:
             old_objects[o] = old_release[o]
 
-        return (new_objects, old_objects)
+        return new_objects, old_objects
 
 def find_empty_dirs(objects):
     dirs = [d for o, paths in objects.iteritems() for d in paths if ':dir:' in o]
@@ -381,7 +275,7 @@ def main():
     ccm = SynergySession.SynergySession(ccm_db)
     ccmpool = SynergySessions.SynergySessions(database=ccm_db, nr_sessions=15)
     print "session started"
-    delim = ccm.delim()
+    #delim = ccm.delim()
     history = {}
     fname = outputfile + '.p'
     if os.path.isfile(fname):

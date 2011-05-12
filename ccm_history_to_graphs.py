@@ -3,22 +3,32 @@
 """
 ccm_history_to_graphs.py
 
-Create commit graphs from ccm history pulled from Synergy via fetch-ccm-history.py
+Create commit graphs from ccm history pulled from Synergy via CCMHistory.py
 
 Created by Aske Olsson and Emanuele Zattin 2011-02-22.
-Copyright (c) 2011 Nokia. All rights reserved.
+Copyright (c) 2011, Nokia
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+
+Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the
+distribution.
+Neither the name of the Nokia nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.    IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
-import FileObject
-import TaskObject
 import pygraphviz as gv
 import convert_history as ch
-from pygraphviz import *
 from pygraph.classes.digraph import digraph
 from pygraph.classes.hypergraph import hypergraph
 
 def create_graphs_from_releases(releases):
     # Find first release i.e. where previous is none
+    release = None
     for k, v in releases.iteritems():
         if k == 'delimiter':
             continue
@@ -54,7 +64,6 @@ def create_graphs_from_releases(releases):
 
 
 def find_objects_without_associated_tasks(objects, tasks):
-    objects_from_tasks = []
     # compare objects in the tasks with objects in release, to see if there is any single objects
     object_names= set([o.get_object_name() for o in objects])
     objects_from_tasks = set([o for task in tasks for o in task.get_objects()])
@@ -78,7 +87,7 @@ def create_graphs(release):
     task_graph = create_task_graph(tasks, objects)
     #task_graph_to_image(object_graph, task_graph, release)
 
-    release_graph = create_release_graph(objects, release['name'], release['previous']);
+    release_graph = create_release_graph(objects, release['name'], release['previous'])
     #release_graph_to_image(object_graph, release_graph, release)
 
     commit_graph = ch.convert_history(object_graph, task_graph, release_graph, objects)
@@ -180,7 +189,6 @@ def task_graph_to_image(object_graph, task_graph, release):
     G.add_nodes_from(object_graph.nodes())
     G.add_edges_from(object_graph.edges())
 
-    subgraphs = []
     #add subgraphs:
     for e in task_graph.edges():
         nodes = task_graph.links(e)
@@ -261,7 +269,7 @@ def digraph_to_image(g, name):
 
 
 def create_label(node, release, task_graph):
-    l = ["Task: " + node]
+    l = ["Task: %s" % node]
     l.append("\\l")
     l.append("Objects:")
     l.append("\\l")

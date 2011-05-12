@@ -105,7 +105,7 @@ def get_object_source_from_cache(obj, ccm_cache_path):
         raise ObjectCacheException("Object %s not in cache" %obj)
 
 
-def update_cache_for_object(object, ccm=None, ccm_cache_path=None):
+def force_cache_update_for_object(object, ccm=None, ccm_cache_path=None):
     if ccm_cache_path is None:
         ccm_cache_path = load_ccm_cache_path()
     #sha1 the object name:
