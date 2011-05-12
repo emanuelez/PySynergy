@@ -258,17 +258,20 @@ def get_object_from_ccm(four_part_name, ccm, ccm_cache_path):
     delim = ccm.delim()
     synergy_object = SynergyObject(four_part_name, delim)
     res = ccm.query("name='{0}' and version='{1}' and type='{2}' and instance='{3}'".format(synergy_object.get_name(), synergy_object.get_version(), synergy_object.get_type(), synergy_object.get_instance())).format("%objectname").format("%owner").format("%status").format("%create_time").format("%task").run()
-    synergy_object.status = res[0]['status']
-    synergy_object.author =  res[0]['owner']
-    synergy_object.created_time = datetime.strptime(res[0]['create_time'], "%a %b %d %H:%M:%S %Y")
-    tasks = []
-    for t in res[0]['task'].split(','):
-        if t != '<void>':
-            if ':task:' not in t:
-                tasks.append(task_to_four_part(t, delim))
-            else:
-                tasks.append(t)
-    synergy_object.tasks = tasks
+    if res:
+        synergy_object.status = res[0]['status']
+        synergy_object.author =  res[0]['owner']
+        synergy_object.created_time = datetime.strptime(res[0]['create_time'], "%a %b %d %H:%M:%S %Y")
+        tasks = []
+        for t in res[0]['task'].split(','):
+            if t != '<void>':
+                if ':task:' not in t:
+                    tasks.append(task_to_four_part(t, delim))
+                else:
+                    tasks.append(t)
+        synergy_object.tasks = tasks
+    else:
+        raise ObjectCacheException("Couldn't extract %s from Synergy" % four_part_name)
 
     if synergy_object.get_type() == 'project':
         object = create_project_object(synergy_object, ccm)
