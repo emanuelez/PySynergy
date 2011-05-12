@@ -3,3 +3,4 @@
 data/
 *.png
 .idea/
+configuration.conf

@@ -16,6 +16,7 @@ from pygraph.classes.graph import graph
 from pygraph.algorithms.sorting import topological_sorting
 from pygraph.algorithms.accessibility import accessibility
 from pygraph.algorithms.accessibility import cut_nodes
+import ccm_cache
 import convert_history as ch
 import ccm_history_to_graphs as htg
 import re
@@ -47,7 +48,7 @@ def ccm_fast_export(releases, graphs):
     #Create the initial release
     for o in releases[release]['objects']:
         if o.get_type() != 'dir':
-            mark = create_blob(o, get_mark(mark), release)
+            mark = create_blob(o, get_mark(mark))
             for p in o.get_path():
                 files.append('M ' + releases['ccm_types'][o.get_type()] + ' :'+str(mark) + ' ' + p)
 
@@ -203,7 +204,7 @@ def create_release_merge_commit(releases, release, mark, reference, graphs, ance
 
     for o in objects:
         if not o.get_type() == 'dir':
-            mark = create_blob(o, get_mark(mark), release)
+            mark = create_blob(o, get_mark(mark))
             object_lookup[o.get_object_name()] = mark
 
     empty_dirs = releases[release]['empty_dirs']
@@ -274,7 +275,7 @@ def create_merge_commit(n, release, releases, mark, reference, graphs, ancestors
 
     for o in objects:
         if not o.get_type() == 'dir':
-            mark = create_blob(o, get_mark(mark), release)
+            mark = create_blob(o, get_mark(mark))
             object_lookup[o.get_object_name()] = mark
 
 
@@ -309,7 +310,7 @@ def create_commit(n, release, releases, mark, reference, graphs):
         objects = reduce_objects_for_commit(objects)
         for o in objects:
             if not o.get_type() == 'dir':
-                mark = create_blob(o, get_mark(mark), release)
+                mark = create_blob(o, get_mark(mark))
                 object_lookup[o.get_object_name()] = mark
 
 
@@ -323,7 +324,7 @@ def create_commit(n, release, releases, mark, reference, graphs):
         logger.info("Single Object: %s" % n)
         single_object = get_object(n, releases[release]['objects'])
         if not single_object.get_type() == 'dir':
-            mark = create_blob(single_object, get_mark(mark), release)
+            mark = create_blob(single_object, get_mark(mark))
             object_lookup[single_object.get_object_name()] = mark
 
         file_list = create_file_list([single_object], object_lookup, releases['ccm_types'])
@@ -414,7 +415,7 @@ def create_commit_msg_from_task(task):
             continue
         if k == 'task_description':
             continue
-        if k == 'inspection_task':
+        if k == 'inspection_tasks':
             insp = v.copy()
             continue
         if k == 'status_log':
@@ -423,14 +424,15 @@ def create_commit_msg_from_task(task):
             continue
         msg.append('Synergy-'+k.replace('_', '-')+': '+v.strip().replace("\n", " "))
     if insp:
-        for k, v in insp.iteritems():
-            if k == 'status_log':
-                continue
-            if not len(v.strip()):
-                continue
-            k = k.replace('task_', '').replace('insp_', '').replace('_', '-')
-            for line in v.splitlines():
-                msg.append('Synergy-insp-%s: %s' % (k, line.rstrip()))
+        for insp_task_num, insp_tasks in insp.iteritems():
+            for k, v in insp_tasks.iteritems():
+                if k == 'status_log':
+                    continue
+                if not len(v.strip()):
+                    continue
+                k = k.replace('task_', '').replace('insp_', '').replace('_', '-')
+                for line in v.splitlines():
+                    msg.append('Synergy-insp-%s-%s: %s' % (insp_task_num, k, line.rstrip()))
     return '\n'.join(msg)
 
 def find_task_in_release(task, tasks):
@@ -494,12 +496,9 @@ def get_object(o, objects):
         if obj.get_object_name() == o:
             return obj
 
-def create_blob(obj, mark, release):
+def create_blob(obj, mark):
     blob = ['blob', 'mark :' + str(mark)]
-    fname = 'data/' + release + '/' + obj.get_object_name()
-    f = open(fname, 'rb')
-    content = f.read()
-    f.close()
+    content = ccm_cache.get_source(obj.get_object_name())
     length = len(content)
     blob.append('data '+ str(length))
     blob.append(content)
@@ -512,7 +511,6 @@ def create_blob_for_empty_dir(mark):
     return mark
 
 def rename_toplevel_dir(previous_name, current_name, release, releases, mark):
-
     from_mark = mark
     mark = get_mark(mark)
     logger.info("Commit for project name change: %s -> %s" %(previous_name, current_name))
