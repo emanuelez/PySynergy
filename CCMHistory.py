@@ -190,7 +190,7 @@ class CCMHistory(object):
             objects.update(object_history.get_history(object, new_objects[object.get_object_name()]))
 
             persist +=1
-            if persist % 100 == 0:
+            if persist % 5000 == 0:
                 self.history[self.tag]['objects'] = objects.values()
                 fname = self.outputfile + '_' + self.tag + '_inc'
                 self.persist_data(fname, self.history[self.tag])
