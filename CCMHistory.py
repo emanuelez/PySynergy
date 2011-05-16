@@ -194,6 +194,8 @@ class CCMHistory(object):
                 self.history[self.tag]['objects'] = objects.values()
                 fname = self.outputfile + '_' + self.tag + '_inc'
                 self.persist_data(fname, self.history[self.tag])
+            num_of_objects -=1
+            print 'Objects left: %d' %num_of_objects
 
         print "number of files:", str(len(objects.values()))
         self.history[self.tag]['objects'] = objects.values()
