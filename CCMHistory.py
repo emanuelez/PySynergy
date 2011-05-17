@@ -189,11 +189,11 @@ class CCMHistory(object):
             object = ccm_cache.get_object(o, self.ccm)
             objects.update(object_history.get_history(object, new_objects[object.get_object_name()]))
 
-            persist +=1
-            if persist % 5000 == 0:
-                self.history[self.tag]['objects'] = objects.values()
-                fname = self.outputfile + '_' + self.tag + '_inc'
-                self.persist_data(fname, self.history[self.tag])
+            #persist +=1
+            #if persist % 5000 == 0:
+            #    self.history[self.tag]['objects'] = objects.values()
+            #    fname = self.outputfile + '_' + self.tag + '_inc'
+            #    self.persist_data(fname, self.history[self.tag])
             num_of_objects -=1
             print 'Objects left: %d' %num_of_objects
 
