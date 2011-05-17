@@ -89,7 +89,7 @@ def get_object_source_from_cache(obj, ccm_cache_path):
     """Try to get the object from the cache"""
     #sha1 the object name:
     m = hashlib.sha1()
-    m.update(obj.get_object_name())
+    m.update(obj)
     sha = m.hexdigest()
     dir = ccm_cache_path + sha[0:2]
     filename = dir + '/' + sha[2:-1]

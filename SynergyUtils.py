@@ -331,9 +331,8 @@ class ObjectHistory(object):
                     ret_val = self.successor_is_released(successor, fileobject, recursion_depth)
                     self.release_lookup[successor.get_object_name()] = ret_val
             else:
-                successor = ccm_cache.get_object(s, self.ccm)
                 # if there is only one successor and it is the fileobject assume it to be released if the predecessor is in released state
-                if len(successors) == 1 and successor.get_status() == 'released':
+                if len(successors) == 1 and predecessor.get_status() == 'released':
                     return True
 
         return ret_val
