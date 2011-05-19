@@ -19,15 +19,11 @@ class FileObject(SynergyObject.SynergyObject):
         self.created_time = create_time
         self.content = None
         self.commit_message = None
-        self.integrate_time = None
         self.path = None
         self.releases = None
 
     def get_integrate_time(self):
-        return self.integrate_time
-
-    def set_integrate_time(self, time):
-        self.integrate_time = time
+        return self.find_status_time('integrate', self.attributes['status_log'])
 
     def get_path(self):
         return self.path
@@ -37,7 +33,6 @@ class FileObject(SynergyObject.SynergyObject):
 
     def set_attributes(self, attributes):
         self.attributes = attributes
-        self.integrate_time = self.find_status_time('integrate', self.attributes['status_log'])
 
     def get_releases(self):
         return self.releases

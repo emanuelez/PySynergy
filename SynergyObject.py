@@ -125,3 +125,4 @@ class SynergyObject(object):
                 time = datetime.strptime(line.partition(': Status')[0], "%a %b %d %H:%M:%S %Y")
                 if time < earliest:
                     earliest = time
+        return earliest

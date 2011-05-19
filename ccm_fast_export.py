@@ -379,8 +379,8 @@ def create_file_list(objects, lookup, ccm_types, empty_dirs=None, empty_dir_mark
                 l.append('M ' + perm + ' :' + str(lookup[o.get_object_name()]) + ' ' + p)
         else:
             #Get deleted items
-            if o.get_dir_changes():
-                deleted = o.get_dir_changes()['deleted']
+            deleted = o.get_deleted_objects()
+            if deleted:
                 for d in deleted:
                     for p in o.get_path():
                         # p is the path of the directory
