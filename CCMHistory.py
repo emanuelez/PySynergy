@@ -230,7 +230,10 @@ class CCMHistory(object):
 
         task_util = TaskUtil(self.ccm)
         for t in set(task_list)-set(tasks.keys()):
-            task = ccm_cache.get_object(t, self.ccm)
+            try:
+                task = ccm_cache.get_object(t, self.ccm)
+            except ccm_cache.ObjectCacheException:
+                continue
             if task_util.task_used_in_project(task, project):
                 tasks[task.get_object_name()] = task
             # Add objects to tasks
