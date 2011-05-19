@@ -82,16 +82,16 @@ def create_graphs(release):
     objects = release['objects']
 
     object_graph = create_object_graph(objects)
-    #object_graph_to_image(object_graph, release)
+    object_graph_to_image(object_graph, release)
 
     task_graph = create_task_graph(tasks, objects)
-    #task_graph_to_image(object_graph, task_graph, release)
+    task_graph_to_image(object_graph, task_graph, release)
 
     release_graph = create_release_graph(objects, release['name'], release['previous'])
-    #release_graph_to_image(object_graph, release_graph, release)
+    release_graph_to_image(object_graph, release_graph, release)
 
     commit_graph = ch.convert_history(object_graph, task_graph, release_graph, objects)
-    #commit_graph_to_image(commit_graph, release, task_graph)
+    commit_graph_to_image(commit_graph, release, task_graph)
 
     return object_graph, task_graph, release_graph, commit_graph
 
@@ -103,10 +103,18 @@ def create_release_graph(objects, release, previous):
 
     object_names = [o.get_object_name() for o in objects]
     for o in objects:
+        link = True
         # Bind objects to this release
-        if o.get_successors() is None:
-            #print "linking", o.get_object_name(), "to release", release
-            release_graph.link(o.get_object_name(), release)
+        successors = o.get_successors()
+        if successors:
+            for s in successors:
+                if s not in release_graph.nodes():
+                    link &= True
+                else:
+                    link &=False
+        if link:
+            if o.get_object_name() not in release_graph.links(release):
+                release_graph.link(o.get_object_name(), release)
 
         # Bind objects to previous release
         predecessors = o.get_predecessors()
@@ -145,25 +153,22 @@ def create_object_graph(objects):
     mapped_objects = {}
     for o in objects:
         mapped_objects[o.get_object_name()] = o
+
     object_graph = digraph()
     object_graph.add_nodes([o.get_object_name() for o in objects])
-    # Create relationship list
-    successors = [(i.get_object_name(), [] if i.get_successors() is None else [mapped_objects[j] for j in i.get_successors()] ) for i in objects]
-    #
-    for obj, suc in successors:
-        for s in suc:
-            object_graph.add_edge((obj, s.get_object_name()))
 
-    object_names = [o.get_object_name() for o in objects]
+    for o in objects:
+        for p in o.get_predecessors():
+            if not object_graph.has_node(p):
+                object_graph.add_node(p)
+    
+    # Create relationship list
     for o in objects:
         # Bind objects to previous release
         predecessors = o.get_predecessors()
-        if predecessors is not None:
+        if predecessors:
             for p in predecessors:
-                if p not in object_names:
-                    if not object_graph.has_node(p):
-                        object_graph.add_node(p)
-                        object_graph.add_edge((p,o.get_object_name()))
+                object_graph.add_edge((p,o.get_object_name()))
 
     return object_graph
 
