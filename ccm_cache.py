@@ -45,12 +45,14 @@ def get_object(obj, ccm=None):
     except ObjectCacheException:
         if not ccm:
             ccm = create_ccm_session_from_config()
-        object_data = get_object_from_ccm(obj, ccm, ccm_cache_path)
-
+        try:
+            object_data = get_object_from_ccm(obj, ccm, ccm_cache_path)
+        except ObjectCacheException:
+            raise ObjectCacheException("Couldn't extract %s from Synergy" % obj)
     return object_data
 
 def get_source(obj, ccm=None):
-    """Get the object's meta data from either the cache or directly from ccm"""
+    """Get the object source from either the cache or directly from ccm"""
     if obj is None:
         return None
     ccm_cache_path = load_ccm_cache_path()
@@ -60,7 +62,10 @@ def get_source(obj, ccm=None):
     except ObjectCacheException:
         if not ccm:
             ccm = create_ccm_session_from_config()
-        get_object_from_ccm(obj, ccm, ccm_cache_path)
+        try:
+            get_object_from_ccm(obj, ccm, ccm_cache_path)
+        except ObjectCacheException:
+            raise ObjectCacheException("Couldn't extract %s from Synergy" % obj)
         object = get_object_source_from_cache(obj, ccm_cache_path)
 
     return object
@@ -369,8 +374,6 @@ class ObjectCacheException(Exception):
 def main():
     """Test"""
     object = sys.argv[1]
-    if not object:
-        object = 'em_hal_cha_usb_gazoo.c-31:csrc:co1core2#1'
 
     #create a fake config file:
     config = {'ccm_cache_path': '/nokia/co_nmp/groups/git_wip/users/asolsson/ccm_cache/',
@@ -380,12 +383,7 @@ def main():
     cPickle.dump(config, f)
     f.close()
 
-    ccm = SynergySession('/nokia/co_nmp/groups/gscm/dbs/co1core2')
-    obj = get_object(object, ccm)
-    print obj.__dict__
-    if len(sys.argv) > 2:
-        obj = get_object(sys.argv[2])
-        print obj.__dict__
+    obj = get_object(object)
 
     if os.path.isfile('config.p'):
         os.remove('config.p')

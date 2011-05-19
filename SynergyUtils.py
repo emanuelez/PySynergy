@@ -236,7 +236,12 @@ class ObjectHistory(object):
 
         predecessors = fileobject.get_predecessors()
         for p in predecessors:
-            predecessor = ccm_cache.get_object(p, self.ccm)
+            try:
+                predecessor = ccm_cache.get_object(p, self.ccm)
+            except ccm_cache.ObjectCacheException:
+                # Object couldn't be retrived from ccm, give up on this
+                print "Couldn't get %s from Synergy" %p
+                return True
             print "Predecessor:", predecessor.get_object_name()
 
             # check predecessor release to see if this object should be added to the set.

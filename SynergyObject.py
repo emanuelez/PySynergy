@@ -45,8 +45,8 @@ class SynergyObject(object):
         self.status = status
         self.created_time = datetime.min
         self.tasks = task
-        self.predecessors = None
-        self.successors = None
+        self.predecessors = []
+        self.successors = []
         self.attributes = None
 
     def get_separator(self):
