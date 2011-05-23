@@ -70,15 +70,41 @@ def get_source(obj, ccm=None):
 
     return object
 
+def reload_object(obj, ccm=None):
+    ccm_cache_path = load_ccm_cache_path()
+    # delete it:
+    delete_object(obj)
+    # load it
+    if not ccm:
+        ccm = create_ccm_session_from_config()
+    object = get_object_from_ccm(obj, ccm, ccm_cache_path)
+    return object
 
-def get_object_data_from_cache(obj, ccm_cache_path):
-    """Try to get the object's meta data from the cache"""
-    #sha1 the object name:
+def delete_object(obj):
+    """Get the object's meta data from either the cache or directly from ccm"""
+    if obj is None:
+        return None
+    ccm_cache_path = load_ccm_cache_path()
+    dir, filename = get_path_for_object(obj, ccm_cache_path)
+    datafile = filename + '_data'
+    if os.path.exists(datafile):
+        #delete it
+        os.remove(datafile)
+    if os.path.exists(filename):
+        os.remove(filename)
+
+def get_path_for_object(obj, ccm_cache_path):
     m = hashlib.sha1()
     m.update(obj)
     sha = m.hexdigest()
     dir = ccm_cache_path + sha[0:2]
     filename = dir + '/' + sha[2:-1] + '_data'
+    return dir, filename
+
+def get_object_data_from_cache(obj, ccm_cache_path):
+    """Try to get the object's meta data from the cache"""
+    #sha1 the object name:
+    dir, filename = get_path_for_object(obj, ccm_cache_path)
     # check if object exists
     if os.path.exists(filename):
         # load the data file
@@ -92,12 +118,7 @@ def get_object_data_from_cache(obj, ccm_cache_path):
 
 def get_object_source_from_cache(obj, ccm_cache_path):
     """Try to get the object from the cache"""
-    #sha1 the object name:
-    m = hashlib.sha1()
-    m.update(obj)
-    sha = m.hexdigest()
-    dir = ccm_cache_path + sha[0:2]
-    filename = dir + '/' + sha[2:-1]
+    dir, filename = get_path_for_object(obj, ccm_cache_path)
     # check if object exists
     if os.path.exists(filename):
         # load the file
@@ -112,12 +133,7 @@ def get_object_source_from_cache(obj, ccm_cache_path):
 def force_cache_update_for_object(object, ccm=None, ccm_cache_path=None):
     if ccm_cache_path is None:
         ccm_cache_path = load_ccm_cache_path()
-    #sha1 the object name:
-    m = hashlib.sha1()
-    m.update(object.get_object_name())
-    sha = m.hexdigest()
-    dir = ccm_cache_path + sha[0:2]
-    filename = dir + '/' + sha[2:-1]
+    dir, filename = get_path_for_object(object.get_object_name(), ccm_cache_path)
     datafile = filename + '_data'
     # check if object exists
     if os.path.exists(datafile):
@@ -146,12 +162,7 @@ def force_cache_update_for_object(object, ccm=None, ccm_cache_path=None):
 
 
 def update_cache(object, ccm, ccm_cache_path):
-    #sha1 the object name:
-    m = hashlib.sha1()
-    m.update(object.get_object_name())
-    sha = m.hexdigest()
-    dir = ccm_cache_path + sha[0:2]
-    filename = dir + '/' + sha[2:-1]
+    dir, filename = get_path_for_object(object.get_object_name(), ccm_cache_path)
     datafile = filename + '_data'
     # check if object exists
     if os.path.exists(datafile):

@@ -225,7 +225,7 @@ class CCMHistory(object):
 
         #Build a list of all tasks
         task_list = [task for o in objects for task in o.get_tasks()]
-        num_of_tasks = len(task_list)
+        num_of_tasks = len(set(task_list))
         print "Tasks with associated objects:", num_of_tasks
 
         task_util = TaskUtil(self.ccm)
@@ -238,7 +238,7 @@ class CCMHistory(object):
                 tasks[task.get_object_name()] = task
             # Add objects to tasks
         [t.add_object(o.get_object_name()) for o in objects for t in tasks.values() if t.get_object_name() in o.get_tasks()]
-        print "No of tasks in release %s: %d" % (project, len(tasks.keys()))
+        print "No of tasks in release %s: %d" % (project.get_object_name(), len(tasks.keys()))
         self.history[self.tag]['tasks'] = tasks.values()
         fname = self.outputfile + '_' + self.tag + '_inc'
         self.persist_data(fname, self.history[self.tag])
