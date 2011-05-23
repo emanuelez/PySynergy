@@ -98,18 +98,19 @@ def get_path_for_object(obj, ccm_cache_path):
     m.update(obj)
     sha = m.hexdigest()
     dir = ccm_cache_path + sha[0:2]
-    filename = dir + '/' + sha[2:-1] + '_data'
+    filename = dir + '/' + sha[2:-1]
     return dir, filename
 
 def get_object_data_from_cache(obj, ccm_cache_path):
     """Try to get the object's meta data from the cache"""
     #sha1 the object name:
     dir, filename = get_path_for_object(obj, ccm_cache_path)
+    datafile = filename + '_data'
     # check if object exists
-    if os.path.exists(filename):
+    if os.path.exists(datafile):
         # load the data file
         print 'Loading object %s from cache' %obj
-        f = open(filename, 'rb')
+        f = open(datafile, 'rb')
         object_data = cPickle.load(f)
         f.close()
         return object_data
