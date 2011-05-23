@@ -101,7 +101,6 @@ def get_object_source_from_cache(obj, ccm_cache_path):
     # check if object exists
     if os.path.exists(filename):
         # load the file
-        print 'Loading object %s from cache' %obj
         f = open(filename, 'rb')
         content = f.read()
         f.close()
