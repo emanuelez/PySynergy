@@ -50,7 +50,7 @@ class CCMHistory(object):
         latestproject = ccm_cache.get_object(start_project, self.ccm)
 
         self.tag = latestproject.get_name() + self.delim + latestproject.get_version()
-        baseline_project = ccm_cache.get_object(latestproject.get_baseline_predecessor())
+        baseline_project = ccm_cache.get_object(latestproject.get_baseline_predecessor(), self.ccm)
         print "Baseline project:", baseline_project.get_object_name()
         if self.tag not in self.history.keys():
             self.history[self.tag] = {'objects': [], 'tasks': []}
@@ -73,7 +73,7 @@ class CCMHistory(object):
 
             # Find next baseline project
             latestproject = baseline_project
-            baseline_project = ccm_cache.get_object(latestproject.get_baseline_predecessor())
+            baseline_project = ccm_cache.get_object(latestproject.get_baseline_predecessor(), self.ccm)
             #Set previous project
             self.history[self.tag]['previous'] = latestproject.get_name() + self.delim + latestproject.get_version()
 
