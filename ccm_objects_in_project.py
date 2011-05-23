@@ -284,7 +284,7 @@ def producer(c_queue, p_queue, free_ccm):
         # check if all ccm's are free for half a'sec if they are it's all done
         if not p_queue.qsize():
             done = True
-            for i in range(6):
+            for i in range(10):
                 if [v for v in free_ccm.values() if v == False]:
                     done = False
                     break
