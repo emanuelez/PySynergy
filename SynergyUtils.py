@@ -165,7 +165,7 @@ class TaskUtil(object):
 class ObjectHistory(object):
     """ Get the history of one object backwards in time """
 
-    def __init__(self, ccm, current_release, old_objects, old_release = None, new_projects=None, old_projects=None):
+    def __init__(self, ccm, current_release, old_objects=None, old_release=None, new_projects=None, old_projects=None):
         self.ccm = ccm
         self.history = {}
         self.temp_history = {}
@@ -178,7 +178,8 @@ class ObjectHistory(object):
         if old_projects:
             print "Length of old subproject list %d" % len(self.old_subproject_list)
         self.current_subproject_list = new_projects
-        print "Length of current subproject list %d" % len(self.current_subproject_list)
+        if new_projects:
+            print "Length of current subproject list %d" % len(self.current_subproject_list)
 
     def get_history(self, fileobject, paths):
         recursion_depth = 1
