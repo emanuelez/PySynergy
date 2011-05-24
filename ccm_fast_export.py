@@ -11,7 +11,7 @@ Copyright (c) 2011 Nokia. All rights reserved.
 
 import logging as logger
 import time
-from operator import attrgetter
+from operator import attrgetter, methodcaller
 from pygraph.classes.graph import graph
 from pygraph.algorithms.sorting import topological_sorting
 from pygraph.algorithms.accessibility import accessibility
@@ -488,7 +488,8 @@ def reduce_objects_for_commit(objects):
 
 def sort_objects_by_integrate_time(objects):
     #Sort first by integrate time, but also by version as several objects may be checked in at the same time (checkpoint->integrate).
-    sorted_objects = sorted(objects, key=attrgetter('integrate_time', 'version'))
+    s = sorted(objects, key=methodcaller('get_integrate_time'))
+    sorted_objects = sorted(s, key=attrgetter('version'))
     return sorted_objects
 
 def get_object(o, objects):
