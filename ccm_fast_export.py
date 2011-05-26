@@ -494,16 +494,25 @@ def reduce_objects_for_commit(objects):
             objs[key] = [o]
 
     for v in objs.values():
-        o = sort_objects_by_integrate_time(v)
-        ret_val.append(o.pop())
+        o = sort_objects_by_history(v)
+        ret_val.append(o)
 
     return ret_val
 
-def sort_objects_by_integrate_time(objects):
-    #Sort first by integrate time, but also by version as several objects may be checked in at the same time (checkpoint->integrate).
-    s = sorted(objects, key=methodcaller('get_integrate_time'))
-    sorted_objects = sorted(s, key=attrgetter('version'))
-    return sorted_objects
+def sort_objects_by_history(objects):
+    object_names = [o.get_object_name() for o in objects]
+    latest_object = objects[0]
+    for o in objects:
+        latest = True
+        for s in o.successors:
+            if s not in object_names:
+                latest &= True
+            else:
+                latest &= False
+        if latest:
+            latest_object = o
+
+    return latest_object
 
 def get_object(o, objects):
     for obj in objects:
