@@ -34,6 +34,7 @@ from pygraph.algorithms.accessibility import mutual_accessibility
 from pygraph.algorithms.accessibility import connected_components
 import networkx as nx
 import logging as log
+import ccm_cache
 
 def main():
     """A test method"""
@@ -108,11 +109,12 @@ def main():
 
     convert_history(fh, tasks, releases, None)
 
-def convert_history(files, tasks, releases, fileobjects):
+def convert_history(files, tasks, releases, objects):
     """Converts the Synergy history between two releases to a Git compatible one."""
     
     log.basicConfig(filename='convert_history.log',level=log.DEBUG)    
 
+    file_objects = [ccm_cache.get_object(o) for o in objects]
     log.info("Looking for cycles in the File History graph")
     while find_cycle(files):
         cycle = find_cycle(files)
@@ -120,7 +122,7 @@ def convert_history(files, tasks, releases, fileobjects):
         log.info("\tCycle: %s" % ", ".join(cycle))
 
         # Find the newest file
-        newest = max(cycle, key=lambda x: [fileobject.get_integrate_time() for fileobject in fileobjects if fileobject.get_objectname() == x][0])
+        newest = max(cycle, key=lambda x: [fileobject.get_integrate_time() for fileobject in file_objects if fileobject.get_objectname() == x][0])
         log.info("\tObject %s is the newest in the cycle: it should not have successors!" % newest)
 
         # Remove the outgoing link from the newest file

@@ -23,6 +23,7 @@ FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.    IN NO EVENT SHALL THE COPYRI
 CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 import pygraphviz as gv
+import ccm_cache
 import convert_history as ch
 from pygraph.classes.digraph import digraph
 from pygraph.classes.hypergraph import hypergraph
@@ -66,10 +67,8 @@ def create_graphs_from_releases(releases):
 
 def find_objects_without_associated_tasks(objects, tasks):
     # compare objects in the tasks with objects in release, to see if there is any single objects
-    object_names= set([o.get_object_name() for o in objects])
     objects_from_tasks = set([o for task in tasks for o in task.get_objects()])
-    single_object_names = object_names - objects_from_tasks
-    single_objects = [o for o in objects if o.get_object_name() in single_object_names]
+    single_objects = set(objects) - objects_from_tasks
     return single_objects
 
 def get_commit_history(release):
@@ -99,11 +98,11 @@ def create_graphs(release):
 
 def create_release_graph(objects, release, previous):
     release_graph = hypergraph()
-    release_graph.add_nodes([o.get_object_name() for o in objects])
+    release_graph.add_nodes(objects)
     release_graph.add_edges([release, previous])
 
-    object_names = [o.get_object_name() for o in objects]
-    for o in objects:
+    file_objects = [ccm_cache.get_object(o) for o in objects]
+    for o in file_objects:
         link = True
         # Bind objects to this release
         successors = o.get_successors()
@@ -121,7 +120,7 @@ def create_release_graph(objects, release, previous):
         predecessors = o.get_predecessors()
         if predecessors is not None:
             for p in predecessors:
-                if p not in object_names:
+                if p not in objects:
                     if not release_graph.has_node(p):
                         release_graph.add_node(p)
                         #print "linking", p, "to release", previous
@@ -132,7 +131,7 @@ def create_release_graph(objects, release, previous):
 
 def create_task_graph(tasks, objects):
     task_graph = hypergraph()
-    task_graph.add_nodes([o.get_object_name() for o in objects])
+    task_graph.add_nodes(objects)
     task_graph.add_hyperedges([t.get_object_name() for t in tasks])
     #link the objects and the tasks
     for t in tasks:
@@ -142,29 +141,29 @@ def create_task_graph(tasks, objects):
                 task_graph.link(o, t.get_object_name())
     # Add single_objects to task_graph
     for o in find_objects_without_associated_tasks(objects, tasks):
-        task_graph.add_hyperedge(o.get_object_name())
+        task_graph.add_hyperedge(o)
         #print "linking:", o.get_object_name(), "and", o.get_object_name()
-        task_graph.link(o.get_object_name(), o.get_object_name())
+        task_graph.link(o, o)
 
     return task_graph
 
 
 def create_object_graph(objects):
-    # create dict to map objectname to file object
-    mapped_objects = {}
-    for o in objects:
-        mapped_objects[o.get_object_name()] = o
 
     object_graph = digraph()
-    object_graph.add_nodes([o.get_object_name() for o in objects])
+    object_graph.add_nodes(objects)
 
+    file_objects = []
     for o in objects:
+        file_objects.append(ccm_cache.get_object(o))
+
+    for o in file_objects:
         for p in o.get_predecessors():
             if not object_graph.has_node(p):
                 object_graph.add_node(p)
     
     # Create relationship list
-    for o in objects:
+    for o in file_objects:
         # Bind objects to previous release
         predecessors = o.get_predecessors()
         if predecessors:

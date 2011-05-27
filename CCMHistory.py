@@ -69,6 +69,7 @@ class CCMHistory(object):
         # Do the first project as a full project
         self.find_project_diff(baseline_project, None)
         self.history[self.tag]['name'] = self.tag
+        self.history[self.tag]['fourpartname'] = baseline_project.get_object_name()
         self.history[self.tag]['created'] = baseline_project.get_created_time()
         self.history[self.tag]['author'] = baseline_project.get_author()
         # Add the objects and paths to the history, to be used for finding empty directories
@@ -85,6 +86,7 @@ class CCMHistory(object):
             #Print Info about baseline_project
             print self.tag, "done processing, Info:"
             print "Name        ", self.tag
+            print "4partname   ", self.history[self.tag]['fourpartname']
             print "Number of:  "
             print "    Tasks:  ", str(len(self.history[self.tag]['tasks']))
             print "    Files:  ", str(len(self.history[self.tag]['objects']))
@@ -101,6 +103,7 @@ class CCMHistory(object):
             print "Toplevel Project:", next_project.get_object_name()
             # do the history thing
             self.history[self.tag]['name'] = self.tag
+            self.history[self.tag]['fourpartname'] = next_project.get_object_name()
             self.find_project_diff(baseline_project, next_project)
             self.history[self.tag]['created'] = next_project.get_created_time()
             self.history[self.tag]['author'] = next_project.get_author()
@@ -128,6 +131,7 @@ class CCMHistory(object):
         self.history[self.tag]['next'] = None
         print self.tag, "done processing, Info:"
         print "Name        ", self.tag
+        print "4partname   ", self.history[self.tag]['fourpartname']
         print "Number of:  "
         print "    Tasks:  ", str(len(self.history[self.tag]['tasks']))
         print "    Files:  ", str(len(self.history[self.tag]['objects']))
@@ -196,7 +200,7 @@ class CCMHistory(object):
             print 'Objects left: %d' %num_of_objects
 
         print "number of files:", str(len(objects.values()))
-        self.history[self.tag]['objects'] = objects.values()
+        self.history[self.tag]['objects'] = objects.keys()
 
         # Create tasks from objects, but not for initial project
         if next_project:

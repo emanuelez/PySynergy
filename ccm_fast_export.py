@@ -24,7 +24,6 @@ CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING 
 """
 import logging as logger
 import time
-from operator import attrgetter, methodcaller
 from pygraph.classes.graph import graph
 from pygraph.algorithms.sorting import topological_sorting
 from pygraph.algorithms.accessibility import accessibility
@@ -58,11 +57,15 @@ def ccm_fast_export(releases, graphs):
     mark = 0
 
     files = []
-    #Create the initial release
-    for o in releases[release]['objects']:
+    # Create the initial release
+    # get all the file objects:
+    file_objects = [ccm_cache.get_object(o) for o in releases[release]['objects']]
+    project_obj = ccm_cache.get_object(releases[release]['fourpartname'])
+    paths = project_obj.get_members()
+    for o in file_objects:
         if o.get_type() != 'dir':
             mark = create_blob(o, get_mark(mark))
-            for p in o.get_path():
+            for p in paths[o.get_object_name()]:
                 files.append('M ' + releases['ccm_types'][o.get_type()] + ' :'+str(mark) + ' ' + p)
 
     empty_dirs = releases[release]['empty_dirs']
@@ -225,8 +228,7 @@ def create_release_merge_commit(releases, release, mark, reference, graphs, ance
     mark = create_blob_for_empty_dir(get_mark(mark))
 
     logger.info("Object lookup: %i" % len(object_lookup))
-
-    file_list = create_file_list(objects, object_lookup, releases['ccm_types'], empty_dirs=empty_dirs, empty_dir_mark=mark)
+    file_list = create_file_list(objects, object_lookup, releases['ccm_types'], releases[release]['fourpartname'], empty_dirs=empty_dirs, empty_dir_mark=mark)
 
     logger.info("File list: %i" % len(file_list))
 
@@ -292,7 +294,7 @@ def create_merge_commit(n, release, releases, mark, reference, graphs, ancestors
             object_lookup[o.get_object_name()] = mark
 
 
-    file_list = create_file_list(objects, object_lookup, releases['ccm_types'])
+    file_list = create_file_list(objects, object_lookup, releases['ccm_types'], releases[release]['fourpartname'])
 
     if ':task:' in n:
         mark, commit = make_commit_from_task(task, get_mark(mark), reference, release, file_list)
@@ -327,7 +329,7 @@ def create_commit(n, release, releases, mark, reference, graphs):
                 object_lookup[o.get_object_name()] = mark
 
 
-        file_list = create_file_list(objects, object_lookup, releases['ccm_types'])
+        file_list = create_file_list(objects, object_lookup, releases['ccm_types'], releases[release]['fourpartname'])
         mark, commit = make_commit_from_task(task, get_mark(mark), reference, release, file_list)
         print '\n'.join(commit)
         return mark
@@ -340,7 +342,7 @@ def create_commit(n, release, releases, mark, reference, graphs):
             mark = create_blob(single_object, get_mark(mark))
             object_lookup[single_object.get_object_name()] = mark
 
-        file_list = create_file_list([single_object], object_lookup, releases['ccm_types'])
+        file_list = create_file_list([single_object], object_lookup, releases['ccm_types'], releases[release]['fourpartname'])
         mark, commit = make_commit_from_object(single_object, get_mark(mark), reference, release, file_list)
         print '\n'.join(commit)
         return mark
@@ -383,19 +385,23 @@ def make_commit_from_object(o, mark, reference, release, file_list):
     logger.info("git-fast-import COMMIT:\n%s" %('\n'.join(commit_info)))
     return mark, commit_info
 
-def create_file_list(objects, lookup, ccm_types, empty_dirs=None, empty_dir_mark=None):
+def create_file_list(objects, lookup, ccm_types, project, empty_dirs=None, empty_dir_mark=None):
+    project_object = ccm_cache.get_object(project)
+    paths = project_object.get_members()
     l = []
     for o in objects:
         if o.get_type() != 'dir':
             perm = ccm_types[o.get_type()]
-            for p in o.get_path():
+            object_paths = get_object_paths(o, paths)
+            for p in object_paths:
                 l.append('M ' + perm + ' :' + str(lookup[o.get_object_name()]) + ' ' + p)
         else:
             #Get deleted items
             deleted = o.get_deleted_objects()
             if deleted:
                 for d in deleted:
-                    for p in o.get_path():
+                    object_paths = get_object_paths(o, paths)
+                    for p in object_paths:
                         # p is the path of the directory
                         l.append('D ' + p + '/' + d)
 
@@ -408,6 +414,23 @@ def create_file_list(objects, lookup, ccm_types, empty_dirs=None, empty_dir_mark
     if not l:
         return None
     return '\n'.join(l)
+
+def get_object_paths(object, project_paths):
+    if project_paths.has_key(object.get_object_name()):
+        return project_paths[object.get_object_name()]
+    path = get_path_of_successor(object, project_paths)
+    return path
+
+def get_path_of_successor(object, project_paths):
+    path = None
+    while not path:
+        for successor in object.successors:
+            if project_paths.has_key(successor):
+                path = project_paths[successor]
+            else:
+                path = get_path_of_successor(ccm_cache.get_object(successor), project_paths)
+    return path
+
 
 def create_commit_msg_from_task(task):
     msg = []
@@ -453,23 +476,14 @@ def find_task_in_release(task, tasks):
         if t.get_object_name() == task:
             return t
 
-def get_objects_from_task(task, objects):
-    objs = []
-    for o in task.get_objects():
-        for obj in objects:
-            if obj.get_object_name() == o:
-                objs.append(obj)
-                break
-    return objs
-
 def get_objects_from_graph(task, graph, objects):
     objs = []
     for o in graph.links(task):
         for obj in objects:
-            if obj.get_object_name() == o:
+            if obj == o:
                 objs.append(obj)
                 break
-    return objs
+    return [ccm_cache.get_object(o) for o in objs]
 
 def get_task_object_from_splitted_task_name(task):
     # common task or splitted task
@@ -516,8 +530,8 @@ def sort_objects_by_history(objects):
 
 def get_object(o, objects):
     for obj in objects:
-        if obj.get_object_name() == o:
-            return obj
+        if obj == o:
+            return ccm_cache.get_object(obj)
 
 def create_blob(obj, mark):
     blob = ['blob', 'mark :' + str(mark)]

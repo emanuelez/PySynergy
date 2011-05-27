@@ -111,7 +111,7 @@ def get_object_data_from_cache(obj, ccm_cache_path):
     # check if object exists
     if os.path.exists(datafile):
         # load the data file
-        print 'Loading object %s from cache' %obj
+#        print 'Loading object %s from cache' %obj
         f = open(datafile, 'rb')
         object_data = cPickle.load(f)
         f.close()
@@ -271,7 +271,7 @@ def fill_changed_entries(object, ccm):
 
 def get_object_from_ccm(four_part_name, ccm, ccm_cache_path):
     """Try to get the object's meta data from Synergy"""
-    print 'Loading object %s from ccm' %four_part_name
+#    print 'Loading object %s from ccm' %four_part_name
     # convert the four-part-name to a synergy object:
     delim = ccm.delim()
     synergy_object = SynergyObject(four_part_name, delim)
