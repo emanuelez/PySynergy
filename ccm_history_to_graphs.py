@@ -82,16 +82,16 @@ def create_graphs(release):
     objects = release['objects']
 
     object_graph = create_object_graph(objects)
-    object_graph_to_image(object_graph, release)
+    #object_graph_to_image(object_graph, release)
 
     task_graph = create_task_graph(tasks, objects)
-    task_graph_to_image(object_graph, task_graph, release)
+    #task_graph_to_image(object_graph, task_graph, release)
 
     release_graph = create_release_graph(objects, release['name'], release['previous'])
-    release_graph_to_image(object_graph, release_graph, release)
+    #release_graph_to_image(object_graph, release_graph, release)
 
     commit_graph = ch.convert_history(object_graph, task_graph, release_graph, objects)
-    commit_graph_to_image(commit_graph, release, task_graph)
+    #commit_graph_to_image(commit_graph, release, task_graph)
 
     return object_graph, task_graph, release_graph, commit_graph
 

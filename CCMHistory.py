@@ -27,13 +27,16 @@ from _collections import deque
 import cPickle
 import os
 import sys
+from SynergyObject import SynergyObject
 
 import SynergySession
 import SynergySessions
+from TaskObject import TaskObject
 import ccm_cache
 from SynergyUtils import ObjectHistory, TaskUtil
 import ccm_objects_in_project as ccm_objects
 import ccm_type_to_file_permissions as ccm_type
+
 
 class CCMHistory(object):
     """Get History (objects and tasks) in a Synergy (ccm) database between baseline projects"""
@@ -162,13 +165,14 @@ class CCMHistory(object):
                 next_project.set_members(self.project_objects)
                 ccm_cache.force_cache_update_for_object(next_project)
             # Find difference between baseline_project and next_project
-            new_objects, old_objects = self.get_changed_objects(self.baseline_objects, self.project_objects)
-            new_projects = [o for o in self.project_objects.keys() if ':project:' in o]
-            old_projects = [o for o in self.baseline_objects.keys() if ':project:' in o]
-            object_history = ObjectHistory(self.ccm, next_project.get_object_name(), old_objects=old_objects, old_release=baseline_project.get_object_name(), new_projects=new_projects, old_projects=old_projects)
+            new_objects, old_objects = get_changed_objects(self.baseline_objects, self.project_objects)
+            next_projects = [o for o in self.project_objects.keys() if ':project:' in o]
+            baseline_projects = [o for o in self.baseline_objects.keys() if ':project:' in o]
+            object_history = ObjectHistory(self.ccm, next_project.get_object_name(), old_objects=old_objects, old_release=baseline_project.get_object_name(), new_projects=next_projects, old_projects=baseline_projects)
         else:
             # root project, get ALL objects in release
             new_objects = self.baseline_objects
+            old_objects = []
             object_history = ObjectHistory(self.ccm, baseline_project.get_object_name())
 
 
@@ -179,7 +183,7 @@ class CCMHistory(object):
             if 'objects' in self.history[self.tag]:
                 #Add all existing objects
                 for o in self.history[self.tag]['objects']:
-                    objects[o.get_object_name()] = o
+                    objects[o] = ccm_cache.get_object(o, self.ccm)
                 print "no of old objects loaded %d" % len(objects.keys())
         else:
             self.history[self.tag] = {'objects': [], 'tasks': []}
@@ -206,6 +210,92 @@ class CCMHistory(object):
         if next_project:
             self.find_tasks_from_objects(objects.values(), next_project)
 
+        # Handle new projects:
+        if next_project:
+            new_created_projects = get_new_projects(old_objects, new_objects, self.delim)
+            dir_lookup ={}
+            # create lookup for path to directory-4-part-name {path : dir-name}
+            for k,v in new_objects.iteritems():
+                if ':dir:' in k:
+                    for i in v:
+                        dir_lookup[i] = k
+            project_dirs = [dir for project in new_created_projects for dir in new_objects[project]]
+            directories = [d for k,v in new_objects.iteritems() for d in v if ':dir:' in k]
+            changed_directories = set(directories).intersection(set(project_dirs))
+            changed_directories = remove_subdirs_under_same_path(changed_directories)
+            dirs = [dir_lookup[d] for d in changed_directories]
+            # find task and add all objects to the task, which shares the path.
+            tasks = self.find_task_from_dirs(dirs)
+            self.update_tasks_with_directory_contens(tasks)
+
+        # remove possible duplicates from objects
+        self.history[self.tag]['objects'] = list(set(self.history[self.tag]['objects']))
+
+
+    def update_tasks_with_directory_contens(self, tasks):
+        for k,v in tasks.iteritems():
+            objects = self.find_children_of_dir(k)
+            #if len(v) > 1:
+            #    # TODO something
+            #    pass
+            self.update_task_in_history_with_objects(v[0], objects)
+            self.update_history_with_objects(objects)
+
+    def update_task_in_history_with_objects(self, task, objects):
+        # Find the task in history if its there
+        found = False
+        for t in self.history[self.tag]['tasks']:
+            if t.get_object_name == task:
+                t.objects = list(set(t.objects.extend([o for o in objects if ':project:' not in o])))
+                found = True
+        if not found:
+            t = ccm_cache.get_object(task, self.ccm)
+            if t.type == 'task':
+                t.objects = [o for o in objects if ':project:' not in o]
+                self.history[self.tag]['tasks'].append(t)
+            elif t.type == 'dir':
+                # Make a task from the directory object
+                task_obj = TaskObject("%s%s%s:task:%s" %(t.name, self.delim, t.version, t.instance), self.delim, t.author, t.status, t.created_time, t.tasks)
+                task_obj.set_attributes(t.attributes)
+                task_obj.complete_time = t.get_integrate_time()
+                task_obj.objects = [o for o in objects if ':project:' not in o]
+                self.history[self.tag]['tasks'].append(task_obj)
+
+    def find_children_of_dir(self, dir):
+        objects = []
+        for k,v in self.project_objects.iteritems():
+            for path in v:
+                for p in self.project_objects[dir]:
+                    if path.startswith(p):
+                        objects.append(k)
+        return objects
+
+    def find_task_from_dirs(self, dirs):
+        tasks = {}
+        for dir in dirs:
+            # Try to get the task from the tasks already found
+            task = []
+            for t in self.history[self.tag]['tasks']:
+                if dir in t.get_objects():
+                    task.append(t.get_object_name())
+#                if t.type == 'dir':
+#                    # If the task couldn't be found the task would be called the dir 4 part name
+#                    if t.get_object_name() == dir:
+#                        task.append(t.get_object_name())
+            if not task:
+                # try to get it from the object
+                obj = ccm_cache.get_object(dir, self.ccm)
+                task = obj.get_tasks()
+                if not task:
+                    # Use object name as task name
+                    task = [dir]
+            tasks[dir]= task
+        return tasks
+
+#    def get_object_from_history(self, obj, tag):
+#        for o in self.history[tag]['objects']:
+#            if o == obj:
+#                return o
 
     def persist_data(self, fname, data):
         fname += '.p'
@@ -220,7 +310,7 @@ class CCMHistory(object):
         if self.tag in self.history.keys():
             if 'tasks' in self.history[self.tag]:
                 for t in self.history[self.tag]['tasks']:
-                    print "loading old task:", t.get_display_name()
+                    print "loading old task:", t.get_object_name()
                     tasks[t.get_object_name()] = t
 
         #Build a list of all tasks
@@ -243,19 +333,45 @@ class CCMHistory(object):
         fname = self.outputfile + '_' + self.tag + '_inc'
         self.persist_data(fname, self.history[self.tag])
 
+    def update_history_with_objects(self, objects):
+        self.history[self.tag]['objects'].extend([o for o in objects if ':project:' not in o])
 
-    def get_changed_objects(self, old_release, new_release):
-        new_objects = {}
-        old_objects = {}
-        diff = set(new_release.keys())-set(old_release.keys())
-        for o in diff:
-            new_objects[o] = new_release[o]
 
-        diff = set(old_release.keys())-set(new_release.keys())
-        for o in diff:
-            old_objects[o] = old_release[o]
+def get_changed_objects(old_release, new_release):
+    new_objects = {}
+    old_objects = {}
+    diff = set(new_release.keys())-set(old_release.keys())
+    for o in diff:
+        new_objects[o] = new_release[o]
 
-        return new_objects, old_objects
+    diff = set(old_release.keys())-set(new_release.keys())
+    for o in diff:
+        old_objects[o] = old_release[o]
+
+    return new_objects, old_objects
+
+def get_new_projects(old_objects, new_objects, delim):
+    new_p = []
+    new_projects = [SynergyObject(o, delim) for o in new_objects if ':project:' in o]
+    old_projects = [SynergyObject(o, delim) for o in old_objects if ':project:' in o]
+    old_projects_names = ["%s%s:%s:%s" % (o.name, delim, o.type, o.instance) for o in old_projects]
+    for o in new_projects:
+        threepartname = "%s%s:%s:%s" % (o.name, delim, o.type, o.instance)
+        if not threepartname in old_projects_names:
+            new_p.append(o.get_object_name())
+    return new_p
+
+def remove_subdirs_under_same_path(paths):
+    spare = []
+    for p in paths:
+        candidates = [d for d in paths if d.startswith(p)]
+        for c in candidates:
+            if not p == c:
+                spare.append(c)
+    for d in set(spare):
+        paths.remove(d)
+
+    return paths
 
 def get_project_chain(from_project, to_project, ccm):
     # Do it reverse:

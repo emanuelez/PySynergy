@@ -269,9 +269,10 @@ def create_merge_commit(n, release, releases, mark, reference, graphs, ancestors
 
     logger.info("Objects from graph\n%s" % object_names)
 
+    delimiter = objects[0].separator
     if ':task:' in n:
         # Get the correct task name so commit message can be filled
-        task_name = get_task_object_from_splitted_task_name(n)
+        task_name = get_task_object_from_splitted_task_name(n, delimiter)
         if len(task_name) > 1:
             # Use the first task, TODO use both
             task_name = task_name[0]
@@ -313,8 +314,10 @@ def create_commit(n, release, releases, mark, reference, graphs):
         # It's a task
         logger.info("Task: %s" % n)
         objects = get_objects_from_graph(n, graphs[release]['task'], releases[release]['objects'])
+        delimiter = objects[0].separator
         # Get the correct task name so commit message can be filled
-        task_name = get_task_object_from_splitted_task_name(n)
+        task_name = get_task_object_from_splitted_task_name(n, delimiter)
+        logger.info("Task name: %s" % task_name)
         if len(task_name) > 1:
             # Use the first task, TODO use both
             task_name = task_name[0]
@@ -484,17 +487,19 @@ def get_objects_from_graph(task, graph, objects):
                 break
     return [ccm_cache.get_object(o) for o in objs]
 
-def get_task_object_from_splitted_task_name(task):
+def get_task_object_from_splitted_task_name(task, delim):
     # common task or splitted task
     if task.startswith('common'):
         # two tasks combined, strip common and split the tasks: common-task64827-1:task:ou1s40-task64849-1:task:ou1s40
-        p = re.compile("common-(.*:task:.*)-(task.*)")
+        p = re.compile("common-(.*:.*:.*)-(.*%s.*)" %delim)
         m = p.match(task)
         if m:
             return [m.group(1), m.group(2)]
     else:
         #Splitted task
-        return [task.rsplit('_')[0]]
+        if '_' in task.split(':task')[1]:
+            return [task.rsplit('_')[0]]
+        return [task]
 
 def reduce_objects_for_commit(objects):
     ret_val = []

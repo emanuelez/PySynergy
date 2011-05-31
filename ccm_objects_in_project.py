@@ -60,7 +60,7 @@ def get_objects_in_project_serial(project, ccm=None, database=None):
     proj_lookup = {}
     cwd = ''
     count = 1
-    hierarchy[so.get_object_name()] = ''
+    hierarchy[so.get_object_name()] = [so.name]
     dir_structure[so.get_object_name()] = ''
     while queue:
         obj = queue.popleft()
@@ -277,7 +277,7 @@ def producer(c_queue, p_queue, free_ccm):
 
     start_project = p_queue.get()
     dir_structure[start_project.get_object_name()] = ''
-    project_hierarchy[start_project.get_object_name()] = ''
+    project_hierarchy[start_project.get_object_name()] = [start_project.name]
     done = False
     while not done or p_queue.qsize() > 0:
         # check if all ccm's are free for half a'sec if they are it's all done
