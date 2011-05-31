@@ -28,6 +28,7 @@ from pygraph.classes.graph import graph
 from pygraph.algorithms.sorting import topological_sorting
 from pygraph.algorithms.accessibility import accessibility
 from pygraph.algorithms.accessibility import cut_nodes
+from SynergyObject import SynergyObject
 import ccm_cache
 import convert_history as ch
 import ccm_history_to_graphs as htg
@@ -418,19 +419,17 @@ def create_file_list(objects, lookup, ccm_types, project, empty_dirs=None, empty
 def get_object_paths(object, project_paths):
     if project_paths.has_key(object.get_object_name()):
         return project_paths[object.get_object_name()]
-    path = get_path_of_successor(object, project_paths)
+    path = get_path_of_object_in_release(object, project_paths)
     return path
 
-def get_path_of_successor(object, project_paths):
-    path = None
-    while not path:
-        for successor in object.successors:
-            if project_paths.has_key(successor):
-                path = project_paths[successor]
-            else:
-                path = get_path_of_successor(ccm_cache.get_object(successor), project_paths)
-    return path
-
+def get_path_of_object_in_release(object, project_paths):
+    for k, v in project_paths.iteritems():
+        if k.startswith(object.name):
+            # Check if three part name matches:
+            tmp = SynergyObject(k, object.separator)
+            if object.name == tmp.name and object.type == tmp.type and object.instance == tmp.instance:
+                # Must be this object
+                return v
 
 def create_commit_msg_from_task(task):
     msg = []
