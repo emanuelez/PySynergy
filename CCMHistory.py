@@ -267,7 +267,9 @@ class CCMHistory(object):
             for path in v:
                 for p in self.project_objects[dir]:
                     if path.startswith(p):
-                        objects.append(k)
+                        # don't add directories
+                        if not ':dir:' in k:
+                            objects.append(k)
         return objects
 
     def find_task_from_dirs(self, dirs):
