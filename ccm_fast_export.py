@@ -407,7 +407,11 @@ def create_file_list(objects, lookup, ccm_types, project, empty_dirs=None, empty
                     object_paths = get_object_paths(o, paths)
                     for p in object_paths:
                         # p is the path of the directory
-                        l.append('D ' + p + '/' + d)
+                        if d.endswith('/'):
+                            tmp = d.rsplit('/', 1)[0]
+                        else:
+                            tmp = d
+                        l.append('D ' + p + '/' + tmp)
 
     if empty_dirs:
         for d in empty_dirs:
