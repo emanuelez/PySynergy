@@ -225,7 +225,22 @@ class CCMHistory(object):
             changed_directories = remove_subdirs_under_same_path(changed_directories)
             dirs = [dir_lookup[d] for d in changed_directories]
             # find task and add all objects to the task, which shares the path.
-            tasks = self.find_task_from_dirs(dirs)
+            project_tasks = self.find_task_from_dirs(dirs)
+            print "Checking for new subprojects"
+            # check directories for new subdirectories and add their content
+            directories = self.get_new_dirs(self.project_objects, new_objects)
+            # Limit directories to only directories not already processed as a new project
+            directories = set(directories) - set(dirs)
+             # find task and add all objects to the task, which shares the path.
+            dir_tasks = self.find_task_from_dirs(directories)
+            # merge project and dir tasks
+            for k,v in dir_tasks.iteritems():
+                if not project_tasks.has_key(k):
+                    project_tasks[k] = v
+            # if real synergy tasks isn't found check the path of the directories and skip possible subdirs
+            tasks = self.reduce_dir_tasks(project_tasks)
+            print "Project and dir tasks reduced..."
+            print tasks
             self.update_tasks_with_directory_contens(tasks)
 
         # remove possible duplicates from objects
@@ -245,8 +260,12 @@ class CCMHistory(object):
         # Find the task in history if its there
         found = False
         for t in self.history[self.tag]['tasks']:
-            if t.get_object_name == task:
-                t.objects = list(set(t.objects.extend([o for o in objects if ':project:' not in o])))
+            if t.get_object_name() == task:
+                if t.objects:
+                    t.objects.extend([o for o in objects if ':project:' not in o])
+                    t.objects = list(set(t.objects))
+                else:
+                    t.objects = [o for o in objects if ':project:' not in o]
                 found = True
         if not found:
             t = ccm_cache.get_object(task, self.ccm)
@@ -275,29 +294,19 @@ class CCMHistory(object):
     def find_task_from_dirs(self, dirs):
         tasks = {}
         for dir in dirs:
+            print "Finding directory %s in tasks" % dir
             # Try to get the task from the tasks already found
-            task = []
-            for t in self.history[self.tag]['tasks']:
-                if dir in t.get_objects():
-                    task.append(t.get_object_name())
-#                if t.type == 'dir':
-#                    # If the task couldn't be found the task would be called the dir 4 part name
-#                    if t.get_object_name() == dir:
-#                        task.append(t.get_object_name())
+            obj = ccm_cache.get_object(dir, self.ccm)
+            tmp_task = obj.get_tasks()
+            task = list(set(tmp_task) & set([t.get_object_name() for t in self.history[self.tag]['tasks']]))
+
             if not task:
-                # try to get it from the object
-                obj = ccm_cache.get_object(dir, self.ccm)
-                task = obj.get_tasks()
-                if not task:
-                    # Use object name as task name
-                    task = [dir]
+                # Use object name as task name
+                task = [dir]
+
+            print "task found: %s" % ','.join(task)
             tasks[dir]= task
         return tasks
-
-#    def get_object_from_history(self, obj, tag):
-#        for o in self.history[tag]['objects']:
-#            if o == obj:
-#                return o
 
     def persist_data(self, fname, data):
         fname += '.p'
@@ -337,6 +346,53 @@ class CCMHistory(object):
 
     def update_history_with_objects(self, objects):
         self.history[self.tag]['objects'].extend([o for o in objects if ':project:' not in o])
+
+    def get_new_dirs(self, members, new_objects):
+        new_directories = [d for d in new_objects.keys() if ':dir:' in d]
+        directories = []
+        for dir in new_directories:
+            dir_obj = ccm_cache.get_object(dir, self.ccm)
+            new_dirs = [d for d in dir_obj.new_objects if d.endswith('/')]
+            for d in new_dirs:
+                # Get the corresponding directory four-part-name
+                paths = members[dir]
+                name = get_dir_with_path(paths, d, members)
+                directories.append(name)
+        print "new directories found:"
+        print '\n'.join([d + ', '.join(members[d]) for d in directories])
+        return directories
+
+    def reduce_dir_tasks(self, tasks):
+        # find the fake tasks
+        fake_tasks = []
+        for k,v in tasks.iteritems():
+            #if len(v) > 1:
+            #hmmm
+            if not v[0].startswith('task'):
+                fake_tasks.append(k)
+
+        # Find the paths of the directories the fake tasks corresponds to
+        paths = {}
+        for dir in fake_tasks:
+            for p in self.project_objects[dir.replace(':task:', ':dir:')]:
+                paths[p] = dir
+            # remove the entry from the tasks dict
+            del tasks[dir]
+
+        dirs = remove_subdirs_under_same_path(paths.keys())
+
+        tmp_tasks = {}
+        for dir in dirs:
+                tmp_tasks[paths[dir]] = [paths[dir]]
+
+        tasks.update(tmp_tasks)
+        return tasks
+
+def get_dir_with_path(paths, dir, objects):
+    paths_of_dir = [p +'/' + dir.strip('/') for p in paths]
+    for k,v in objects.iteritems():
+        if v == paths_of_dir:
+            return k
 
 
 def get_changed_objects(old_release, new_release):

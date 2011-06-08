@@ -309,15 +309,36 @@ def _sanitize_tasks(tasks):
                       if set(tasks.links(t1)) & set(tasks.links(t2))]
 
     for (t1, t2, common_objs) in common_objects:
+        log.info("Task1: %s" %t1)
+        log.info("Task2: %s" %t2)
         for obj in common_objs:
-            tasks.unlink(obj, t1)
-            tasks.unlink(obj, t2)
-            
-            [tasks.del_edge(t) for t in (t1, t2) if not tasks.links(t)]
+            log.info('object: %s' % obj)
 
-            task_name = '-'.join(['common', t1, t2])
-            tasks.add_edge(task_name)
-            tasks.link(obj, task_name)
+            # If one of the tasks is a 'fake' task just remove the link in that task
+            if not t1.startswith('task'):
+                log.info("Fake task, unlinking %s from %s" %(obj, t1))
+                tasks.unlink(obj, t1)
+                continue
+            elif not t2.startswith('task'):
+                log.info("Fake task, unlinking %s from %s" %(obj, t2))
+                tasks.unlink(obj, t2)
+                continue
+
+            if tasks.has_edge(t1) and tasks.has_edge(t2):
+                # objects could be removed already if they are in more than 2 tasks...
+                if obj in tasks.links(t1):
+                    tasks.unlink(obj, t1)
+                if obj in tasks.links(t2):
+                    tasks.unlink(obj, t2)
+
+                for t in (t1, t2):
+                    if not tasks.links(t):
+                        log.info("Deleting egde: %s - %s" %(t1, t2))
+                        tasks.del_edge(t)
+
+                task_name = '-'.join(['common', t1, t2])
+                tasks.add_edge(task_name)
+                tasks.link(obj, task_name)
 
     return tasks
 

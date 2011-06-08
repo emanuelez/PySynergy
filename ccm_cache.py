@@ -265,8 +265,18 @@ def fill_changed_entries(object, ccm):
                 deleted.append(line.split()[1])
             if line.startswith('>'):
                 new.append(line.split()[1])
-    object.set_new_objects(set(new))
-    object.set_deleted_objects(set(deleted))
+    # sanitize the new/deleted objects:
+    deleted_objs = []
+    new_objs = []
+    for o in set(deleted):
+        if o not in new:
+            deleted_objs.append(o)
+    for o in set(new):
+        if o not in deleted:
+            new_objs.append(o)
+    
+    object.set_new_objects(set(new_objs))
+    object.set_deleted_objects(set(deleted_objs))
     return object
 
 def get_object_from_ccm(four_part_name, ccm, ccm_cache_path):
