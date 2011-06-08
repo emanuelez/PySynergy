@@ -126,7 +126,8 @@ class TaskUtil(object):
     def task_used_in_project(self, task, project):
         projects = task.get_released_projects()
         for p in projects:
-            if project.get_object_name() in p:
+            # the projects can be two part names...
+            if project.get_object_name().startswith(p):
                 #print "used in:", p
                 return True
         return False
