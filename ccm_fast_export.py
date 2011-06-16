@@ -420,7 +420,7 @@ def create_file_list(objects, lookup, ccm_types, project, empty_dirs=None, empty
                 l.append('M 100644 :' + str(empty_dir_mark) + ' ' + path)
 
     if not l:
-        return None
+        return []
     return '\n'.join(l)
 
 def get_object_paths(object, project_paths):
