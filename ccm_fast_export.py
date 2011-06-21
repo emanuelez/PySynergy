@@ -34,6 +34,8 @@ import convert_history as ch
 import ccm_history_to_graphs as htg
 import re
 
+object_mark_lookup = {}
+
 def ccm_fast_export(releases, graphs):
     global acn_ancestors
     logger.basicConfig(filename='ccm_fast_export.log',level=logger.DEBUG)
@@ -65,9 +67,9 @@ def ccm_fast_export(releases, graphs):
     paths = project_obj.get_members()
     for o in file_objects:
         if o.get_type() != 'dir':
-            mark = create_blob(o, get_mark(mark))
+            object_mark, mark = create_blob(o, mark)
             for p in paths[o.get_object_name()]:
-                files.append('M ' + releases['ccm_types'][o.get_type()] + ' :'+str(mark) + ' ' + p)
+                files.append('M ' + releases['ccm_types'][o.get_type()] + ' :'+str(object_mark) + ' ' + p)
 
     empty_dirs = releases[release]['empty_dirs']
     logger.info("Empty dirs for release %s\n%s" %(release, empty_dirs))
@@ -221,8 +223,8 @@ def create_release_merge_commit(releases, release, mark, reference, graphs, ance
 
     for o in objects:
         if not o.get_type() == 'dir':
-            mark = create_blob(o, get_mark(mark))
-            object_lookup[o.get_object_name()] = mark
+            object_mark, mark = create_blob(o, mark)
+            object_lookup[o.get_object_name()] = object_mark
 
     empty_dirs = releases[release]['empty_dirs']
     logger.info("Empty dirs for release %s\n%s" %(release, empty_dirs))
@@ -292,8 +294,8 @@ def create_merge_commit(n, release, releases, mark, reference, graphs, ancestors
 
     for o in objects:
         if not o.get_type() == 'dir':
-            mark = create_blob(o, get_mark(mark))
-            object_lookup[o.get_object_name()] = mark
+            object_mark, mark = create_blob(o, mark)
+            object_lookup[o.get_object_name()] = object_mark
 
 
     file_list = create_file_list(objects, object_lookup, releases['ccm_types'], releases[release]['fourpartname'])
@@ -329,8 +331,8 @@ def create_commit(n, release, releases, mark, reference, graphs):
         objects = reduce_objects_for_commit(objects)
         for o in objects:
             if not o.get_type() == 'dir':
-                mark = create_blob(o, get_mark(mark))
-                object_lookup[o.get_object_name()] = mark
+                object_mark, mark = create_blob(o, mark)
+                object_lookup[o.get_object_name()] = object_mark
 
 
         file_list = create_file_list(objects, object_lookup, releases['ccm_types'], releases[release]['fourpartname'])
@@ -343,8 +345,8 @@ def create_commit(n, release, releases, mark, reference, graphs):
         logger.info("Single Object: %s" % n)
         single_object = get_object(n, releases[release]['objects'])
         if not single_object.get_type() == 'dir':
-            mark = create_blob(single_object, get_mark(mark))
-            object_lookup[single_object.get_object_name()] = mark
+            object_mark, mark = create_blob(single_object, mark)
+            object_lookup[single_object.get_object_name()] = object_mark
 
         file_list = create_file_list([single_object], object_lookup, releases['ccm_types'], releases[release]['fourpartname'])
         mark, commit = make_commit_from_object(single_object, get_mark(mark), reference, release, file_list)
@@ -430,13 +432,18 @@ def get_object_paths(object, project_paths):
     return path
 
 def get_path_of_object_in_release(object, project_paths):
+    logger.info("Finding path of %s" %object.get_object_name())
     for k, v in project_paths.iteritems():
         if k.startswith(object.name):
+            logger.info("Found similar object %s" % k)
             # Check if three part name matches:
             tmp = SynergyObject(k, object.separator)
             if object.name == tmp.name and object.type == tmp.type and object.instance == tmp.instance:
+                logger.info("Path of %s: %s" % (object.get_object_name(), ','.join(v)))
                 # Must be this object
                 return v
+    logger.info("No path found for %s" % object.get_object_name())
+    return []
 
 def create_commit_msg_from_task(task):
     msg = []
@@ -542,13 +549,23 @@ def get_object(o, objects):
             return ccm_cache.get_object(obj)
 
 def create_blob(obj, mark):
-    blob = ['blob', 'mark :' + str(mark)]
-    content = ccm_cache.get_source(obj.get_object_name())
-    length = len(content)
-    blob.append('data '+ str(length))
-    blob.append(content)
-    print '\n'.join(blob)
-    return mark
+    global object_mark_lookup
+    if object_mark_lookup.has_key(obj.get_object_name()):
+        object_mark = object_mark_lookup[obj.get_object_name()]
+        logger.info("Used lookup-mark: %s for: %s" % (str(object_mark), obj.get_object_name()))
+        return (object_mark, mark)
+    else:
+        #create the blob
+        next_mark = get_mark(mark)
+        blob = ['blob', 'mark :' + str(next_mark)]
+        content = ccm_cache.get_source(obj.get_object_name())
+        length = len(content)
+        blob.append('data '+ str(length))
+        blob.append(content)
+        print '\n'.join(blob)
+        object_mark_lookup[obj.get_object_name()] = next_mark
+        logger.info("Created lookup-mark: %s for: %s" % (str(next_mark), obj.get_object_name()))
+        return (next_mark, next_mark)
 
 def create_blob_for_empty_dir(mark):
     blob = ['blob', 'mark :' + str(mark), 'data 0']
