@@ -102,11 +102,11 @@ def ccm_fast_export(releases, graphs):
         commit_graph = graphs[release]['commit']
         commit_graph = fix_orphan_nodes(commit_graph, previous_release)
 
-        htg.digraph_to_image(commit_graph, "%s_before" % release)
+        #htg.digraph_to_image(commit_graph, "%s_before" % release)
 
         commit_graph = ch.spaghettify_digraph(commit_graph, previous_release, release)
 
-        htg.digraph_to_image(commit_graph, "%s_after" % release)
+        #htg.digraph_to_image(commit_graph, "%s_after" % release)
 
         # Find the cutting nodes
         logger.info("Finding the cutting nodes")
@@ -231,7 +231,7 @@ def create_release_merge_commit(releases, release, mark, reference, graphs, ance
     mark = create_blob_for_empty_dir(get_mark(mark))
 
     logger.info("Object lookup: %i" % len(object_lookup))
-    file_list = create_file_list(objects, object_lookup, releases['ccm_types'], releases[release]['fourpartname'], empty_dirs=empty_dirs, empty_dir_mark=mark)
+    file_list = create_file_list(objects, object_lookup, releases['ccm_types'], releases[release]['fourpartname'], empty_dirs=empty_dirs, empty_dir_mark=mark, all_files_for_release=True)
 
     logger.info("File list: %i" % len(file_list))
 
@@ -391,7 +391,8 @@ def make_commit_from_object(o, mark, reference, release, file_list):
     logger.info("git-fast-import COMMIT:\n%s" %('\n'.join(commit_info)))
     return mark, commit_info
 
-def create_file_list(objects, lookup, ccm_types, project, empty_dirs=None, empty_dir_mark=None):
+def create_file_list(objects, lookup, ccm_types, project, empty_dirs=None, empty_dir_mark=None, all_files_for_release=False):
+    global object_mark_lookup
     project_object = ccm_cache.get_object(project)
     paths = project_object.get_members()
     l = []
@@ -414,6 +415,18 @@ def create_file_list(objects, lookup, ccm_types, project, empty_dirs=None, empty
                         else:
                             tmp = d
                         l.append('D ' + p + '/' + tmp)
+
+    if all_files_for_release:
+        # delete top level dir first:
+        l.append('D ' + project_object.name)
+        # Insert all files in the release
+        for object, paths in project_object.members.iteritems():
+            if not ':dir:' in object and not ':project:' in object:
+                logger.info("Loading object %s" %object)
+                obj = ccm_cache.get_object(object)
+                perm = ccm_types[obj.get_type()]
+                for p in paths:
+                    l.append('M ' + perm + ' :' + str(object_mark_lookup[obj.get_object_name()]) + ' ' + p)
 
     if empty_dirs:
         for d in empty_dirs:
@@ -553,7 +566,7 @@ def create_blob(obj, mark):
     if object_mark_lookup.has_key(obj.get_object_name()):
         object_mark = object_mark_lookup[obj.get_object_name()]
         logger.info("Used lookup-mark: %s for: %s" % (str(object_mark), obj.get_object_name()))
-        return (object_mark, mark)
+        return object_mark, mark
     else:
         #create the blob
         next_mark = get_mark(mark)
@@ -565,7 +578,7 @@ def create_blob(obj, mark):
         print '\n'.join(blob)
         object_mark_lookup[obj.get_object_name()] = next_mark
         logger.info("Created lookup-mark: %s for: %s" % (str(next_mark), obj.get_object_name()))
-        return (next_mark, next_mark)
+        return next_mark, next_mark
 
 def create_blob_for_empty_dir(mark):
     blob = ['blob', 'mark :' + str(mark), 'data 0']
