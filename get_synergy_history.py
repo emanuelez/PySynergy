@@ -48,9 +48,17 @@ def load_config_file():
             v = int(v)
         if k == 'max_recursion_depth':
             v = int(v)
+        if k == 'heads':
+            v = v.split(',')
+            v = [i.strip() for i in v]
         config[k]=v
     for k, v in config_parser.items('history conversion'):
         config[k]=v
+
+    if config.has_key('heads'):
+        if config['master'] in config['heads']:
+            config['heads'].remove(config['master'])
+
     save_config(config)
 
     return config
@@ -97,8 +105,11 @@ def main():
     history = load_history(config)
 
     ccm_hist = CCMHistory(ccm, ccm_pool, history, config['data_file'])
-    history = ccm_hist.get_project_history(config['end_project'], config['base_project'])
+    history = ccm_hist.get_project_history(config['master'], config['base_project'])
 
+    for head in config['heads']:
+        history = ccm_hist.get_project_history(head, config['base_project'])
+        
     fh = open(config['data_file'] + '.p', 'wb')
     cPickle.dump(history, fh, cPickle.HIGHEST_PROTOCOL)
     fh.close()

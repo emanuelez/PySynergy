@@ -26,7 +26,8 @@
 [synergy]
 database=                                                   ; database
 base_project=                                               ; starting point for initial commit in git
-end_project=                                                ; end project - latest release
+heads=                                                      ; comma separated list of heads to include
+master=                                                     ; end project - latest release - master branch in git
 max_sessions=                                                ; max number of sessions to hammer at synergy
 ccm_cache_path=                                             ; where to store all data and meta data from synergy (lots of space is needed)
 data_file=                                                  ; pickle file to store meta data for the converter (is loaded upon start, so the conversion can resume)

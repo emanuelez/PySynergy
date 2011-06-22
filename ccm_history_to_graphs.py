@@ -22,6 +22,7 @@ FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.    IN NO EVENT SHALL THE COPYRI
 (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
 CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
+from _collections import deque
 import pygraphviz as gv
 import ccm_cache
 import convert_history as ch
@@ -41,10 +42,11 @@ def create_graphs_from_releases(releases):
             break
 
     #print release, "is initial release, skipping graphing"
-    release = releases[release]['next']
+    release_queue = deque(releases[release]['next'])
 
     graphs = {}
-    while release:
+    while release_queue:
+        release = release_queue.popleft()
         #print "Creating graph for", release
         graphs[release] = {}
         object_graph, task_graph, release_graph, commit_graph = create_graphs(releases[release])
@@ -58,9 +60,9 @@ def create_graphs_from_releases(releases):
         #task_graph_to_image(object_graph, task_graph, releases[release])
         #release_graph_to_image(object_graph, release_graph, releases[release])
         #commit_graph_to_image(commit_graph, releases[release], task_graph)
-        #next release
-        release = releases[release]['next']
 
+        #next release(s)
+        release_queue.extend(releases[release]['next'])
 
     return graphs
 

@@ -22,6 +22,8 @@ FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.    IN NO EVENT SHALL THE COPYRI
 (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
 CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
+from _collections import deque
+import cPickle
 import logging as logger
 import time
 from pygraph.classes.graph import graph
@@ -94,8 +96,9 @@ def ccm_fast_export(releases, graphs):
 
     commit_lookup[release] = mark
     # do the following releases (graphs)
-    release = releases[release]['next']
-    while release:
+    release_queue = deque(releases[release]['next'])
+    while release_queue:
+        release = release_queue.popleft()
         previous_release = releases[release]['previous']
 
         logger.info("Next release: %s" % release)
@@ -151,7 +154,8 @@ def ccm_fast_export(releases, graphs):
         current_name = release.split(delim)[0]
         if current_name != previous_name:
             logger.info("Name changed: %s -> %s" %(previous_name, current_name))
-            mark, commit = rename_toplevel_dir(previous_name, current_name, release, releases, mark)
+            from_mark = commit_lookup[previous_release]
+            mark, commit = rename_toplevel_dir(previous_name, current_name, release, releases, mark, from_mark)
             print '\n'.join(commit)
             # adjust the commit lookup
             commit_lookup[previous_release] = mark
@@ -188,11 +192,13 @@ def ccm_fast_export(releases, graphs):
         print '\n'.join(merge_commit)
 
         commit_lookup[release] = mark
-        release = releases[release]['next']
+        release_queue.extend(releases[release]['next'])
+        #release = releases[release]['next']
         #release = None
 
     #reset to master
-    reset = ['reset refs/heads/master', 'from :' + str(mark)]
+    master = get_master_tag()
+    reset = ['reset refs/heads/master', 'from :' + str(commit_lookup[master])]
     logger.info("git-fast-import:\n%s" %('\n'.join(reset)))
     print '\n'.join(reset)
 
@@ -234,7 +240,7 @@ def create_release_merge_commit(releases, release, mark, reference, graphs, ance
     file_list = create_file_list(objects, object_lookup, releases['ccm_types'], releases[release]['fourpartname'], empty_dirs=empty_dirs, empty_dir_mark=mark, all_files_for_release=True)
 
     logger.info("File list: %i" % len(file_list))
-
+    mark = get_mark(mark)
     msg = ['commit refs/tags/' + release, 'mark :' + str(mark)]
     if 'author' not in releases[release]:
         releases[release]['author'] = "Nobody"
@@ -420,13 +426,12 @@ def create_file_list(objects, lookup, ccm_types, project, empty_dirs=None, empty
         # delete top level dir first:
         l.append('D ' + project_object.name)
         # Insert all files in the release
+        logger.info("Loading all objects for %s"  %project_object.get_object_name())
         for object, paths in project_object.members.iteritems():
             if not ':dir:' in object and not ':project:' in object:
-                logger.info("Loading object %s" %object)
-                obj = ccm_cache.get_object(object)
-                perm = ccm_types[obj.get_type()]
+                perm = ccm_types[object.split(':')[1]]
                 for p in paths:
-                    l.append('M ' + perm + ' :' + str(object_mark_lookup[obj.get_object_name()]) + ' ' + p)
+                    l.append('M ' + perm + ' :' + str(object_mark_lookup[object]) + ' ' + p)
 
     if empty_dirs:
         for d in empty_dirs:
@@ -571,13 +576,13 @@ def create_blob(obj, mark):
         #create the blob
         next_mark = get_mark(mark)
         blob = ['blob', 'mark :' + str(next_mark)]
+        logger.info("Creating lookup-mark: %s for %s" % (str(next_mark), obj.get_object_name()))
         content = ccm_cache.get_source(obj.get_object_name())
         length = len(content)
         blob.append('data '+ str(length))
         blob.append(content)
         print '\n'.join(blob)
         object_mark_lookup[obj.get_object_name()] = next_mark
-        logger.info("Created lookup-mark: %s for: %s" % (str(next_mark), obj.get_object_name()))
         return next_mark, next_mark
 
 def create_blob_for_empty_dir(mark):
@@ -585,8 +590,7 @@ def create_blob_for_empty_dir(mark):
     print '\n'.join(blob)
     return mark
 
-def rename_toplevel_dir(previous_name, current_name, release, releases, mark):
-    from_mark = mark
+def rename_toplevel_dir(previous_name, current_name, release, releases, mark, from_mark):
     mark = get_mark(mark)
     logger.info("Commit for project name change: %s -> %s" %(previous_name, current_name))
 
@@ -619,3 +623,10 @@ def get_mark(mark):
     return mark
 
 
+def get_master_tag():
+    f = open('config.p', 'rb')
+    config = cPickle.load(f)
+    f.close()
+    object = ccm_cache.get_object(config['master'])
+    tag = object.name + object.separator + object.version
+    return tag

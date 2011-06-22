@@ -65,7 +65,11 @@ class CCMHistory(object):
             self.history[self.tag] = {'objects': [], 'tasks': []}
             self.history['delimiter'] = self.delim
         self.history[self.tag]['previous'] = None
-        self.history[self.tag]['next'] = release_chain[0]
+        #if self.history[self.tag].has_key('next'):
+        #    if not release_chain[0] in self.history[self.tag]['next']:
+        #        self.history[self.tag]['next'].append(release_chain[0])
+        #else:
+        #    self.history[self.tag]['next']= [release_chain[0]]
         
         print "getting all objects for:", self.tag, "..."
         self.baseline_objects = None
@@ -84,7 +88,11 @@ class CCMHistory(object):
             next_project = ccm_cache.get_object(next, self.ccm)
 
             # Set next project for the current baseline_project
-            self.history[self.tag]['next'] = next_project.get_name() + self.delim + next_project.get_version()
+            if self.history[self.tag].has_key('next'):
+                if not next_project.get_name() + self.delim + next_project.get_version() in self.history[self.tag]['next']:
+                    self.history[self.tag]['next'].append(next_project.get_name() + self.delim + next_project.get_version())
+            else:
+                self.history[self.tag]['next'] = [next_project.get_name() + self.delim + next_project.get_version()]
 
             #Print Info about baseline_project
             print self.tag, "done processing, Info:"
@@ -131,7 +139,8 @@ class CCMHistory(object):
 
 
         # Info for last project:
-        self.history[self.tag]['next'] = None
+        if not self.history[self.tag].has_key('next'):
+            self.history[self.tag]['next'] = []
         print self.tag, "done processing, Info:"
         print "Name        ", self.tag
         print "4partname   ", self.history[self.tag]['fourpartname']
