@@ -188,6 +188,11 @@ def ccm_fast_export(releases, graphs):
             acn_ancestors = ancestors[last_cutting_node]
 
         reference = [commit_lookup[parent] for parent in ancestors[release] if parent not in acn_ancestors]
+        logger.info("Reference %s" %str([parent for parent in ancestors[release] if parent not in acn_ancestors]))
+        if not reference:
+            logger.info("Reference previous %s, mark: %d" % (releases[release]['previous'], commit_lookup[releases[release]['previous']]))
+            reference = [commit_lookup[ releases[release]['previous'] ] ]
+
         mark, merge_commit = create_release_merge_commit(releases, release, get_mark(mark), reference, graphs, set(ancestors[release]) - set(acn_ancestors))
         print '\n'.join(merge_commit)
 
@@ -384,7 +389,7 @@ def make_commit_from_object(o, mark, reference, release, file_list):
                        int(time.mktime(o.get_integrate_time().timetuple()))) + " +0000",
                    'committer %s <%s@nokia.com> ' % (o.get_author(), o.get_author()) + str(
                        int(time.mktime(o.get_integrate_time().timetuple()))) + " +0000"]
-    commit_msg = "Object not associated to task in release: " + o.get_object_name()
+    commit_msg = "Object not associated to task: " + o.get_object_name()
     commit_info.append('data ' + str(len(commit_msg)))
     commit_info.append(commit_msg)
     commit_info.append('from :' + str(reference[0]))
