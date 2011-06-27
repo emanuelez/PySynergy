@@ -94,6 +94,14 @@ def ccm_fast_export(releases, graphs):
 
     logger.info("git-fast-import:\n%s" %('\n'.join(commit_info)))
 
+    tag_msg = 'Release: %s' %release
+    annotated_tag = ['tag %s' % release,
+               'from :%s' % str(mark),
+               'tagger Nokia <nokia@nokia.com> ' + str(int(initial_release_time)) + " +0000",
+               'data %s' % len(tag_msg),
+               tag_msg]
+    print '\n'.join(annotated_tag)
+    
     commit_lookup[release] = mark
     # do the following releases (graphs)
     release_queue = deque(releases[release]['next'])
@@ -195,6 +203,8 @@ def ccm_fast_export(releases, graphs):
 
         mark, merge_commit = create_release_merge_commit(releases, release, get_mark(mark), reference, graphs, set(ancestors[release]) - set(acn_ancestors))
         print '\n'.join(merge_commit)
+        annotated_tag = create_annotated_tag(releases, release, mark)
+        print '\n'.join(annotated_tag)
 
         commit_lookup[release] = mark
         release_queue.extend(releases[release]['next'])
@@ -206,6 +216,17 @@ def ccm_fast_export(releases, graphs):
     reset = ['reset refs/heads/master', 'from :' + str(commit_lookup[master])]
     logger.info("git-fast-import:\n%s" %('\n'.join(reset)))
     print '\n'.join(reset)
+
+def create_annotated_tag(releases, release, mark):
+    msg = 'Release: %s' %release
+    tag_msg = ['tag %s' % release,
+               'from :%s' % str(mark),
+               'tagger %s <%s@nokia.com> ' % (releases[release]['author'], releases[release]['author']) + str(
+                   int(time.mktime(releases[release]['created'].timetuple()))) + " +0000",
+               'data %s' % len(msg),
+               msg]
+
+    return tag_msg
 
 def create_release_merge_commit(releases, release, mark, reference, graphs, ancestors):
     object_lookup = {}
