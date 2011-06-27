@@ -212,7 +212,7 @@ def convert_history(files, tasks, releases, objects):
         log.info("Candidate_cuts: %s" % str(candidate_cuts))
 
         for (counter, cut) in enumerate(candidate_cuts):
-            log.info("Cut: %s" % cut)
+            log.info("Cut: %s" % str(cut))
 
             # Apply the cut
             task = tasks.links(cut[0])[0] # All the nodes in the cut belong to the same task and there are no overlapping tasks
