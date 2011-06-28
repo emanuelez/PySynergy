@@ -54,6 +54,9 @@ def load_config_file():
         config[k]=v
     for k, v in config_parser.items('history conversion'):
         config[k]=v
+    if config_parser.has_section('ldap'):
+        for k,v in config_parser.items('ldap'):
+            config[k]=v
 
     if config.has_key('heads'):
         if config['master'] in config['heads']:
