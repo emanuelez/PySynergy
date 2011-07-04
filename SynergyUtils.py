@@ -173,7 +173,7 @@ class ObjectHistory(object):
         self.current_release = current_release
         self.old_release = old_release
         self.release_lookup = {}
-        self.successor_chain_lookup ={}
+        self.successor_chain_lookup = {}
         self.old_objects = old_objects
         self.old_subproject_list = old_projects
         if old_projects:
@@ -320,11 +320,13 @@ class ObjectHistory(object):
         ret_val = False
         successors = predecessor.get_successors()
         for s in successors:
-
             if s in self.release_lookup.keys():
                 return self.release_lookup[s]
             if s != fileobject.get_object_name():
-                successor = ccm_cache.get_object(s, self.ccm)
+                try:
+                    successor = ccm_cache.get_object(s, self.ccm)
+                except ccm_cache.ObjectCacheException:
+                    return False
                 print "successor:", successor.get_object_name()
                 #check releases of successor
                 releases = successor.get_releases()
@@ -346,7 +348,7 @@ class ObjectHistory(object):
 
         return ret_val
 
-    def check_successor_chain_for_object(self, 	fileobject, old_object, recursion_depth):
+    def check_successor_chain_for_object(self, fileobject, old_object, recursion_depth):
         if recursion_depth > 10:
             return False
         recursion_depth += 1
@@ -356,9 +358,12 @@ class ObjectHistory(object):
         for s in successors:
             if s == old_object.get_object_name():
                 return True
-            successor = ccm_cache.get_object(s, self.ccm)
+            try:
+                successor = ccm_cache.get_object(s, self.ccm)
+            except ccm_cache.ObjectCacheException:
+                return False
             print "successor:", successor.get_object_name()
             ret_val = self.check_successor_chain_for_object(successor, old_object, recursion_depth)
             if ret_val:
-                    break
+                break
         return ret_val
