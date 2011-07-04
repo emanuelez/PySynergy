@@ -35,4 +35,9 @@ log_file=                                                   ;
 max_recursion_depth=                                        ; recursion depth to give up when reached, when traversing file history between two releases
 
 [history conversion]
-print_graphs=False                                          ; print png images of the different releases when converting history
+print_graphs=False
+                                       ; print png images of the different releases when converting history
+[ldap]
+username=
+password=
+server=

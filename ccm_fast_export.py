@@ -35,11 +35,15 @@ import ccm_cache
 import convert_history as ch
 import ccm_history_to_graphs as htg
 import re
+from users import users
 
 object_mark_lookup = {}
+users
 
 def ccm_fast_export(releases, graphs):
     global acn_ancestors
+    global users
+    users = users.users()
     logger.basicConfig(filename='ccm_fast_export.log',level=logger.DEBUG)
 
     commit_lookup = {}
@@ -218,17 +222,19 @@ def ccm_fast_export(releases, graphs):
     print '\n'.join(reset)
 
 def create_annotated_tag(releases, release, mark):
+    global users
+    tagger = users.get_user(releases[release]['author'])
     msg = 'Release: %s' %release
     tag_msg = ['tag %s' % release,
                'from :%s' % str(mark),
-               'tagger %s <%s@nokia.com> ' % (releases[release]['author'], releases[release]['author']) + str(
-                   int(time.mktime(releases[release]['created'].timetuple()))) + " +0000",
+               'tagger %s <%s> ' % (tagger['name'], tagger['mail']) + str(int(time.mktime(releases[release]['created'].timetuple()))) + " +0000",
                'data %s' % len(msg),
                msg]
 
     return tag_msg
 
 def create_release_merge_commit(releases, release, mark, reference, graphs, ancestors):
+    global users
     object_lookup = {}
     objects = []
 
@@ -270,8 +276,9 @@ def create_release_merge_commit(releases, release, mark, reference, graphs, ance
     msg = ['commit refs/tags/' + release, 'mark :' + str(mark)]
     if 'author' not in releases[release]:
         releases[release]['author'] = "Nobody"
-    msg.append('author %s <%s@nokia.com> ' % (releases[release]['author'], releases[release]['author']) + str(int(time.mktime(releases[release]['created'].timetuple()))) + " +0000")
-    msg.append('committer %s <%s@nokia.com> ' % (releases[release]['author'], releases[release]['author']) + str(int(time.mktime(releases[release]['created'].timetuple()))) + " +0000")
+    author = users.get_user(releases[release]['author'])
+    msg.append('author %s <%s> ' % (author['name'], author['mail']) + str(int(time.mktime(releases[release]['created'].timetuple()))) + " +0000")
+    msg.append('committer %s <%s> ' % (author['name'], author['mail']) + str(int(time.mktime(releases[release]['created'].timetuple()))) + " +0000")
 
     commit_msg = "Release " + release
     msg.append('data ' + str(len(commit_msg)))
@@ -386,10 +393,12 @@ def create_commit(n, release, releases, mark, reference, graphs):
         return mark
 
 def make_commit_from_task(task, mark, reference, release, file_list):
+    global users
+    author = users.get_user(task.get_author())
     commit_info = ['commit refs/tags/' + release, 'mark :' + str(mark),
-                   'author %s <%s@nokia.com> ' % (task.get_author(), task.get_author()) + str(
+                   'author %s <%s> ' % (author['name'], author['mail']) + str(
                        int(time.mktime(task.get_complete_time().timetuple()))) + " +0000",
-                   'committer %s <%s@nokia.com> ' % (task.get_author(), task.get_author()) + str(
+                   'committer %s <%s> ' % (author['name'], author['mail']) + str(
                        int(time.mktime(task.get_complete_time().timetuple()))) + " +0000"]
     commit_msg = create_commit_msg_from_task(task)
     commit_info.append('data ' + str(len(commit_msg)))
@@ -405,10 +414,12 @@ def make_commit_from_task(task, mark, reference, release, file_list):
     return mark, commit_info
 
 def make_commit_from_object(o, mark, reference, release, file_list):
+    global users
+    author = users.get_user(o.get_author())
     commit_info = ['commit refs/tags/' + release, 'mark :' + str(mark),
-                   'author %s <%s@nokia.com> ' % (o.get_author(), o.get_author()) + str(
+                   'author %s <%s> ' % (author['name'], author['mail']) + str(
                        int(time.mktime(o.get_integrate_time().timetuple()))) + " +0000",
-                   'committer %s <%s@nokia.com> ' % (o.get_author(), o.get_author()) + str(
+                   'committer %s <%s> ' % (author['name'], author['mail']) + str(
                        int(time.mktime(o.get_integrate_time().timetuple()))) + " +0000"]
     commit_msg = "Object not associated to task: " + o.get_object_name()
     commit_info.append('data ' + str(len(commit_msg)))
@@ -617,18 +628,19 @@ def create_blob_for_empty_dir(mark):
     return mark
 
 def rename_toplevel_dir(previous_name, current_name, release, releases, mark, from_mark):
+    global users
     mark = get_mark(mark)
     logger.info("Commit for project name change: %s -> %s" %(previous_name, current_name))
 
     # Use the release author
-    author = releases[release]['author']
+    author = users.get_user([release]['author'])
     # Use the release time from previous release
     create_time = time.mktime(releases[releases[release]['previous']]['created'].timetuple())
 
     commit_info = ['commit refs/tags/' + release,
                    'mark :' + str(mark),
-                   'author %s <%s@nokia.com> ' % (author, author) + str(int(create_time)) + " +0000",
-                   'committer %s <%s@nokia.com> ' % (author, author) + str(int(create_time)) + " +0000"]
+                   'author %s <%s@nokia.com> ' % (author['name'], author['mail']) + str(int(create_time)) + " +0000",
+                   'committer %s <%s@nokia.com> ' % (author['name'], author['mail']) + str(int(create_time)) + " +0000"]
     commit_msg = 'Renamed toplevel directory to %s' % current_name
     commit_info.append('data ' + str(len(commit_msg)))
     commit_info.append(commit_msg)

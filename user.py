@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-Users.py
+User.py
 
 Created by Aske Olsson on 2011-06-28.
 Copyright (c) 2011, Nokia
@@ -29,7 +29,7 @@ class user(object):
         self.lu = ldap_user()
         self.fu = finger_user()
 
-    def get_user_by_username(self, username):
+    def get_user_by_uid(self, username):
         #try ldap
         user = self.lu.get_user_by_uid(username)
 
@@ -88,10 +88,10 @@ class ldap_user(object):
 
 
     def ldap_setup(self):
-        dn, pw, server = self.get_ldap_configuration()
-        if dn:
+        username, password, server = self.get_ldap_configuration()
+        if username:
             l = ldap.open(server)
-            l.simple_bind_s(dn, pw)
+            l.simple_bind_s(username, password)
             return l
         else:
             return None
@@ -102,14 +102,14 @@ class ldap_user(object):
         config = cPickle.load(f)
         f.close()
         try:
-            dn = config['dn']
-            pw = config['pw']
+            username = config['username']
+            password = config['password']
             server = config['server']
         except KeyError:
-            dn = None
-            pw = None
+            username = None
+            password = None
             server = None
-        return dn, pw, server
+        return username, password, server
 
 
 class finger_user(object):
