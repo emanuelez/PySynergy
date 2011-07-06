@@ -43,7 +43,7 @@ users
 def ccm_fast_export(releases, graphs):
     global acn_ancestors
     global users
-    users = users.users()
+    users = users()
     logger.basicConfig(filename='ccm_fast_export.log',level=logger.DEBUG)
 
     commit_lookup = {}
@@ -633,7 +633,7 @@ def rename_toplevel_dir(previous_name, current_name, release, releases, mark, fr
     logger.info("Commit for project name change: %s -> %s" %(previous_name, current_name))
 
     # Use the release author
-    author = users.get_user([release]['author'])
+    author = users.get_user(releases[release]['author'])
     # Use the release time from previous release
     create_time = time.mktime(releases[releases[release]['previous']]['created'].timetuple())
 

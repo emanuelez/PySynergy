@@ -4,7 +4,6 @@ data/
 *.png
 .idea/
 configuration.conf
-
 populate_ccm_cache.py
-
+toplevelhistory.py
 update_cache.py

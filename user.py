@@ -123,7 +123,11 @@ class finger_user(object):
         # build command
         command = [self.command_name, self.options, uid]
 
-        res = self._run(command)
+        try:
+            res = self._run(command)
+        except FingerException:
+            return {}
+
         name = []
         for line in res.splitlines():
             if line.startswith(uid):
