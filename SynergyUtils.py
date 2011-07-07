@@ -310,7 +310,10 @@ class ObjectHistory(object):
                 print "Found", successor, "in current subprojects"
                 return True
             else:
-                successor = ccm_cache.get_object(successor, self.ccm)
+                try:
+                    successor = ccm_cache.get_object(successor, self.ccm)
+                except ccm_cache.ObjectCacheException:
+                    return False
                 if self.project_is_some_predecessor(successor, recursion_depth):
                     return True
         return False
