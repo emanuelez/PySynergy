@@ -244,7 +244,7 @@ class ObjectHistory(object):
                 predecessor = ccm_cache.get_object(p, self.ccm)
             except ccm_cache.ObjectCacheException:
                 # Object couldn't be retrived from ccm, give up on this
-                print "Couldn't get %s from Synergy" %p
+                print "Couldn't get %s from Synergy" % p
                 return True
             print "Predecessor:", predecessor.get_object_name()
 
@@ -267,7 +267,10 @@ class ObjectHistory(object):
 
                     #Check if projects are releated to old release. Latest first
                     for r in releases:
-                        project = ccm_cache.get_object(r, self.ccm)
+                        try:
+                            project = ccm_cache.get_object(r, self.ccm)
+                        except ccm_cache.ObjectCacheException:
+                            continue
                         if self.project_is_some_predecessor(project, 0):
                             print "Found Relationship between:", project.get_object_name(), "and", self.old_release
                             next_iter = True
@@ -282,7 +285,7 @@ class ObjectHistory(object):
 
             # Check if predecessor is already added to history - if so add this as successor to fileobject, else add new predecessor to history
             if not self.temp_history.has_key(predecessor.get_object_name()):
-                print "Adding", predecessor.get_object_name(), predecessor.get_status(),  "to history"
+                print "Adding", predecessor.get_object_name(), predecessor.get_status(), "to history"
                 path = fileobject.get_path()
                 predecessor.set_path(path)
                 self.add_to_history(predecessor)
