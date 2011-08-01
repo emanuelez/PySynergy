@@ -169,7 +169,7 @@ class CCMHistory(object):
         if next_project:
             # Get all objects and paths for next project
             self.project_objects = next_project.get_members()
-            if self.project_objects is None or len(self.baseline_objects) == 1:
+            if self.project_objects is None or len(self.project_objects) == 1:
                 self.project_objects = ccm_objects.get_objects_in_project(next_project.get_object_name(), ccmpool=self.ccmpool)
                 next_project.set_members(self.project_objects)
                 ccm_cache.force_cache_update_for_object(next_project)
