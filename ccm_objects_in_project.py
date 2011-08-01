@@ -280,10 +280,10 @@ def producer(c_queue, p_queue, free_ccm):
     project_hierarchy[start_project.get_object_name()] = [start_project.name]
     done = False
     while not done or p_queue.qsize() > 0:
-        # check if all ccm's are free for half a'sec if they are it's all done
+        # check if all ccm's are free for 5 seconds if they are it's all done
         if not p_queue.qsize():
             done = True
-            for i in range(10):
+            for i in range(50):
                 if [v for v in free_ccm.values() if v == False]:
                     done = False
                     break
