@@ -562,9 +562,10 @@ def get_task_object_from_splitted_task_name(task, delim):
         if m:
             return [m.group(1), m.group(2)]
     else:
-        #Splitted task
-        if '_' in task.split(':task')[1]:
-            return [task.rsplit('_')[0]]
+        #Splitted task, don't split these: stack-co1s30pr#2:task:co_dct3#4, but split these stack-co1s30pr#2:task:co_dct3#4_1
+        if '#' in task.split(':task')[1]:
+            if '_' in task.rsplit('#', 1)[1]:
+                return [task.rsplit('_', 1)[0]]
         return [task]
 
 def reduce_objects_for_commit(objects):
