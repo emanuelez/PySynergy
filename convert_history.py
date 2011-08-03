@@ -32,9 +32,9 @@ from pygraph.algorithms.cycles import find_cycle
 from pygraph.algorithms.critical import transitive_edges
 from pygraph.algorithms.accessibility import mutual_accessibility
 from pygraph.algorithms.accessibility import connected_components
+import networkx as nx
 import logging as log
 import ccm_cache
-import operator
 
 def main():
     """A test method"""
@@ -260,25 +260,6 @@ def convert_history(files, tasks, releases, objects):
 
     return commits
 
-
-def _sort_components(components):
-    components_avg_complete_time = {}
-    for component in set(components.values()):
-        nodes = set([k for k, v in components.iteritems() if v == component])
-        create_times = []
-        for node in nodes:
-            create_times.append(ccm_cache.get_object(node).get_complete_time())
-        first = next(create_times)
-        deltas = [first - dt for dt in create_times]
-        avg_delta = sum(deltas)/len(deltas)
-        middle = first + avg_delta
-        components_avg_complete_time[component] = middle
-
-    sorted_components = sorted(components_avg_complete_time.iteritems(), key=operator.itemgetter(1))
-
-    return sorted_components.keys()
-
-
 def spaghettify_digraph(g, head, tail):
     original = digraph()
     original.add_nodes(g.nodes())
@@ -293,11 +274,8 @@ def spaghettify_digraph(g, head, tail):
     
     hc = {} # {[heads], component}
     tc = {} # {[tails], component}
-
-    # sort the components
-    sorted_components = _sort_components(components)
     
-    for component in sorted_components:
+    for component in set(components.values()):
         # Find the nodes in the component
         nodes = set([k for k, v in components.iteritems() if v == component])
         hc[frozenset(heads.intersection(nodes))] = component
