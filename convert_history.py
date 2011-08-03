@@ -219,7 +219,7 @@ def convert_history(files, tasks, releases, objects):
 
             task_name = ""
             for i in count(1):
-                task_name = task + "_" + str(i)
+                task_name = task + "_TASKSPLIT_" + str(i)
                 if task_name not in tasks.edges():
                     log.info("Adding task %s" % task_name)
                     tasks.add_edge(task_name)
