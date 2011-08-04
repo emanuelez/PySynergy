@@ -289,6 +289,9 @@ def producer(c_queue, p_queue, free_ccm):
                     break
                 else:
                     print "sleep..."
+                    if p_queue.qsize() > 0:
+                        done = False
+                        break
                     time.sleep(0.1)
 
         if done:
