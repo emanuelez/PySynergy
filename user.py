@@ -22,6 +22,7 @@ CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING 
 """
 import cPickle
 import ldap
+import re
 from subprocess import Popen, PIPE
 
 class user(object):
@@ -38,9 +39,18 @@ class user(object):
             user = self.fu.get_user_by_uid(username)
         if not user:
             #create default
-            user = {'name': username, 'mail': username + '@nokia.com'}
+            user = {'name': username, 'mail': username + '@' + get_email_domain()}
         return user
 
+def get_email_domain():
+    f = open('config.p', 'rb')
+    config = cPickle.load(f)
+    f.close()
+    try:
+        domain = config['email_domain']
+    except KeyError:
+        domain = 'none.com'
+    return domain
 
 class ldap_user(object):
     """LDAP connection """
@@ -79,7 +89,7 @@ class ldap_user(object):
                         result['mail'] = d['mail'][0]
                     else:
                         if d.has_key('displayName'):
-                            result['mail'] = result['name'].split(' ')[1] + '.' + result['name'].split(' ')[0] + '@nokia.com'
+                            result['mail'] = result['name'].split(' ')[1] + '.' + result['name'].split(' ')[0] + '@' + get_email_domain()
 
         except ldap.LDAPError, error_message:
             print error_message
@@ -112,32 +122,58 @@ class ldap_user(object):
         return username, password, server
 
 
+def get_finger_configuration():
+    f = open('config.p', 'rb')
+    config = cPickle.load(f)
+    f.close()
+    try:
+        server = config['finger']['server']
+    except KeyError:
+        server = None
+    try:
+        username = config['finger']['user']
+    except KeyError:
+        username = None
+
+    return username, server
+
+
+
 class finger_user(object):
     def __init__(self):
-        self.command_name = 'finger'
-        self.options = '-ms'
 
+        username, server = get_finger_configuration()
+        if server and server != 'localhost':
+            self.command_name = 'ssh'
+            if username:
+                self.options = [username + '@' + server, 'finger', '-mp']
+            else:
+                self.options = [server, 'finger', '-mp']
+        else:
+            self.command_name = 'finger'
+            self.options = ['-mp']
 
     def get_user_by_uid(self, uid):
         result = {}
         # build command
-        command = [self.command_name, self.options, uid]
+        command = [self.command_name]
+        command.extend(self.options)
+        command.append(uid)
 
         try:
             res = self._run(command)
         except FingerException:
             return {}
-
         name = []
         for line in res.splitlines():
-            if line.startswith(uid):
-                splitted_line = line.split(' ')
-                start = splitted_line.index('') + 1
-                end = splitted_line[start:-1].index('') + start
-                name = splitted_line[start:end]
+            if line.startswith('Login'):
+                p = re.compile("Login:\s*.*\s*Name:\s*(.*)")
+                m = p.match(line)
+                if m:
+                    name = m.group(1)
                 break
         if name:
-            result = {'name': ' '.join(name), 'mail': '.'.join(name) + '@nokia.com'}
+            result = {'name': name, 'mail': '.'.join(name.split(' ')) + '@' + get_email_domain()}
         return result
 
 
@@ -151,7 +187,6 @@ class finger_user(object):
             raise FingerException('Error while running the command: %s \nError message: %s' % (command, stderr))
 
         return stdout
-
 
 class FingerException(Exception):
     def __init__(self, value):

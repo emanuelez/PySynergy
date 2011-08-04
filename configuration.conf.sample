@@ -35,9 +35,14 @@ log_file=                                                   ;
 max_recursion_depth=                                        ; recursion depth to give up when reached, when traversing file history between two releases
 
 [history conversion]
-print_graphs=False
-                                       ; print png images of the different releases when converting history
+print_graphs=False                                          ; print png images of the different releases when converting history
+email_domain=                                               ; email domain to use when writing commit info (if not found through ldap)
+
 [ldap]
 username=
 password=
 server=
+
+[finger]                                                    ; Find users with finger program, can run on a remote server through ssh (keys needed)
+server=                                                     ; Remote server to use
+user=                                                       ; User to login in as

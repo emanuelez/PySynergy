@@ -57,6 +57,10 @@ def load_config_file():
     if config_parser.has_section('ldap'):
         for k,v in config_parser.items('ldap'):
             config[k]=v
+    if config_parser.has_section('finger'):
+        config['finger'] = {}
+        for k,v in config_parser.items('finger'):
+            config['finger'][k] = v
 
     if config.has_key('heads'):
         if config['master'] in config['heads']:
