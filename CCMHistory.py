@@ -162,14 +162,14 @@ class CCMHistory(object):
         # Get all objects and paths for baseline_project
         if not self.baseline_objects:
             self.baseline_objects = baseline_project.get_members()
-            if self.baseline_objects is None or len(self.baseline_objects) == 1:
+            if self.baseline_objects is None or len(self.baseline_objects) == 1 or not isinstance(self.baseline_objects, dict):
                 self.baseline_objects = ccm_objects.get_objects_in_project(baseline_project.get_object_name(), ccmpool=self.ccmpool)
                 baseline_project.set_members(self.baseline_objects)
                 ccm_cache.force_cache_update_for_object(baseline_project)
         if next_project:
             # Get all objects and paths for next project
             self.project_objects = next_project.get_members()
-            if self.project_objects is None or len(self.project_objects) == 1:
+            if self.project_objects is None or len(self.project_objects) == 1  or not isinstance(self.project_objects, dict):
                 self.project_objects = ccm_objects.get_objects_in_project(next_project.get_object_name(), ccmpool=self.ccmpool)
                 next_project.set_members(self.project_objects)
                 ccm_cache.force_cache_update_for_object(next_project)
