@@ -506,7 +506,7 @@ def create_commit_msg_from_task(task):
 
     #Do Task synopsis and description first
     if attr.has_key('task_synopsis'):
-        msg.append('Synergy-synopsis: %s' %attr['task_synopsis'].strip())
+        msg.append(attr['task_synopsis'].strip())
         msg.append('')
     if attr.has_key('task_description'):
         if not attr['task_description'].strip() == "":
