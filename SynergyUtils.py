@@ -121,6 +121,8 @@ class TaskUtil(object):
         if not ret_val:
             # option 3: check if task is in the project's own baseline
             ret_val = self.task_in_baseline_of_project(task, project)
+        if ret_val:
+            self.fill_task_info(task)
         return ret_val
 
     def task_used_in_project(self, task, project):
