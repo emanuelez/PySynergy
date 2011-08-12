@@ -38,13 +38,14 @@ import os.path
 
 def validate_object_data(object_data, ccm_cache_path):
     """ Check predecessors etc for correct successor information"""
-
     for predecessor_name in object_data.predecessors:
-        predecessor = get_object_data_from_cache(predecessor_name, ccm_cache_path)
+        try:
+            predecessor = get_object_data_from_cache(predecessor_name, ccm_cache_path)
+        except ObjectCacheException:
+            return
         if object_data.get_object_name() not in predecessor.successors:
             predecessor.successors.append(object_data.get_object_name())
             force_cache_update_for_object(predecessor,ccm_cache_path=ccm_cache_path)
-
 
 def get_object(obj, ccm=None):
     """Get the object's meta data from either the cache or directly from ccm"""
@@ -57,7 +58,11 @@ def get_object(obj, ccm=None):
         validate_object_data(object_data, ccm_cache_path)
     except ObjectCacheException:
         if not ccm:
-            ccm = create_ccm_session_from_config()
+            try:
+                ccm = create_ccm_session_from_config()
+            except OSError:
+                #couldn't start Synergy on this computer
+                raise ObjectCacheException("Couldn't extract %s from Synergy" % obj)
         try:
             object_data = get_object_from_ccm(obj, ccm, ccm_cache_path)
         except ObjectCacheException:
