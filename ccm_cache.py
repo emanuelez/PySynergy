@@ -36,6 +36,16 @@ import hashlib
 import os
 import os.path
 
+def validate_object_data(object_data, ccm_cache_path):
+    """ Check predecessors etc for correct successor information"""
+
+    for predecessor_name in object_data.predecessors:
+        predecessor = get_object_data_from_cache(predecessor_name, ccm_cache_path)
+        if object_data.get_object_name() not in predecessor.successors:
+            predecessor.successors.append(object_data.get_object_name())
+            force_cache_update_for_object(predecessor,ccm_cache_path=ccm_cache_path)
+
+
 def get_object(obj, ccm=None):
     """Get the object's meta data from either the cache or directly from ccm"""
     if obj is None:
@@ -44,6 +54,7 @@ def get_object(obj, ccm=None):
     #try the object cache first
     try:
         object_data = get_object_data_from_cache(obj, ccm_cache_path)
+        validate_object_data(object_data, ccm_cache_path)
     except ObjectCacheException:
         if not ccm:
             ccm = create_ccm_session_from_config()
