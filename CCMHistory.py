@@ -35,7 +35,7 @@ from TaskObject import TaskObject
 import ccm_cache
 from SynergyUtils import ObjectHistory, TaskUtil
 import ccm_objects_in_project as ccm_objects
-import ccm_type_to_file_permissions as ccm_type
+import ccm_types as ccm_type
 
 
 class CCMHistory(object):
@@ -151,9 +151,15 @@ class CCMHistory(object):
         print "Next   ->   ", self.history[self.tag]['next']
         print ""
 
-        # Get the different types in the db and their corresponding file permissions
-        ccm_types = ccm_type.get_types_and_permissions(self.ccm)
-        self.history['ccm_types'] = ccm_types
+        # Get the different types in the db and their corresponding file permissions and super types
+        ccm_types_perms = ccm_type.get_types_and_permissions(self.ccm)
+        ccm_super_types = ccm_type.get_super_types(self.ccm)
+        if not self.history.has_key('ccm_types'):
+            self.history['ccm_types'] = {}
+
+        self.history['ccm_types']['permissions'] = ccm_types_perms
+        self.history['ccm_types']['super_types'] = ccm_super_types
+
 
         return self.history
 

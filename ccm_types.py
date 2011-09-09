@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-ccm_type_to_file_permissions.py
+ccm_types.py
 
 Get the ccm types from a database and the corresponding file permission
     type : permission
@@ -31,12 +31,8 @@ from SynergyObject import SynergyObject
 
 def get_types_and_permissions(ccm):
     type_dict = {}
-    delim = ccm.delim()
 
-    # Query for all types
-    result = ccm.query("type='attype'").format("%name").format("%version").format("%type").format("%instance").run()
-
-    types = [SynergyObject(t["name"] + delim + t["version"] + ":" + t["type"] + ":" + t["instance"], delim) for t in result]
+    types = get_all_types(ccm)
 
     # Map each type to permission
     for t in types:
@@ -46,6 +42,30 @@ def get_types_and_permissions(ccm):
                 mode = line.split(":")[-1]
                 type_dict[t.get_name()] = '10' + mode.strip()
                 break
+    return type_dict
+
+def get_all_types(ccm):
+    delim = ccm.delim()
+
+      # Query for all types
+    result = ccm.query("type='attype'").format("%name").format("%version").format("%type").format("%instance").run()
+    types = [SynergyObject(t["name"] + delim + t["version"] + ":" + t["type"] + ":" + t["instance"], delim) for t in result]
+
+    return types
+
+def get_super_types(ccm):
+    type_dict = {}
+    types = get_all_types(ccm)
+
+    # Map each type to permission
+    for t in types:
+        line = ccm.attr(t.get_object_name()).option("-s").option("super_type").run().strip()
+        if 'Attribute \'super_type\'' in line:
+            # just skip
+            continue
+        else:
+            type_dict[t.get_name()] = line
+
     return type_dict
 
 def main():

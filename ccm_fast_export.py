@@ -25,6 +25,7 @@ CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING 
 from _collections import deque
 import cPickle
 import logging as logger
+from subprocess import Popen, PIPE
 import time
 from pygraph.classes.graph import graph
 from pygraph.algorithms.sorting import topological_sorting
@@ -75,7 +76,7 @@ def ccm_fast_export(releases, graphs):
         if o.get_type() != 'dir':
             object_mark, mark = create_blob(o, mark)
             for p in paths[o.get_object_name()]:
-                files.append('M ' + releases['ccm_types'][o.get_type()] + ' :'+str(object_mark) + ' ' + p)
+                files.append('M ' + releases['ccm_types']['permissions'][o.get_type()] + ' :'+str(object_mark) + ' ' + p)
 
     empty_dirs = releases[release]['empty_dirs']
     logger.info("Empty dirs for release %s\n%s" %(release, empty_dirs))
@@ -269,7 +270,7 @@ def create_release_merge_commit(releases, release, mark, reference, graphs, ance
     mark = create_blob_for_empty_dir(get_mark(mark))
 
     logger.info("Object lookup: %i" % len(object_lookup))
-    file_list = create_file_list(objects, object_lookup, releases['ccm_types'], releases[release]['fourpartname'], empty_dirs=empty_dirs, empty_dir_mark=mark, all_files_for_release=True)
+    file_list = create_file_list(objects, object_lookup, releases['ccm_types']['permissions'], releases[release]['fourpartname'], empty_dirs=empty_dirs, empty_dir_mark=mark, all_files_for_release=True)
 
     logger.info("File list: %i" % len(file_list))
     mark = get_mark(mark)
@@ -337,7 +338,7 @@ def create_merge_commit(n, release, releases, mark, reference, graphs, ancestors
             object_lookup[o.get_object_name()] = object_mark
 
 
-    file_list = create_file_list(objects, object_lookup, releases['ccm_types'], releases[release]['fourpartname'])
+    file_list = create_file_list(objects, object_lookup, releases['ccm_types']['permissions'], releases[release]['fourpartname'])
 
     if ':task:' in n:
         mark, commit = make_commit_from_task(task, get_mark(mark), reference, release, file_list)
@@ -374,7 +375,7 @@ def create_commit(n, release, releases, mark, reference, graphs):
                 object_lookup[o.get_object_name()] = object_mark
 
 
-        file_list = create_file_list(objects, object_lookup, releases['ccm_types'], releases[release]['fourpartname'])
+        file_list = create_file_list(objects, object_lookup, releases['ccm_types']['permissions'], releases[release]['fourpartname'])
         mark, commit = make_commit_from_task(task, get_mark(mark), reference, release, file_list)
         print '\n'.join(commit)
         return mark
@@ -387,7 +388,7 @@ def create_commit(n, release, releases, mark, reference, graphs):
             object_mark, mark = create_blob(single_object, mark)
             object_lookup[single_object.get_object_name()] = object_mark
 
-        file_list = create_file_list([single_object], object_lookup, releases['ccm_types'], releases[release]['fourpartname'])
+        file_list = create_file_list([single_object], object_lookup, releases['ccm_types']['permissions'], releases[release]['fourpartname'])
         mark, commit = make_commit_from_object(single_object, get_mark(mark), reference, release, file_list)
         print '\n'.join(commit)
         return mark
@@ -603,6 +604,18 @@ def get_object(o, objects):
         if obj == o:
             return ccm_cache.get_object(obj)
 
+def decide_type(obj):
+    cache_path = ccm_cache.load_ccm_cache_path()
+    dir, filename = ccm_cache.get_path_for_object(obj.get_object_name(), cache_path)
+    command = ['file', '-i', '-b', filename]
+    logger.info('Finding super type for %s Command: %s' %(type, command))
+    result = run_command(command)
+    logger.info('Result %s' % result)
+    if 'binary' in result:
+        return 'binary'
+    else:
+        return 'ascii'
+
 def create_blob(obj, mark):
     global object_mark_lookup
     if object_mark_lookup.has_key(obj.get_object_name()):
@@ -614,7 +627,14 @@ def create_blob(obj, mark):
         next_mark = get_mark(mark)
         blob = ['blob', 'mark :' + str(next_mark)]
         logger.info("Creating lookup-mark: %s for %s" % (str(next_mark), obj.get_object_name()))
-        content = ccm_cache.get_source(obj.get_object_name())
+        # Skip for binary files
+        # TODO: make a configuration for this
+        # Types and super type in Synergy can't be trusted, figure out the type manually
+        type = decide_type(obj)
+        if type == 'ascii':
+            content = ccm_cache.get_source(obj.get_object_name())
+        else: # binary
+            content = ''
         length = len(content)
         blob.append('data '+ str(length))
         blob.append(content)
@@ -668,3 +688,15 @@ def get_master_tag():
     object = ccm_cache.get_object(config['master'])
     tag = object.name + object.separator + object.version
     return tag
+
+def run_command(command):
+    """Execute a command"""
+    p = Popen(command, stdout=PIPE, stderr=PIPE)
+
+    # Store the result as a single string.
+    stdout, stderr = p.communicate()
+
+    if stderr:
+        return stderr
+
+    return stdout
