@@ -51,6 +51,8 @@ def load_config_file():
         if k == 'heads':
             v = v.split(',')
             v = [i.strip() for i in v]
+        if k == 'skip_binary_files':
+            v = config_parser.getboolean('synergy', 'skip_binary_files')
         config[k]=v
     for k, v in config_parser.items('history conversion'):
         config[k]=v

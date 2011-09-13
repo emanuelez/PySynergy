@@ -627,14 +627,16 @@ def create_blob(obj, mark):
         next_mark = get_mark(mark)
         blob = ['blob', 'mark :' + str(next_mark)]
         logger.info("Creating lookup-mark: %s for %s" % (str(next_mark), obj.get_object_name()))
-        # Skip for binary files
-        # TODO: make a configuration for this
-        # Types and super type in Synergy can't be trusted, figure out the type manually
-        type = decide_type(obj)
-        if type == 'ascii':
+        if skip_binary():
+            # Skip for binary files
+            # Types and super type in Synergy can't be trusted, figure out the type manually
+            type = decide_type(obj)
+            if type == 'ascii':
+                content = ccm_cache.get_source(obj.get_object_name())
+            else: # binary
+                content = ''
+        else:
             content = ccm_cache.get_source(obj.get_object_name())
-        else: # binary
-            content = ''
         length = len(content)
         blob.append('data '+ str(length))
         blob.append(content)
@@ -688,6 +690,12 @@ def get_master_tag():
     object = ccm_cache.get_object(config['master'])
     tag = object.name + object.separator + object.version
     return tag
+
+def skip_binary():
+    f = open('config.p', 'rb')
+    config = cPickle.load(f)
+    f.close()
+    return config['skip_binary_files']
 
 def run_command(command):
     """Execute a command"""

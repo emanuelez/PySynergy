@@ -33,6 +33,7 @@ ccm_cache_path=                                             ; where to store all
 data_file=                                                  ; pickle file to store meta data for the converter (is loaded upon start, so the conversion can resume)
 log_file=                                                   ;
 max_recursion_depth=                                        ; recursion depth to give up when reached, when traversing file history between two releases
+skip_binary_files=                                          ; Don't put binary files in git history
 
 [history conversion]
 print_graphs=False                                          ; print png images of the different releases when converting history
