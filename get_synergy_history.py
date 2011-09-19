@@ -3,7 +3,7 @@
 """
 get_synergy_data.py
 
-Loads configuration from config file and starts the data extraction from Synergy
+Starts the data extraction from Synergy
 
 Created by Aske Olsson on 2011-05-09.
 Copyright (c) 2011, Nokia
@@ -22,56 +22,12 @@ FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.    IN NO EVENT SHALL THE COPYRI
 (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
 CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
-from ConfigParser import ConfigParser
 import cPickle
 import os
-from CCMHistory import CCMHistory
 from SynergySession import SynergySession
 from SynergySessions import SynergySessions
 from CCMHistory import CCMHistory
-
-
-def save_config(config):
-    f = open('config.p', 'wb')
-    cPickle.dump(config, f)
-    f.close()
-
-def load_config_file():
-
-    config_parser = ConfigParser()
-    config_parser.read('configuration.conf')
-    config = {}
-    for k, v in config_parser.items('synergy'):
-        if k == 'ccm_cache_path' and not v.endswith('/'):
-            v += '/'
-        if k == 'max_sessions':
-            v = int(v)
-        if k == 'max_recursion_depth':
-            v = int(v)
-        if k == 'heads':
-            v = v.split(',')
-            v = [i.strip() for i in v]
-        if k == 'skip_binary_files':
-            v = config_parser.getboolean('synergy', 'skip_binary_files')
-        config[k]=v
-    for k, v in config_parser.items('history conversion'):
-        config[k]=v
-    if config_parser.has_section('ldap'):
-        for k,v in config_parser.items('ldap'):
-            config[k]=v
-    if config_parser.has_section('finger'):
-        config['finger'] = {}
-        for k,v in config_parser.items('finger'):
-            config['finger'][k] = v
-
-    if config.has_key('heads'):
-        if config['master'] in config['heads']:
-            config['heads'].remove(config['master'])
-
-    save_config(config)
-
-    return config
-
+from load_configuration import load_config_file
 
 def start_sessions(config):
     ccm = SynergySession(config['database'])
@@ -126,4 +82,3 @@ def main():
 if __name__ == '__main__':
     main()
 
-    

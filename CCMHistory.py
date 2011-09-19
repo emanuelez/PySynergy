@@ -446,11 +446,11 @@ def remove_subdirs_under_same_path(paths):
 
     return paths
 
-def get_project_chain(from_project, to_project, ccm):
+def get_project_chain(new_project, base_project, ccm):
     # Do it reverse:
-    successor = ccm_cache.get_object(to_project, ccm)
+    successor = ccm_cache.get_object(base_project, ccm)
     chain = [successor.get_object_name()]
-    while successor.get_object_name() != from_project:
+    while successor.get_object_name() != new_project:
         successor = ccm_cache.get_object(successor.baseline_predecessor, ccm)
         if successor:
             chain.append(successor.get_object_name())
