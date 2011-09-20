@@ -36,7 +36,7 @@ import hashlib
 import os
 import os.path
 
-def validate_object_data(object_data, ccm_cache_path):
+def validate_object_data(object_data, ccm_cache_path, ccm):
     """ Check predecessors etc for correct successor information"""
     for predecessor_name in object_data.predecessors:
         try:
@@ -47,6 +47,13 @@ def validate_object_data(object_data, ccm_cache_path):
             predecessor.successors.append(object_data.get_object_name())
             force_cache_update_for_object(predecessor,ccm_cache_path=ccm_cache_path)
 
+    ccm_db = ccm.get_database_name()
+    if ccm_db not in object_data.info_databases:
+        # Get info from new db and update the cache
+        object = update_object_cache_with_new_ccm_db_info(object_data, ccm)
+        force_cache_update_for_object(object, ccm_cache_path=ccm_cache_path)
+
+
 def get_object(obj, ccm=None):
     """Get the object's meta data from either the cache or directly from ccm"""
     if obj is None:
@@ -55,7 +62,7 @@ def get_object(obj, ccm=None):
     #try the object cache first
     try:
         object_data = get_object_data_from_cache(obj, ccm_cache_path)
-        validate_object_data(object_data, ccm_cache_path)
+        validate_object_data(object_data, ccm_cache_path, ccm)
     except ObjectCacheException:
         if not ccm:
             try:
@@ -207,68 +214,24 @@ def update_cache(object, ccm, ccm_cache_path):
 
 def create_project_object(synergy_object, ccm):
     object = ProjectObject(synergy_object.get_object_name(), synergy_object.get_separator(), synergy_object.get_author(), synergy_object.get_status(), synergy_object.get_created_time(), synergy_object.get_tasks())
-    # baseline info
-    res = ccm.query("is_baseline_project_of('{0}')".format(synergy_object.get_object_name())).format("%objectname").run()
-    if res:
-        baseline_predecessor = res[0]['objectname']
-    else:
-        baseline_predecessor = None
-    object.baseline_predecessor = baseline_predecessor
-
-    res = ccm.query("has_baseline_project('{0}') and status='released'".format(synergy_object.get_object_name())).format("%objectname").run()
-    if res:
-        baseline_successor = [baseline['objectname'] for baseline in res]
-    else:
-        baseline_successor = []
-    object.baseline_successor = baseline_successor
-
-    # Get task in reconfigure prop
-    tasks = []
-    res = ccm.rp(synergy_object.get_object_name()).option('-show').option('all_tasks').run()
-    for t in res:
-        tasks.append(t['objectname'].strip())
-    object.tasks_in_rp = tasks
-
-    # get baselines
-    baselines = []
-    res = ccm.query("has_project_in_baseline('{0}')".format(synergy_object.get_object_name())).format('%objectname').run()
-    for b in res:
-        baselines.append(b['objectname'])
-    object.baselines = baselines
-
+    object.baseline_predecessor = get_baseline_predecessor(synergy_object, ccm)
+    object.baseline_successor = get_baseline_successor(synergy_object, ccm)
+    object.tasks_in_rp = get_tasks_in_reconfigure_prop(synergy_object, ccm)
+    object.baselines = get_baselines_for_project(synergy_object, ccm)
     return object
 
 def create_task_object(synergy_object, ccm):
     object = TaskObject(synergy_object.get_object_name(), synergy_object.get_separator(), synergy_object.get_author(), synergy_object.get_status(), synergy_object.get_created_time(), synergy_object.get_tasks())
-    # Get the projects this task is used in
-    projects = []
-    result = ccm.finduse(synergy_object.get_object_name()).option('-task').option('-released_proj').run().splitlines()
-    for p in result[1:]: # aviod [0], the task synopsis
-        projects.append(p.strip())
-    object.released_projects = projects
-
-    # get baselines which the task is used in
-    baselines = []
-    res = ccm.query("has_task_in_baseline('{0}')".format(synergy_object.get_object_name())).format('%objectname').run()
-    for b in res:
-        baselines.append(b['objectname'])
-    object.baselines = baselines
-
+    object.released_projects = get_projects_for_task(synergy_object, ccm)
+    object.baselines = get_baselines_for_task(synergy_object, ccm)
     return object
-
 
 def create_file_or_dir_object(synergy_object, ccm):
     if synergy_object.get_type() == 'dir':
         object = DirectoryObject(synergy_object.get_object_name(), synergy_object.get_separator(), synergy_object.get_author(), synergy_object.get_status(), synergy_object.get_created_time(), synergy_object.get_tasks())
     else:
         object = FileObject(synergy_object.get_object_name(), synergy_object.get_separator(), synergy_object.get_author(), synergy_object.get_status(), synergy_object.get_created_time(), synergy_object.get_tasks())
-    # releases
-    releases = []
-    res = ccm.query("has_member('{0}') and status='released'".format(synergy_object.get_object_name())).format('%objectname').run()
-    for r in res:
-        releases.append(r['objectname'])
-    object.releases = releases
-
+    object.releases = get_releases(synergy_object, ccm)
     return object
 
 def fill_changed_entries(object, ccm):
@@ -297,7 +260,6 @@ def fill_changed_entries(object, ccm):
 
 def get_object_from_ccm(four_part_name, ccm, ccm_cache_path):
     """Try to get the object's meta data from Synergy"""
-#    print 'Loading object %s from ccm' %four_part_name
     # convert the four-part-name to a synergy object:
     delim = ccm.delim()
     synergy_object = SynergyObject(four_part_name, delim)
@@ -325,31 +287,125 @@ def get_object_from_ccm(four_part_name, ccm, ccm_cache_path):
         object = create_file_or_dir_object(synergy_object, ccm)
 
     # Common among all objects
-    # fill meta data for object:
-    predecessors = []
-    res = ccm.query("is_predecessor_of('{0}')".format(object.get_object_name())).format("%objectname").run()
-    for p in res:
-        predecessors.append(p['objectname'])
-    object.predecessors = predecessors
-
-    successors = []
-    res = ccm.query("is_successor_of('{0}')".format(object.get_object_name())).format("%objectname").run()
-    for s in res:
-        successors.append(s['objectname'])
-    object.successors = successors
-
+    object.predecessors = get_predecessors(object, ccm)
+    object.successors = get_successors(object, ccm)
     attributes = get_non_blacklisted_attributes(object, ccm)
     object.set_attributes(attributes)
 
     if object.get_type() == 'dir':
         object = fill_changed_entries(object, ccm)
 
-    # write the file to the cache and return it
+    # Add database info to cache object
+    object.info_databases.append(ccm.get_database_name())
+    # write the file to the cache
     update_cache(object, ccm, ccm_cache_path)
 
     return object
 
+def update_object_cache_with_new_ccm_db_info(object, ccm):
+    # the difference should primarily be in objects' relations
+    predecessors = get_predecessors(object, ccm)
+    object.predecessors = list(set(object.predecessors + predecessors))
+    successors = get_successors(object, ccm)
+    object.successors = list(set(object.successors + successors))
+
+    if object.get_type() == 'project':
+        baseline_predecessor = get_baseline_predecessor(object)
+        object.baseline_predecessor = list(set(object.baseline_predecessor + baseline_predecessor))
+        baseline_successor = get_baseline_successor(object, ccm)
+        object.baseline_successor = list(set(object.baseline_successor + baseline_successor))
+        tasks_in_rp = get_tasks_in_reconfigure_prop(object, ccm)
+        object.tasks_in_rp = list(set(object.tasks_in_rp + tasks_in_rp))
+        baselines = get_baselines_for_project(object, ccm)
+        object.baselines = list(set(object.baselines + baselines))
+    elif object.get_type() == 'task':
+        released_projects = get_projects_for_task(object, ccm)
+        object.released_projects = list(set(object.released_projects + released_projects))
+        baselines = get_baselines_for_task(object, ccm)
+        object.baselines = list(set(object.baselines + baselines))
+    else:
+        releases = get_releases(object, ccm)
+        object.releases = list(set(object.releases + releases))
+
+    # Update object db info
+    object.info_databases.append(ccm.get_database_name())
+
+    return object
+
+
+def get_predecessors(object, ccm):
+    predecessors = []
+    res = ccm.query("is_predecessor_of('{0}')".format(object.get_object_name())).format("%objectname").run()
+    for p in res:
+        predecessors.append(p['objectname'])
+    return predecessors
+
+def get_successors(object, ccm):
+    successors = []
+    res = ccm.query("is_successor_of('{0}')".format(object.get_object_name())).format("%objectname").run()
+    for s in res:
+        successors.append(s['objectname'])
+    return successors
+
+def get_baseline_predecessor(object, ccm):
+    res = ccm.query("is_baseline_project_of('{0}')".format(object.get_object_name())).format("%objectname").run()
+    if res:
+        baseline_predecessor = res[0]['objectname']
+    else:
+        baseline_predecessor = None
+    return baseline_predecessor
+
+def get_baseline_successor(object, ccm):
+    res = ccm.query("has_baseline_project('{0}') and status='released'".format(object.get_object_name())).format("%objectname").run()
+    if res:
+        baseline_successor = [baseline['objectname'] for baseline in res]
+    else:
+        baseline_successor = []
+    return baseline_successor
+
+def get_tasks_in_reconfigure_prop(object, ccm):
+    # Get task in reconfigure prop
+    tasks = []
+    res = ccm.rp(object.get_object_name()).option('-show').option('all_tasks').run()
+    for t in res:
+        tasks.append(t['objectname'].strip())
+    return tasks
+
+def get_baselines_for_project(object, ccm):
+    # get baselines
+    baselines = []
+    res = ccm.query("has_project_in_baseline('{0}')".format(object.get_object_name())).format('%objectname').run()
+    for b in res:
+        baselines.append(b['objectname'])
+    return baselines
+
+def get_projects_for_task(object, ccm):
+    # Get the projects this task is used in
+    projects = []
+    result = ccm.finduse(object.get_object_name()).option('-task').option('-released_proj').run().splitlines()
+    for p in result[1:]: # aviod [0], the task synopsis
+        projects.append(p.strip())
+    return projects
+
+def get_baselines_for_task(object, ccm):
+    # get baselines which the task is used in
+    baselines = []
+    res = ccm.query("has_task_in_baseline('{0}')".format(object.get_object_name())).format('%objectname').run()
+    for b in res:
+        baselines.append(b['objectname'])
+    return baselines
+
+def get_releases(object, ccm):
+    # releases
+    releases = []
+    res = ccm.query("has_member('{0}') and status='released'".format(object.get_object_name())).format('%objectname').run()
+    for r in res:
+        releases.append(r['objectname'])
+    return releases
+
+
 def task_to_four_part(task, delim):
+    # Task four-part-name: task<tasknumber>-1:task:instance
     split = task.split('#')
     four_part = ['task', split[1], delim, '1:task:', split[0]]
     return ''.join(four_part)

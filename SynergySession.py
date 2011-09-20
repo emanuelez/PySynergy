@@ -89,6 +89,12 @@ class SynergySession(object):
     def getCCM_ADDR(self):
         return self.environment['CCM_ADDR'].strip()
 
+    def get_database_name(self):
+        splitted = os.path.split(self.database)
+        if splitted[-1] == '':
+            return os.path.split(splitted)[1]
+        return splitted[-1]
+
     def __del__(self):
         # Close the session
         if not self.keep_session_alive:

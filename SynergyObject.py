@@ -50,6 +50,7 @@ class SynergyObject(object):
         self.predecessors = []
         self.successors = []
         self.attributes = None
+        self.info_databases = []
 
     def get_separator(self):
         return self.separator
