@@ -69,13 +69,7 @@ def get_super_types(ccm):
     return type_dict
 
 def main():
-    db = '/nokia/co_nmp/groups/gscm/dbs/co1s30pr'
-    ccm = SynergySession(db)
-
-    types = get_types_and_permissions(ccm)
-
-    for k,v in types.iteritems():
-        print "%15s : %s" %(k, v)
+    pass
 
 if __name__ == '__main__':
     main()

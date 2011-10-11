@@ -411,21 +411,7 @@ class ObjectCacheException(Exception):
 
 
 def main():
-    """Test"""
-    object = sys.argv[1]
-
-    #create a fake config file:
-    config = {'ccm_cache_path': '/nokia/co_nmp/groups/git_wip/users/asolsson/ccm_cache/',
-              'database': '/nokia/co_nmp/groups/gscm/dbs/co1s30pr'}
-
-    f = open('config.p', 'wb')
-    cPickle.dump(config, f)
-    f.close()
-
-    obj = get_object(object)
-
-    if os.path.isfile('config.p'):
-        os.remove('config.p')
+    pass
 
 if __name__ == '__main__':
     main()

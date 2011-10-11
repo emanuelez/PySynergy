@@ -318,44 +318,7 @@ def producer(c_queue, p_queue, free_ccm):
 
 
 def main():
-    # Test
-    db = '/nokia/co_nmp/groups/gscm/dbs/co1s30pr'
-    #ccm = SynergySession(db)
-    #result = get_objects_in_project("sb9-11w03_sb9_fam:project:be1s30pr#1", database=db)
-    #result = get_objects_in_project("sb9-11w03_sb9_fam:project:be1s30pr#1", ccm=ccm)
-
-    ccmpool = SynergySessions(database=db, nr_sessions=20)
-    start = time.time()
-
-#    res = get_objects_in_project_parallel("sb9-11w05_sb9_fam:project:be1s30pr#1", ccmpool=ccmpool)
-    project = "sb9-11w05_sb9_fam:project:be1s30pr#1"
-    res = get_objects_in_project(project, ccmpool=ccmpool)
-    end = time.time()
-
-    result = dict(res)
-    count = 0
-    for k, v in result.iteritems():
-        if len(v) > 1:
-            count += 1
-            print '%s\n\t\t%s' % (k, '\n\t\t'.join(v))
-
-
-    paths = sum([len(p) for p in result.values()])
-    projects = [o for o in result.keys() if ':project:' in o]
-    for p in sorted(projects):
-        print p, result[p]
-#    print '\n'.join(projects)
-
-    print 'num of projects %d' %len(projects)
-    print "Number of objects used in several places:", count
-    print "objs:", str(len(result.keys()))
-    print "paths:", paths
-    print "Running time: %d seconds" % (end - start)
-
-    import cPickle
-    f = open("sb9-11w05_sb9_fam_2.p", 'wb')
-    cPickle.dump(result, f, 2)
-    f.close()
+    pass
 
 if __name__ == '__main__':
     main()

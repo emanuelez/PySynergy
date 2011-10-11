@@ -94,66 +94,6 @@ def do_query(task, ccm, queue):
     queue.close()
 
 def main():
-    start = time.time()
-    """Test: start a bunch of sessions in parallel, start commands on each, wait for them all to return and print the result in execution order"""
-    ccmpool = SynergySessions(database='/nokia/co_nmp/groups/gscm/dbs/co1asset', nr_sessions=2)
-
-    print "Time used starting %d sessions: %d" %(ccmpool.nr_sessions, time.time()-start)
-    print "ccmpool:"
-    print ccmpool
-
-    nr_ops_in_test = 51
-
-    print "asking for info on " + str(nr_ops_in_test) + " random tasks in parallel"
-    tstart = datetime.now()
-
-    nr_full_parallel_run_groups = nr_ops_in_test/ccmpool.nr_sessions
-    partial_parallel_run_nr = nr_ops_in_test-(nr_full_parallel_run_groups*ccmpool.nr_sessions)
-    ops_count = 0
-
-    for i in range(nr_full_parallel_run_groups):
-        processes = []
-        queues = []
-        for j in range(ccmpool.nr_sessions):
-            ops_count+=1
-            querytask = random.randint(1000, 100000)
-            print "[" + str(j) + "] ops_count=" + str(ops_count) + ", task=" + str(querytask)
-            task = "co1asset#%i" % querytask
-            queues.append(Queue())
-            processes.append(Process(target=do_query, args=(task, ccmpool[j], queues[j])))
-
-        for p in processes:
-            p.start()
-
-        for j in range(ccmpool.nr_sessions):
-            print "DEBUG: .join() waiting for [" + str(j) + "]"
-            res = queues[j].get()
-            processes[j].join()
-            print res
-
-    #reset processes
-    processes = []
-    for j in range(partial_parallel_run_nr):
-        processes = []
-        ops_count+=1
-        querytask = random.randint(1000, 100000)
-        task = "co1asset#%i" % querytask
-        print "[" + str(j) + "] ops_count=" + str(ops_count) + ", task=" + str(querytask)
-        queues.append(Queue())
-        processes.append(Process(target=do_query, args=(task, ccmpool[j], queues[j])))
-        #ccmpool[j].query("is_associated_cv_of(task('co1asset#%i'))" % querytask).format("%objectname").start()
-
-    for p in processes:
-        p.start()
-
-    for j in range(partial_parallel_run_nr):
-        print "DEBUG: .join() waiting for [" + str(j) + "]"
-        res = queues[j].get()
-        processes[j].join()
-        print res
-
-    tparallel = datetime.now()-tstart
-    print str(nr_ops_in_test) + " operations, in parallel, on " + str(ccmpool.nr_sessions) + " ccm sessions, it took: " + str(tparallel.seconds) + " seconds"
-
+    pass
 if __name__ == '__main__':
     main()
