@@ -29,14 +29,18 @@ from load_configuration import load_config_file
 
 
 def update_project_with_members(project, ccm, ccmpool):
-    project_obj = ccm_cache.get_object(project)
-    objects_in_project = ccm_objects_in_project.get_objects_in_project(project, ccm=ccm, ccmpool=ccmpool)
-    project_obj.set_members(objects_in_project)
-    ccm_cache.force_cache_update_for_object(project_obj)
+    print "Loading object %s" % project
+    project_obj = ccm_cache.get_object(project, ccm=ccm)
+    if not project_obj.members:
+        objects_in_project = ccm_objects_in_project.get_objects_in_project(project, ccm=ccm, ccmpool=ccmpool)
+        project_obj.set_members(objects_in_project)
+        ccm_cache.force_cache_update_for_object(project_obj)
 
 
 def populate_cache_with_projects(config):
-    heads = config['heads']
+    heads = []
+    if config.has_key('heads'):
+        heads = config['heads']
     heads.append(config['master'])
     base_project = config['base_project']
     ccm, ccmpool = start_sessions(config)
@@ -45,43 +49,28 @@ def populate_cache_with_projects(config):
     for head in heads:
         projects.extend(get_project_chain(head, base_project, ccm))
 
-    # Got all the project chains - now get the members for each
+    # Got all the project chains - now get all the objects
     for project in set(projects):
-        update_project_with_members(project, ccm, ccmpool)
-
-
-def get_project_chain_from_ccm(from_project, to_project, ccm):
-    # Do it reverse:
-    successor = ccm_cache.get_object(to_project, ccm)
-    chain = [successor.get_object_name()]
-    while successor.get_object_name() != from_project:
-        successor = ccm_cache.get_object(successor.baseline_predecessor, ccm)
-        if successor:
-            chain.append(successor.get_object_name())
-        else:
-            break
-    chain.reverse()
-    return chain
-
+        populate_cache_with_objects_from_project(project, ccm, ccmpool)
+#        update_project_with_members(project, ccm, ccmpool)
 
 def populate_cache_with_objects_from_project(project, ccm, ccmpool):
-    objects_in_project = {}
     print "processing project %s" %project
     #first try to get the object from cache
     project_obj = ccm_cache.get_object(project, ccm)
     if not project_obj.members:
-        update_project_with_members(project)
+        update_project_with_members(project, ccm, ccmpool)
 
-    if objects_in_project:
-        num_o = len( objects_in_project.keys())
-        for o in objects_in_project.keys():
+    if project_obj.members:
+        num_o = len(project_obj.members.keys())
+        for o in project_obj.members.keys():
             print "loading object: %s" % o
             obj = ccm_cache.get_object(o, ccm)
             num_o -=1
             print "objects left %d" %num_o
 
     print "%s done, members: %d" %(project, len(project_obj.members.keys()))
-    populate_cache_with_objects_from_project(project_obj.baseline_predecessor, ccm, ccmpool)
+
 
 def start_sessions(config):
     ccm = SynergySession(config['database'])
