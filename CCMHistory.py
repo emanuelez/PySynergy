@@ -52,7 +52,7 @@ class CCMHistory(object):
         self.project_objects = None
         self.baseline_objects = None
 
-    def get_project_history(self, base_project, latest_project):
+    def get_project_history(self, latest_project, base_project):
 
         release_chain = deque(get_project_chain(latest_project, base_project, self.ccm))
 
@@ -446,16 +446,17 @@ def remove_subdirs_under_same_path(paths):
 
     return paths
 
-def get_project_chain(new_project, base_project, ccm):
-    # Do it reverse:
-    successor = ccm_cache.get_object(base_project, ccm)
-    chain = [successor.get_object_name()]
-    while successor.get_object_name() != new_project:
-        successor = ccm_cache.get_object(successor.baseline_predecessor, ccm)
-        if successor:
-            chain.append(successor.get_object_name())
+def get_project_chain(head_project, base_project, ccm):
+    # Do it from head to base
+    baseline = ccm_cache.get_object(head_project, ccm)
+    chain = [baseline.get_object_name()]
+    while baseline.get_object_name() != base_project:
+        baseline = ccm_cache.get_object(baseline.baseline_predecessor, ccm)
+        if baseline:
+            chain.append(baseline.get_object_name())
         else:
             break
+    # reverse the list to get the base first
     chain.reverse()
     return chain
 
