@@ -23,6 +23,7 @@ FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.    IN NO EVENT SHALL THE COPYRI
 CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 from _collections import deque
+import cPickle
 import pygraphviz as gv
 import ccm_cache
 import convert_history as ch
@@ -84,19 +85,24 @@ def create_graphs(release):
     objects = release['objects']
 
     object_graph = create_object_graph(objects)
-    #object_graph_to_image(object_graph, release)
-
     task_graph = create_task_graph(tasks, objects)
-    #task_graph_to_image(object_graph, task_graph, release)
-
     release_graph = create_release_graph(objects, release['name'], release['previous'])
-    #release_graph_to_image(object_graph, release_graph, release)
-
     commit_graph = ch.convert_history(object_graph, task_graph, release_graph, objects)
-    #commit_graph_to_image(commit_graph, release, task_graph)
+
+    if print_graphs():
+        object_graph_to_image(object_graph, release)
+        task_graph_to_image(object_graph, task_graph, release)
+        release_graph_to_image(object_graph, release_graph, release)
+        commit_graph_to_image(commit_graph, release, task_graph)
 
     return object_graph, task_graph, release_graph, commit_graph
 
+def print_graphs():
+    f = open('config.p', 'rb')
+    config = cPickle.load(f)
+    f.close()
+
+    return config['print_graphs']
 
 def create_release_graph(objects, release, previous):
     release_graph = hypergraph()

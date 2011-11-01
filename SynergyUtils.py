@@ -20,6 +20,7 @@ FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.    IN NO EVENT SHALL THE COPYRI
 (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
 CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
+import cPickle
 
 import SynergyObject
 import ccm_cache
@@ -183,6 +184,7 @@ class ObjectHistory(object):
         self.current_subproject_list = new_projects
         if new_projects:
             print "Length of current subproject list %d" % len(self.current_subproject_list)
+        self.max_recursion_depth = self.load_max_recursion_depth()
 
     def get_history(self, fileobject, paths):
         recursion_depth = 1
@@ -234,7 +236,7 @@ class ObjectHistory(object):
         print 'Recursion depth %d' % recursion_depth
         retval = True
         #Check if recursion_depth is reached
-        if recursion_depth > 20:
+        if recursion_depth > self.max_recursion_depth:
             print 'Giving up on %s' % fileobject.get_object_name()
 
             return False
@@ -298,7 +300,7 @@ class ObjectHistory(object):
         return retval
 
     def project_is_some_predecessor(self, project, recursion_depth):
-        if recursion_depth > 20:
+        if recursion_depth > self.max_recursion_depth:
             return False
         recursion_depth += 1
         print "Checking if", project.get_object_name(), "is some predecessor of", self.current_release, "or", self.old_release, "..."
@@ -321,7 +323,7 @@ class ObjectHistory(object):
         return False
 
     def successor_is_released(self, predecessor, fileobject, recursion_depth):
-        if recursion_depth > 20:
+        if recursion_depth > self.max_recursion_depth:
             return False
         recursion_depth += 1
         print "Checking if successor is released, for", fileobject.get_object_name(), "by predecessor", predecessor.get_object_name()
@@ -357,7 +359,7 @@ class ObjectHistory(object):
         return ret_val
 
     def check_successor_chain_for_object(self, fileobject, old_object, recursion_depth):
-        if recursion_depth > 10:
+        if recursion_depth > self.max_recursion_depth:
             return False
         recursion_depth += 1
         print "Checking if successor chain for %s contains %s" % (fileobject.get_object_name(), old_object.get_object_name())
@@ -375,3 +377,10 @@ class ObjectHistory(object):
             if ret_val:
                 break
         return ret_val
+
+    def load_max_recursion_depth(self):
+        f = open('config.p', 'rb')
+        config = cPickle.load(f)
+        f.close()
+
+        return config['max_recursion_depth']

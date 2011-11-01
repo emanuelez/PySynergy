@@ -50,6 +50,8 @@ def load_config_file():
             v = config_parser.getboolean('synergy', 'skip_binary_files')
         config[k]=v
     for k, v in config_parser.items('history conversion'):
+        if k == 'print_graphs':
+            v = config_parser.getboolean('history conversion', 'print_graphs')
         config[k]=v
     if config_parser.has_section('ldap'):
         for k,v in config_parser.items('ldap'):

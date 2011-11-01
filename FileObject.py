@@ -31,8 +31,6 @@ class FileObject(SynergyObject.SynergyObject):
     def __init__(self, objectname, delimiter, owner, status, create_time, task):
         super(FileObject, self).__init__(objectname, delimiter, owner, status, task)
         self.created_time = create_time
-        self.content = None
-        self.commit_message = None
         self.path = None
         self.releases = None
 
