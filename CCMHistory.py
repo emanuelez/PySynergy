@@ -193,37 +193,43 @@ class CCMHistory(object):
 
         num_of_objects = len([o for o in new_objects.keys() if ":project:" not in o])
         print "objects to process : %s" % num_of_objects
-        objects = {}
+        objects = []
         if self.tag in self.history.keys():
             if 'objects' in self.history[self.tag]:
                 #Add all existing objects
                 for o in self.history[self.tag]['objects']:
-                    objects[o] = ccm_cache.get_object(o, self.ccm)
-                print "no of old objects loaded %d" % len(objects.keys())
+                    objects.append(o)
+                    #objects[o] = ccm_cache.get_object(o, self.ccm)
+                print "no of old objects loaded %d" % len(objects)
+                #print "no of old objects loaded %d" % len(objects.keys())
         else:
             self.history[self.tag] = {'objects': [], 'tasks': []}
 
-        object_names = set([o for o in new_objects.keys() if ':project:' not in o]) - set(objects.keys())
+        object_names = set([o for o in new_objects.keys() if ':project:' not in o]) - set(objects)
+
         for o in object_names:
             object = ccm_cache.get_object(o, self.ccm)
             if next_project:
                 # get the object history between releases
-                objects.update(object_history.get_history(object, new_objects[object.get_object_name()]))
+                history = object_history.get_history(object, new_objects[object.get_object_name()])
+                objects.extend(history.keys())
+                #objects.update(object_history.get_history(object, new_objects[object.get_object_name()]))
             else:
                 # just get all the objects in the release
                 print 'Processing: %s\npath: %s' %(object.get_object_name(), new_objects[object.get_object_name()])
-                object.set_path(new_objects[object.get_object_name()])
-                objects[object.get_object_name()] = object
+                #object.set_path(new_objects[object.get_object_name()])
+                objects.append(o)
+                #objects[object.get_object_name()] = object
 
             num_of_objects -=1
             print 'Objects left: %d' %num_of_objects
-
-        print "number of files:", str(len(objects.values()))
-        self.history[self.tag]['objects'] = objects.keys()
+        objects = list(set(objects))
+        print "number of files:", str(len(objects))
+        self.history[self.tag]['objects'] = objects
 
         # Create tasks from objects, but not for initial project
         if next_project:
-            self.find_tasks_from_objects(objects.values(), next_project)
+            self.find_tasks_from_objects(objects, next_project)
 
         # Handle new projects:
         if next_project:
@@ -340,7 +346,7 @@ class CCMHistory(object):
                     tasks[t.get_object_name()] = t
 
         #Build a list of all tasks
-        task_list = [task for o in objects for task in o.get_tasks()]
+        task_list = [task for o in objects for task in ccm_cache.get_object(o, self.ccm).get_tasks()]
         num_of_tasks = len(set(task_list))
         print "Tasks with associated objects:", num_of_tasks
 
@@ -352,8 +358,8 @@ class CCMHistory(object):
                 continue
             if task_util.task_in_project(task, project):
                 tasks[task.get_object_name()] = task
-            # Add objects to tasks
-        [t.add_object(o.get_object_name()) for o in objects for t in tasks.values() if t.get_object_name() in o.get_tasks()]
+        # Add objects to tasks
+        [t.add_object(o) for o in objects for t in tasks.values() if t.get_object_name() in ccm_cache.get_object(o, self.ccm).get_tasks()]
         print "No of tasks in release %s: %d" % (project.get_object_name(), len(tasks.keys()))
         self.history[self.tag]['tasks'] = tasks.values()
         fname = self.outputfile + '_' + self.tag + '_inc'
