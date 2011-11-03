@@ -21,7 +21,6 @@ FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.    IN NO EVENT SHALL THE COPYRI
 CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 from datetime import datetime
-import sys
 from DirectoryObject import DirectoryObject
 
 from SynergyObject import SynergyObject
@@ -316,7 +315,7 @@ def update_object_cache_with_new_ccm_db_info(object, ccm):
     object.successors = list(set(object.successors + successors))
 
     if object.get_type() == 'project':
-        baseline_predecessor = get_baseline_predecessor(object)
+        baseline_predecessor = get_baseline_predecessor(object, ccm)
         object.baseline_predecessor = list(set(object.baseline_predecessor + baseline_predecessor))
         baseline_successor = get_baseline_successor(object, ccm)
         object.baseline_successor = list(set(object.baseline_successor + baseline_successor))
