@@ -46,12 +46,18 @@ def validate_object_data(object_data, ccm_cache_path, ccm):
         if object_data.get_object_name() not in predecessor.successors:
             predecessor.successors.append(object_data.get_object_name())
             force_cache_update_for_object(predecessor,ccm_cache_path=ccm_cache_path)
+    if ccm:
+        ccm_db = ccm.get_database_name()
+        try:
+            ccm_dbs = object_data.info_databases
+        except AttributeError:
+            # Create empty list of databases
+            object_data.info_databases = []
 
-    ccm_db = ccm.get_database_name()
-    if ccm_db not in object_data.info_databases:
-        # Get info from new db and update the cache
-        object = update_object_cache_with_new_ccm_db_info(object_data, ccm)
-        force_cache_update_for_object(object, ccm_cache_path=ccm_cache_path)
+        if ccm_db not in object_data.info_databases:
+            # Get info from new db and update the cache
+            object = update_object_cache_with_new_ccm_db_info(object_data, ccm)
+            force_cache_update_for_object(object, ccm_cache_path=ccm_cache_path)
 
 
 def get_object(obj, ccm=None):
