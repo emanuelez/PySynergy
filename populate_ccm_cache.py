@@ -50,7 +50,8 @@ def populate_cache_with_projects(config):
         projects.extend(get_project_chain(head, base_project, ccm))
 
     # Got all the project chains - now get all the objects
-    for project in set(projects):
+    print sorted(set(projects))
+    for project in sorted(set(projects)):
         populate_cache_with_objects_from_project(project, ccm, ccmpool)
 #        update_project_with_members(project, ccm, ccmpool)
 
@@ -61,15 +62,21 @@ def populate_cache_with_objects_from_project(project, ccm, ccmpool):
     if not project_obj.members:
         update_project_with_members(project, ccm, ccmpool)
 
+    na_obj =[]
     if project_obj.members:
         num_o = len(project_obj.members.keys())
         for o in project_obj.members.keys():
             print "loading object: %s" % o
-            obj = ccm_cache.get_object(o, ccm)
+            try:
+                obj = ccm_cache.get_object(o, ccm)
+            except ccm_cache.ObjectCacheException:
+                na_obj.append(o)
             num_o -=1
             print "objects left %d" %num_o
 
     print "%s done, members: %d" %(project, len(project_obj.members.keys()))
+    print "Objects not avaliable in this db:"
+    print '\n'.join(na_obj)
 
 
 def start_sessions(config):

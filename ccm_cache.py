@@ -219,7 +219,7 @@ def update_cache(object, ccm, ccm_cache_path):
 
 def create_project_object(synergy_object, ccm):
     object = ProjectObject(synergy_object.get_object_name(), synergy_object.get_separator(), synergy_object.get_author(), synergy_object.get_status(), synergy_object.get_created_time(), synergy_object.get_tasks())
-    object.baseline_predecessor = get_baseline_predecessor(synergy_object, ccm)
+    object.baseline_predecessor = [get_baseline_predecessor(synergy_object, ccm)]
     object.baseline_successor = get_baseline_successor(synergy_object, ccm)
     object.tasks_in_rp = get_tasks_in_reconfigure_prop(synergy_object, ccm)
     object.baselines = get_baselines_for_project(synergy_object, ccm)
@@ -316,9 +316,11 @@ def update_object_cache_with_new_ccm_db_info(object, ccm):
 
     if object.get_type() == 'project':
         baseline_predecessor = get_baseline_predecessor(object, ccm)
-        object.baseline_predecessor = list(set(object.baseline_predecessor + baseline_predecessor))
+        if baseline_predecessor:
+            object.baseline_predecessor = list(set(object.baseline_predecessor + [baseline_predecessor]))
         baseline_successor = get_baseline_successor(object, ccm)
-        object.baseline_successor = list(set(object.baseline_successor + baseline_successor))
+        if baseline_successor:
+            object.baseline_successor = list(set(object.baseline_successor + baseline_successor))
         tasks_in_rp = get_tasks_in_reconfigure_prop(object, ccm)
         object.tasks_in_rp = list(set(object.tasks_in_rp + tasks_in_rp))
         baselines = get_baselines_for_project(object, ccm)

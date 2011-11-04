@@ -30,8 +30,8 @@ class ProjectObject(SynergyObject):
     def __init__(self, objectname, delimiter, owner, status, create_time, task):
         super(ProjectObject, self).__init__(objectname, delimiter, owner, status, task)
         self.created_time = create_time
-        self.baseline_predecessor = None
-        self.baseline_successor = None
+        self.baseline_predecessor = []
+        self.baseline_successor = []
         self.tasks_in_rp = None
         self.baselines = None
         self.released_time = datetime.min
