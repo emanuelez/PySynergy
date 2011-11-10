@@ -41,6 +41,9 @@ def add_project(project, db, commit_msg, parent=None, branch_name=None, path=Non
     ccm = SynergySession(db)
     if not project_ok(project, ccm):
         raise Exception("Error no such Synergy project")
+    if not git_project_ok():
+        raise Exception("Git project not ok, cwd needs to be git project root")
+
     cwd = os.getcwd()
     if parent:
         # if not on the branch already check it out
@@ -133,6 +136,12 @@ def project_ok(project, ccm):
     except SynergyException:
         return False
     return True
+
+def git_project_ok():
+    entries = os.listdir(os.getcwd())
+    if '.git' in entries:
+        return True
+    return False
 
 def get_input(db, project, parent, branch, commit_msg, path):
     done = False
