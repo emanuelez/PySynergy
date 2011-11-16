@@ -77,7 +77,11 @@ def add_project(project, db, commit_msg, parent=None, branch_name=None, path=Non
                     raise Exception("Error deleting files in {0}".format(cwd))
     else:
         # delete everything
-        run_command(['git', 'rm', '-q', '-rf', cwd])
+        try:
+            run_command(['git', 'rm', '-q', '-rf', cwd])
+        except GitException as ex:
+            if not 'did not match any files' in ex.value:
+                raise Exception("Error deleting files in {0}".format(cwd))
 
     print "Creating snapshot of project"
     get_snapshot(project, ccm, cwd)
