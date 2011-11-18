@@ -514,7 +514,6 @@ def create_commit_msg_from_task(task):
             msg.append('Synergy-description: %s' %attr['task_description'].strip())
             msg.append('')
 
-    insp = None
     for k, v in attr.iteritems():
         if k == 'task_synopsis':
             continue
@@ -528,16 +527,6 @@ def create_commit_msg_from_task(task):
         if not len(v.strip()):
             continue
         msg.append('Synergy-'+k.replace('_', '-')+': '+v.strip().replace("\n", " "))
-    if insp:
-        for insp_task_num, insp_tasks in insp.iteritems():
-            for k, v in insp_tasks.iteritems():
-                if k == 'status_log':
-                    continue
-                if not len(v.strip()):
-                    continue
-                k = k.replace('task_', '').replace('insp_', '').replace('_', '-')
-                for line in v.splitlines():
-                    msg.append('Synergy-insp-%s-%s: %s' % (insp_task_num, k, line.rstrip()))
     return '\n'.join(msg)
 
 def find_task_in_release(task, tasks):

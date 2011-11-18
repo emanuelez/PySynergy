@@ -122,8 +122,6 @@ class TaskUtil(object):
         if not ret_val:
             # option 3: check if task is in the project's own baseline
             ret_val = self.task_in_baseline_of_project(task, project)
-        if ret_val:
-            self.fill_task_info(task)
         return ret_val
 
     def task_used_in_project(self, task, project):
@@ -150,20 +148,6 @@ class TaskUtil(object):
         if common_baselines:
             return True
         return False
-
-    def fill_task_info(self, task):
-        print "Fetching task info", task.get_object_name()
-        #Find related task (s30)
-        related_task = self.ccm.query("has_task_in_CUIinsp('{0}')".format(task.get_object_name())).format('%objectname').format("%owner").format("%status").format("%create_time").format("%task").run()
-
-        for t in related_task:
-            insp_task = ccm_cache.get_object(t['objectname'], self.ccm)
-            if task.attributes.has_key('inspection_tasks'):
-                #update the tasks
-                task.attributes['inspection_tasks'].update({insp_task.get_display_name() : insp_task.attributes})
-            else:
-                #add the inspection task
-                task.attributes.update({'inspection_tasks': {insp_task.get_display_name() : insp_task.attributes}})
 
 
 class ObjectHistory(object):
