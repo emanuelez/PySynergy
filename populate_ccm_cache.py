@@ -74,7 +74,7 @@ def populate_cache_with_objects_from_project(project, ccm, ccmpool):
             num_o -=1
             print "objects left %d" %num_o
 
-    print "%s done, members: %d" %(project, len(project_obj.members.keys()))
+        print "%s done, members: %d" %(project, len(project_obj.members.keys()))
     print "Objects not avaliable in this db:"
     print '\n'.join(na_obj)
 
