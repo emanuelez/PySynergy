@@ -72,8 +72,9 @@ def main():
     ccm_hist = CCMHistory(ccm, ccm_pool, history, config['data_file'])
     history = ccm_hist.get_project_history(config['master'], config['base_project'])
 
-    for head in config['heads']:
-        history = ccm_hist.get_project_history(head, config['base_project'])
+    if config.has_key('heads'):
+        for head in config['heads']:
+            history = ccm_hist.get_project_history(head, config['base_project'])
         
     fh = open(config['data_file'] + '.p', 'wb')
     cPickle.dump(history, fh, cPickle.HIGHEST_PROTOCOL)
