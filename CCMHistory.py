@@ -472,10 +472,20 @@ def get_project_chain(head_project, base_project, ccm):
 
 def find_empty_dirs(objects):
     dirs = [d for o, paths in objects.iteritems() for d in paths if ':dir:' in o]
-    files = [d for o, paths in objects.iteritems() for d in paths if ':dir:' not in o]
-    used_dirs = [path.rsplit('/', 1)[0] for path in files]
-    empty_dirs = set(dirs)-set(used_dirs)
-    return empty_dirs
+    file_dirs = [d.rsplit('/',1)[0] for o, paths in objects.iteritems() for d in paths if ':dir:' not in o and ':project:' not in o]
+    leaf_dirs = get_leaf_dirs(dirs)
+    empty_leaves = set(leaf_dirs) - set(file_dirs)
+    return empty_leaves
+
+def get_leaf_dirs(dirs):
+    res = [sorted(dirs)[0]]
+    previous = res[0]
+    for dir in sorted(dirs):
+        if previous in dir:
+            res.remove(previous)
+        res.append(dir)
+        previous = dir
+    return res
 
 
 def main():
