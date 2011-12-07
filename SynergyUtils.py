@@ -114,6 +114,7 @@ class TaskUtil(object):
         self.delim = self.ccm.delim()
 
     def task_in_project(self, task, project):
+        print "Check if task %s is used in %s" %(task.get_object_name(), project.get_object_name())
         # option 1: check if task is used in released project:
         ret_val = self.task_used_in_project(task, project)
         if not ret_val:
@@ -129,7 +130,7 @@ class TaskUtil(object):
         for p in projects:
             # the projects can be two part names...
             if project.get_object_name().startswith(p):
-                #print "used in:", p
+                print "Task %s used (finduse) in %s" %(task.get_object_name(), project.get_object_name())
                 return True
         return False
 
@@ -137,6 +138,7 @@ class TaskUtil(object):
         tasks = project.get_tasks_in_rp()
         for t in tasks:
             if task.get_object_name == t:
+                print "Task %s in reconfigure properties of %s" %(task.get_object_name(), project.get_object_name())
                 return True
         return False
 
@@ -146,6 +148,7 @@ class TaskUtil(object):
         task_baselines = task.get_baselines()
         common_baselines = set(proj_baselines).intersection(set(task_baselines))
         if common_baselines:
+            print "Task %s in in baseline of %s" %(task.get_object_name(), project.get_object_name())
             return True
         return False
 
