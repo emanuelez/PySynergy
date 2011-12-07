@@ -195,9 +195,14 @@ def convert_history(files, tasks, releases, objects):
             # Find the objects in the cycle belonging to task i
             obj_in_task = set(tasks.links(i)) & set(shortest_cycle)
             log.info("Objects in cycle and task: %s" % obj_in_task)
-            if len(obj_in_task) > 1:
-                for j in range(1, len(obj_in_task)/2+1):
-                    candidate_cuts.extend([k for k in combinations(obj_in_task, j)])
+            if len(obj_in_task) < 15:
+                if len(obj_in_task) > 1:
+                    for j in range(1, len(obj_in_task)/2+1):
+                        candidate_cuts.extend([k for k in combinations(obj_in_task, j)])
+            else:
+                log.info("Cycle too long...")
+                pass
+
 
 
         #for node1, node2 in zip(shortest_cycle, shortest_cycle[1:] + shortest_cycle[0:1]):

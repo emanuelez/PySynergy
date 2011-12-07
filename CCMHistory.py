@@ -339,6 +339,7 @@ class CCMHistory(object):
 
     def find_tasks_from_objects(self, objects, project):
         tasks = {}
+        unconfirmed_tasks = {}
         if self.tag in self.history.keys():
             if 'tasks' in self.history[self.tag]:
                 for t in self.history[self.tag]['tasks']:
@@ -358,8 +359,16 @@ class CCMHistory(object):
                 continue
             if task_util.task_in_project(task, project):
                 tasks[task.get_object_name()] = task
+            else:
+                # try to add it anyway to see what happens...
+                unconfirmed_tasks[task.get_object_name()] = task
         # Add objects to tasks
         [t.add_object(o) for o in objects for t in tasks.values() if t.get_object_name() in ccm_cache.get_object(o, self.ccm).get_tasks()]
+        # Add objects to unconfirmed tasks
+        [t.add_object(o) for o in objects for t in unconfirmed_tasks.values() if t.get_object_name() in ccm_cache.get_object(o, self.ccm).get_tasks()]
+        print "Sanitizing tasks"
+        tasks = sanitize_tasks(tasks, unconfirmed_tasks)
+
         print "No of tasks in release %s: %d" % (project.get_object_name(), len(tasks.keys()))
         self.history[self.tag]['tasks'] = tasks.values()
         fname = self.outputfile + '_' + self.tag + '_inc'
@@ -408,6 +417,79 @@ class CCMHistory(object):
 
         tasks.update(tmp_tasks)
         return tasks
+
+
+def sanitize_tasks(confirmed_tasks, unconfirmed_tasks):
+    confirmed_objects = set([o for t in confirmed_tasks.values() for o in t.objects])
+    unconfirmed_objects = set([o for t in unconfirmed_tasks.values() for o in t.objects])
+    print "Length of unconfirmed before %d" %len(unconfirmed_objects)
+    # remove objects in confirmed tasks from unconfirmed
+    for o in set(confirmed_objects):
+        if o in unconfirmed_objects:
+            unconfirmed_objects.remove(o)
+    print "Length of unconfirmed after %d" %len(unconfirmed_objects)
+
+    # Recreate the tasks with removed objects
+    all_tasks = {}
+    for task in unconfirmed_tasks.values():
+        for o in task.objects:
+            if o in unconfirmed_objects:
+                if all_tasks.has_key(task.get_object_name()):
+                    all_tasks[task.get_object_name()].append(o)
+                else:
+                    all_tasks[task.get_object_name()] = [o]
+
+    tasks = []
+    remaining_tasks = dict(all_tasks)
+
+    # Set cover problem
+    while unconfirmed_objects:
+        covered = set([e for t in tasks for e in all_tasks[t]])
+        task, discard = find_greatest_cover(unconfirmed_objects, covered, remaining_tasks)
+        if task is None:
+            task, discard = find_greatest_cover(unconfirmed_objects, covered, remaining_tasks, discard_covered_intersection=True)
+            print "Removing %s from %s" %(discard, task)
+            all_tasks[task] = list(set(all_tasks[task]) - set(discard))
+        tasks.append(task)
+        # Remove objects from uncovered objects
+        for o in all_tasks[task]:
+            if o in unconfirmed_objects:
+                unconfirmed_objects.remove(o)
+        del remaining_tasks[task]
+
+    # Check for objects associated to multiple tasks
+    # TODO
+
+    # create task dict as {taskname: taskobject} and join with confirmed tasks
+    sanitized = {}
+    for task in tasks:
+        to = unconfirmed_tasks[task]
+        to.objects = all_tasks[task]
+        sanitized[task] = to
+    sanitized.update(confirmed_tasks)
+    print "Tasks filtered out:"
+    print remaining_tasks.keys()
+    return sanitized
+
+def find_greatest_cover(uncovered, covered, sets, discard_covered_intersection=False):
+    greatest = None
+    count = 0
+    discard = None
+    #remaning_elements = set([e for set in sets for e in sets[set]])
+    for s, elements in sets.iteritems():
+        c = uncovered.intersection(set(elements))
+        if len(c) > count:
+            # Check if using elements already covered
+            if covered.intersection(elements):
+                if discard_covered_intersection:
+                    print "%s covers elements already covered" %s
+                    discard = covered.intersection(elements)
+                else:
+                    continue
+            count = len(c)
+            greatest = s
+    print "%s has greatest cover %d" %(greatest, count)
+    return greatest, discard
 
 def get_dir_with_path(paths, dir, objects):
     paths_of_dir = [p +'/' + dir.strip('/') for p in paths]
