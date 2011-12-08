@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-load_data.py
+do_history_conversion.py
 
 Output Synergy data as git fast import/export format
 
@@ -23,14 +23,16 @@ FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.    IN NO EVENT SHALL THE COPYRI
 CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
-import FileObject
-import TaskObject
 import cPickle
-f = open('s30_hist.p', 'rb')
-history = cPickle.load(f)
-import convert_history as ch
 import ccm_history_to_graphs as cg
 import ccm_fast_export as cfe
+from load_configuration import load_config_file
+
+data_file = load_config_file()['data_file']
+data_file += '.p'
+f = open(data_file, 'rb')
+history = cPickle.load(f)
+f.close()
 
 cgraphs = cg.create_graphs_from_releases(history)
 
