@@ -357,11 +357,12 @@ class CCMHistory(object):
                 task = ccm_cache.get_object(t, self.ccm)
             except ccm_cache.ObjectCacheException:
                 continue
-            if task_util.task_in_project(task, project):
-                tasks[task.get_object_name()] = task
-            else:
-                # try to add it anyway to see what happens...
-                unconfirmed_tasks[task.get_object_name()] = task
+            if task.status == 'completed':
+                if task_util.task_in_project(task, project):
+                    tasks[task.get_object_name()] = task
+                else:
+                    # try to add it anyway to see what happens...
+                    unconfirmed_tasks[task.get_object_name()] = task
         # Add objects to tasks
         [t.add_object(o) for o in objects for t in tasks.values() if t.get_object_name() in ccm_cache.get_object(o, self.ccm).get_tasks()]
         # Add objects to unconfirmed tasks
