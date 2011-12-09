@@ -315,13 +315,7 @@ def create_merge_commit(n, release, releases, mark, reference, graphs, ancestors
     if ':task:' in n:
         # Get the correct task name so commit message can be filled
         task_name = get_task_object_from_splitted_task_name(n, delimiter)
-        if len(task_name) > 1:
-            # Use the first task, TODO use both
-            task_name = task_name[0]
-        else:
-            task_name = task_name[0]
         task = find_task_in_release(task_name, releases[release]['tasks'])
-
     else:
         # It's a single object
         logger.info("Single Object: %s" % n)
@@ -360,11 +354,6 @@ def create_commit(n, release, releases, mark, reference, graphs):
         # Get the correct task name so commit message can be filled
         task_name = get_task_object_from_splitted_task_name(n, delimiter)
         logger.info("Task name: %s" % task_name)
-        if len(task_name) > 1:
-            # Use the first task, TODO use both
-            task_name = task_name[0]
-        else:
-            task_name = task_name[0]
         task = find_task_in_release(task_name, releases[release]['tasks'])
 
         # sort objects to get correct commit order, if multiple versions of one file is in in the task
@@ -395,12 +384,13 @@ def create_commit(n, release, releases, mark, reference, graphs):
 
 def make_commit_from_task(task, mark, reference, release, file_list):
     global users
-    author = users.get_user(task.get_author())
+    # Use the first task for author, time etc...
+    author = users.get_user(task[0].get_author())
     commit_info = ['commit refs/tags/' + release, 'mark :' + str(mark),
                    'author %s <%s> ' % (author['name'], author['mail']) + str(
-                       int(time.mktime(task.get_complete_time().timetuple()))) + " +0000",
+                       int(time.mktime(task[0].get_complete_time().timetuple()))) + " +0000",
                    'committer %s <%s> ' % (author['name'], author['mail']) + str(
-                       int(time.mktime(task.get_complete_time().timetuple()))) + " +0000"]
+                       int(time.mktime(task[0].get_complete_time().timetuple()))) + " +0000"]
     commit_msg = create_commit_msg_from_task(task)
     commit_info.append('data ' + str(len(commit_msg)))
     commit_info.append(commit_msg)
@@ -501,38 +491,41 @@ def get_path_of_object_in_release(object, project_paths):
     logger.info("No path found for %s" % object.get_object_name())
     return []
 
-def create_commit_msg_from_task(task):
+def create_commit_msg_from_task(tasks):
     msg = []
-    attr = task.get_attributes()
+    if len(tasks) > 1:
+        msg.append("Commit from multiple tasks: %s\n" %', '.join([t.get_display_name() for t in tasks]))
+    for task in tasks:
+        attr = task.get_attributes()
 
-    #Do Task synopsis and description first
-    if attr.has_key('task_synopsis'):
-        msg.append(attr['task_synopsis'].strip())
-        msg.append('')
-    if attr.has_key('task_description'):
-        if not attr['task_description'].strip() == "":
-            msg.append('Synergy-description: %s' %attr['task_description'].strip())
+        #Do Task synopsis and description first
+        if attr.has_key('task_synopsis'):
+            msg.append(attr['task_synopsis'].strip())
             msg.append('')
+        if attr.has_key('task_description'):
+            if not attr['task_description'].strip() == "":
+                msg.append('Synergy-description: %s' %attr['task_description'].strip())
+                msg.append('')
 
-    for k, v in attr.iteritems():
-        if k == 'task_synopsis':
-            continue
-        if k == 'task_description':
-            continue
-        if k == 'inspection_tasks':
-            insp = v.copy()
-            continue
-        if k == 'status_log':
-            continue
-        if not len(v.strip()):
-            continue
-        msg.append('Synergy-'+k.replace('_', '-')+': '+v.strip().replace("\n", " "))
+        for k, v in attr.iteritems():
+            if k == 'task_synopsis':
+                continue
+            if k == 'task_description':
+                continue
+            if k == 'status_log':
+                continue
+            if not len(v.strip()):
+                continue
+            msg.append('Synergy-'+k.replace('_', '-')+': '+v.strip().replace("\n", " "))
+        msg.append('\n')
     return '\n'.join(msg)
 
 def find_task_in_release(task, tasks):
+    ret = []
     for t in tasks:
-        if t.get_object_name() == task:
-            return t
+        if t.get_object_name() in task:
+            ret.append(t)
+    return ret
 
 def get_objects_from_graph(task, graph, objects):
     objs = []
