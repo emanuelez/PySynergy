@@ -29,7 +29,7 @@ from pygraph.classes.digraph import digraph
 from pygraph.classes.graph import graph
 from pygraph.classes.hypergraph import hypergraph
 from pygraph.algorithms.cycles import find_cycle
-from pygraph.algorithms.critical import transitive_edges
+from pygraph.algorithms.critical import transitive_edges, traversal
 from pygraph.algorithms.accessibility import mutual_accessibility
 from pygraph.algorithms.accessibility import connected_components
 import networkx as nx
@@ -263,6 +263,9 @@ def convert_history(files, tasks, releases, objects):
     else:
         log.info("No cycles found")
 
+
+
+
     return commits
 
 def spaghettify_digraph(g, head, tail):
@@ -272,7 +275,15 @@ def spaghettify_digraph(g, head, tail):
     
     heads = set(original.neighbors(head))
     tails = set(original.incidents(tail))
-    
+
+    # Reduce task to release edges
+    # Delete edge from task to release on tasks with edges to both other tasks and the head release
+    for node in tails:
+        if len([n for n in traversal(original, node, 'pre')]) > 2:
+            original.del_edge((node, tail))
+
+    tails = set(original.incidents(tail))
+
     trimmed = _trim_digraph(original, head, tail)
     
     components = connected_components(trimmed)
