@@ -179,7 +179,8 @@ def ccm_fast_export(releases, graphs):
                 acn_ancestors = ancestors[last_cutting_node]
 
             # Create the references lists. It lists the parents of the commit
-            reference = [commit_lookup[parent] for parent in ancestors[commit] if parent not in acn_ancestors]
+            #reference = [commit_lookup[parent] for parent in ancestors[commit] if parent not in acn_ancestors]
+            reference = [commit_lookup[parent] for parent in commit_graph.incidents(commit)]
 
             if len(reference) > 1:
                 # Merge commit
