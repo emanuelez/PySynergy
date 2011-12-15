@@ -118,11 +118,9 @@ def ccm_fast_export(releases, graphs):
         commit_graph = graphs[release]['commit']
         commit_graph = fix_orphan_nodes(commit_graph, previous_release)
 
-        #htg.digraph_to_image(commit_graph, "%s_before" % release)
-
         commit_graph = ch.spaghettify_digraph(commit_graph, previous_release, release)
 
-        #htg.digraph_to_image(commit_graph, "%s_after" % release)
+        #htg.commit_graph_to_image(commit_graph, releases[release], graphs[release]['task'], name=releases[release]['name']+'_after' )
 
         # Find the cutting nodes
         logger.info("Finding the cutting nodes")

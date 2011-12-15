@@ -237,7 +237,7 @@ def release_graph_to_image(object_graph, release_graph, release):
     #G.write(release['name'] + "_release.dot")
 
 
-def commit_graph_to_image(commit_graph, release, task_graph):
+def commit_graph_to_image(commit_graph, release, task_graph, name=None):
 
     #first fix orphan_nodes:
     cgraph = fix_orphan_nodes(commit_graph, release['previous'])
@@ -261,7 +261,9 @@ def commit_graph_to_image(commit_graph, release, task_graph):
 
 
     G.layout(prog='dot')
-    G.draw(release['name'] + ".png", format='png')
+    if not name:
+        name = release['name']
+    G.draw(name + ".png", format='png')
 
 def digraph_to_image(g, name):
     G = gv.AGraph(strict=False, directed=True)
