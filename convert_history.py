@@ -269,6 +269,7 @@ def convert_history(files, tasks, releases, objects):
     return commits
 
 def spaghettify_digraph(g, head, tail):
+    # head = old release, tail = new release
     original = digraph()
     original.add_nodes(g.nodes())
     [original.add_edge(edge) for edge in g.edges()]
@@ -277,11 +278,18 @@ def spaghettify_digraph(g, head, tail):
     tails = set(original.incidents(tail))
 
     # Reduce task to release edges
-    # Delete edge from task to release on tasks with edges to both other tasks and the head release
+    # Delete edge from task to release on tasks with edges to both other tasks and the tail release
     for node in tails:
         if len([n for n in traversal(original, node, 'pre')]) > 2:
             original.del_edge((node, tail))
 
+    # Reduce release to task edges
+    # Delete edges from release to task on tasks with edges from other tasks and head release
+    for node in heads:
+        if len([n for n in traversal(original.reverse(), node, 'pre')]) > 2:
+            original.del_edge((head, node))
+
+    heads = set(original.neighbors(head))
     tails = set(original.incidents(tail))
 
     trimmed = _trim_digraph(original, head, tail)
@@ -307,7 +315,7 @@ def spaghettify_digraph(g, head, tail):
                 original.del_edge((head, current_head))
             if (current_tail, tail) in original.edges():
                 original.del_edge((current_tail, tail))
-            
+
     return original
     
 def _trim_digraph(original, head, tail):
