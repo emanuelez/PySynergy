@@ -35,6 +35,7 @@ from pygraph.algorithms.accessibility import connected_components
 import networkx as nx
 import logging as log
 import ccm_cache
+#import ccm_history_to_graphs as htg
 
 def main():
     """A test method"""
@@ -144,7 +145,9 @@ def convert_history(files, tasks, releases, objects):
     log.info("Create commits graph")
     commits = create_commits_graph(files, sanitized_tasks, releases)
 
-    #print "First commits graph created."
+    # Uncomment for debug... (remember import)
+    #hack = {'previous': releases.edges()[0]}
+    #htg.commit_graph_to_image(commits, hack, tasks, name='Pre-'+releases.edges()[1])
 
     log.info("Looking for cycles in the Commits graph")
     while find_cycle(commits):
@@ -163,7 +166,7 @@ def convert_history(files, tasks, releases, objects):
                 for neighbor in files.neighbors(obj):
                     if neighbor not in tasks.links(task) and tasks.links(neighbor)[0] in cycle:
                         culpript_edges.append((obj, neighbor))
-
+                        log.info("\tAdding culpript edge (%s, %s)" % (obj, neighbor))
 
         log.info("Connect the nodes found")
         culpript_nodes = set()
@@ -202,71 +205,156 @@ def convert_history(files, tasks, releases, objects):
             else:
                 log.info("Cycle too long...")
                 pass
-
-
-
-        #for node1, node2 in zip(shortest_cycle, shortest_cycle[1:] + shortest_cycle[0:1]):
-        #    # Find to which task the edge belongs to
-        #    if tasks.links(node1) == tasks.links(node2):
-        #        task = tasks.links(node1)[0]
-        #        # Find which cuts are compatible and add them to the candidates list
-        #        candidate_cuts.extend( [cut for cut in _find_cuts(tasks.links(task))
-        #                if (node1 in cut and node2 not in cut)
-        #                or (node2 in cut and node2 not in cut)])
-
         log.info("Candidate_cuts: %s" % str(candidate_cuts))
 
-        for (counter, cut) in enumerate(candidate_cuts):
-            log.info("Cut: %s" % str(cut))
+        # Find the cut to break the cycle
+        cut = _find_cut(candidate_cuts, cycle, tasks, files, releases)
+        if not cut:
+            # Make a qualified guess of a cut with the shortest walk of files in the tasks
+            walk, node = _find_shortest_incident_or_neighbor_walk(shortest_cycle, cycle, files, tasks)
+            new_cut = walk
+            new_cut.append(node)
+            candidate_cuts.insert(0, tuple(new_cut))
 
-            # Apply the cut
-            task = tasks.links(cut[0])[0] # All the nodes in the cut belong to the same task and there are no overlapping tasks
+            log.info("Candidate cuts: %s", candidate_cuts)
+            cut = _find_cut(candidate_cuts, cycle, tasks, files, releases)
 
-            task_name = ""
-            for i in count(1):
-                task_name = task + "_TASKSPLIT_" + str(i)
-                if task_name not in tasks.edges():
-                    log.info("Adding task %s" % task_name)
-                    tasks.add_edge(task_name)
-                    break
+            if not cut:
+                # Error! This should not happen
+                log.info("Cut not found.")
+                log.shutdown()
+                raise Exception("Cut not found")
 
-            for node in cut:
-                log.info("Unlinking file %s from task %s" % (node, task))
-                tasks.unlink(node, task)
-                tasks.graph.del_edge(((node,'n'), (task,'h'))) # An ugly hack to work around a bug in pygraph
-                log.info("Linking file %s to task %s" % (node, task_name))
-                tasks.link(node, task_name)
-
-            # If no more cycles are found in the updated reduced graph then break
-            commits2 = create_commits_graph(files, tasks, releases)
-
-            cycle2 = find_cycle(commits2)
-            if set(cycle) & set(cycle2) == set(cycle):
-                # Undo the changes!
-                log.info("The cycle was not removed. Undoing changes...")
-                log.info("\tDeleting task %s" % task_name)
-                tasks.del_edge(task_name)
-
-                for node in cut:
-                    log.info("\tLinking file %s to task %s" % (node, task))
-                    tasks.link(node, task)
-                log.info("Done.")
-            else:
-                log.info("Cut found.")
-                commits = create_commits_graph(files, tasks, releases)
-                break
-        else:
-            # Error! This should not happen
-            log.info("Cut not found.")
-            raise Exception("Cut not found")
+        tasks, task, task_name = _apply_cut(cut, tasks)
+        commits = create_commits_graph(files, tasks, releases)
 
     else:
         log.info("No cycles found")
 
-
-
-
+    log.shutdown()
     return commits
+
+
+def _apply_cut(cut, tasks):
+    # Apply the cut
+    task = tasks.links(cut[0])[0] # All the nodes in the cut belong to the same task and there are no overlapping tasks
+
+    task_name = ""
+    for i in count(1):
+        task_name = task + "_TASKSPLIT_" + str(i)
+        if task_name not in tasks.edges():
+            log.info("Adding task %s" % task_name)
+            tasks.add_edge(task_name)
+            break
+
+    for node in cut:
+        log.info("Unlinking file %s from task %s" % (node, task))
+        tasks.unlink(node, task)
+        tasks.graph.del_edge(((node,'n'), (task,'h'))) # An ugly hack to work around a bug in pygraph
+        log.info("Linking file %s to task %s" % (node, task_name))
+        tasks.link(node, task_name)
+
+    return tasks, task, task_name
+
+
+def _undo_cut(cut, task_name, task, tasks):
+    # Undo the changes!
+    log.info("Undoing changes...")
+    log.info("\tDeleting task %s" % task_name)
+    tasks.del_edge(task_name)
+
+    for node in cut:
+        log.info("\tLinking file %s to task %s" % (node, task))
+        tasks.link(node, task)
+    log.info("Done.")
+
+
+def _find_cut(candidate_cuts, cycle, tasks, files, releases ):
+    for (counter, cut) in enumerate(candidate_cuts):
+        log.info("Cut: %s" % str(cut))
+
+        tasks, task, task_name = _apply_cut(cut, tasks)
+        # If no more cycles are found in the updated reduced graph
+        # then return the good cut
+        commits2 = create_commits_graph(files, tasks, releases)
+
+        cycle2 = find_cycle(commits2)
+        log.info("Cycle:  %s" %set(cycle))
+        log.info("Cycle2: %s" %set(cycle2))
+
+        _undo_cut(cut, task_name, task, tasks)
+
+        if set(cycle) & set(cycle2) == set(cycle):
+            log.info("The cycle was not removed")
+        else:
+            log.info("Cut found.")
+            return cut
+    else:
+        # Error! This should not happen
+        log.info("No cut found.")
+        return None
+
+
+def _find_shortest_incident_or_neighbor_walk(shortest_cycle, cycle, files, tasks):
+    # find first node in cycle
+    node = shortest_cycle[0]
+    found = False
+    while not found:
+        if files.incidents(node):
+            for n in files.incidents(node):
+                if n in shortest_cycle:
+                    node = n
+                    break
+                else:
+                    found = True
+        else:
+            found = True
+    first_node = node
+    # Find incidents to node included in the tasks in the cycle
+    incidents = []
+    while node:
+        if files.incidents(node):
+            for incident in files.incidents(node):
+                if tasks.links(incident)[0] in cycle:
+                    incidents.append(incident)
+                    node = incident
+                else:
+                    node = None
+        else:
+            node = None
+    # find last node in cycle
+    node = shortest_cycle[0]
+    found = False
+    while not found:
+        if files.neighbors(node):
+            for n in files.neighbors(node):
+                if n in shortest_cycle:
+                    node = n
+                    break
+                else:
+                    found = True
+        else:
+            found = True
+    last_node = node
+    # Find neighbors to node included in the tasks in the cycle
+    neighbors = []
+    while node:
+        if files.neighbors(node):
+            for neighbor in files.neighbors(node):
+                if tasks.links(neighbor)[0] in cycle:
+                    neighbors.append(neighbor)
+                    node = neighbor
+                else:
+                    node = None
+        else:
+            node = None
+    walk = min(incidents, neighbors)
+    if files.incidents(first_node)[0] in walk:
+        node = first_node
+    else:
+        node = last_node
+    return walk, node
+
 
 def spaghettify_digraph(g, head, tail):
     # head = old release, tail = new release
