@@ -87,12 +87,13 @@ def create_graphs(release):
     object_graph = create_object_graph(objects)
     task_graph = create_task_graph(tasks, objects)
     release_graph = create_release_graph(objects, release['name'], release['previous'])
-    commit_graph = ch.convert_history(object_graph, task_graph, release_graph, objects)
-
     if print_graphs():
         object_graph_to_image(object_graph, release)
         task_graph_to_image(object_graph, task_graph, release)
         release_graph_to_image(object_graph, release_graph, release)
+
+    commit_graph = ch.convert_history(object_graph, task_graph, release_graph, objects)
+    if print_graphs():
         commit_graph_to_image(commit_graph, release, task_graph)
 
     return object_graph, task_graph, release_graph, commit_graph
@@ -251,7 +252,7 @@ def commit_graph_to_image(commit_graph, release, task_graph, name=None):
         G.add_node(n)
         node = G.get_node(n)
         if "task" in n:
-            label = create_label(n, release, task_graph)
+            label = create_label(n, task_graph)
             node.attr['label'] = label
         node.attr['shape'] = 'box'
 
@@ -283,7 +284,7 @@ def digraph_to_image(g, name):
     G.draw("%s.png" % name, format='png')
 
 
-def create_label(node, release, task_graph):
+def create_label(node, task_graph):
     l = ["Task: %s" % node]
     l.append("\\l")
     l.append("Objects:")
@@ -296,7 +297,10 @@ def create_label(node, release, task_graph):
 
 
 def fix_orphan_nodes(commit_graph, release):
-    orphan_nodes = [node for node in commit_graph.nodes() if not commit_graph.incidents(node)]
-    [commit_graph.add_edge((release, node)) for node in orphan_nodes if node != release]
-    return commit_graph
+    new_graph = digraph()
+    new_graph.add_nodes(commit_graph.nodes())
+    [new_graph.add_edge(edge) for edge in commit_graph.edges()]
+    orphan_nodes = [node for node in new_graph.nodes() if not new_graph.incidents(node)]
+    [new_graph.add_edge((release, node)) for node in orphan_nodes if node != release]
+    return new_graph
 
