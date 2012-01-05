@@ -349,7 +349,10 @@ def create_commit(n, release, releases, mark, reference, graphs):
         # It's a task
         logger.info("Task: %s" % n)
         objects = get_objects_from_graph(n, graphs[release]['task'], releases[release]['objects'])
-        delimiter = objects[0].separator
+        if not objects:
+            delimiter = '-'
+        else:
+            delimiter = objects[0].separator
         # Get the correct task name so commit message can be filled
         task_name = get_task_object_from_splitted_task_name(n, delimiter)
         logger.info("Task name: %s" % task_name)
