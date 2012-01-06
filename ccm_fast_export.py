@@ -334,7 +334,7 @@ def create_merge_commit(n, release, releases, mark, reference, graphs, ancestors
     file_list = create_file_list(objects, object_lookup, releases['ccm_types']['permissions'], releases[release]['fourpartname'])
 
     if ':task:' in n:
-        mark, commit = make_commit_from_task(task, get_mark(mark), reference, release, file_list)
+        mark, commit = make_commit_from_task(task, n, get_mark(mark), reference, release, file_list)
     else:
         mark, commit = make_commit_from_object(single_object, get_mark(mark), reference, release, file_list)
 
@@ -367,7 +367,7 @@ def create_commit(n, release, releases, mark, reference, graphs):
 
 
         file_list = create_file_list(objects, object_lookup, releases['ccm_types']['permissions'], releases[release]['fourpartname'])
-        mark, commit = make_commit_from_task(task, get_mark(mark), reference, release, file_list)
+        mark, commit = make_commit_from_task(task, n, get_mark(mark), reference, release, file_list)
         print '\n'.join(commit)
         return mark
 
@@ -384,7 +384,7 @@ def create_commit(n, release, releases, mark, reference, graphs):
         print '\n'.join(commit)
         return mark
 
-def make_commit_from_task(task, mark, reference, release, file_list):
+def make_commit_from_task(task, task_name, mark, reference, release, file_list):
     global users
     # Use the first task for author, time etc...
     author = users.get_user(task[0].get_author())
@@ -393,7 +393,7 @@ def make_commit_from_task(task, mark, reference, release, file_list):
                        int(time.mktime(task[0].get_complete_time().timetuple()))) + " +0000",
                    'committer %s <%s> ' % (author['name'], author['mail']) + str(
                        int(time.mktime(task[0].get_complete_time().timetuple()))) + " +0000"]
-    commit_msg = create_commit_msg_from_task(task)
+    commit_msg = create_commit_msg_from_task(task, task_name)
     commit_info.append('data ' + str(len(commit_msg)))
     commit_info.append(commit_msg)
     commit_info.append('from :' + str(reference[0]))
@@ -493,10 +493,14 @@ def get_path_of_object_in_release(object, project_paths):
     logger.info("No path found for %s" % object.get_object_name())
     return []
 
-def create_commit_msg_from_task(tasks):
+def create_commit_msg_from_task(tasks, task_name):
     msg = []
+    logger.info("TASKNAME: %s" %task_name)
     if len(tasks) > 1:
-        msg.append("Commit from multiple tasks: %s\n" %', '.join([t.get_display_name() for t in tasks]))
+        msg.append("Multiple tasks: %s\n" %', '.join([t.get_display_name() for t in tasks]))
+    if '_TASKSPLIT_' in task_name:
+        split = task_name.split('_TASKSPLIT_')[1]
+        msg.append("Task %s split %s\n" %(tasks[0].get_display_name(), split ))
     for task in tasks:
         attr = task.get_attributes()
 
