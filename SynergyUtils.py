@@ -25,6 +25,7 @@ import cPickle
 import SynergyObject
 import ccm_cache
 import re
+import logging as logger
 from itertools import product
 
 class CCMFilePath(object):
@@ -46,12 +47,12 @@ class CCMFilePath(object):
 
     def recurse_file_path(self, object_name):
         ret_val = None
-        #print "Object:", object_name
+        #logger.info("Object: %s"% object_name)
         result = self.ccm.finduse(object_name).option("-released_proj").run().splitlines()
         #lets first try to see if any of the cached projects are already in the list
         r = [(k,j) for (k,j) in product(self.path_lookup.keys(), result) if k in j]
         if r:
-            print "Trying", r[0][1], "first for", object_name
+            logger.info("Trying %s first for %s" %( r[0][1], object_name))
             #put the matching project to end of array
             result.remove(r[0][1])
             result.append(r[0][1])
@@ -70,7 +71,7 @@ class CCMFilePath(object):
                     parentproject = m.group(3)
 
                     if parentproject == self.current_release:
-                        #print 'Top reached'
+                        #logger.info('Top reached')
                         self.top_reached = 1
                         # add to lookup table
                         self.path_lookup[object_name] = path
@@ -78,7 +79,7 @@ class CCMFilePath(object):
                     else:
                         #try lookup table
                         if parentproject in self.path_lookup.keys():
-                            #print "Path cached for:", object_name, self.path_lookup[parentproject]
+                            #logger.info("Path cached for: %s %s" %(object_name, self.path_lookup[parentproject]))
                             self.top_reached = 1
                             # Add remaning path
                             p = [self.path_lookup[parentproject]]
@@ -114,7 +115,7 @@ class TaskUtil(object):
         self.delim = self.ccm.delim()
 
     def task_in_project(self, task, project):
-        print "Check if task %s is used in %s" %(task.get_object_name(), project.get_object_name())
+        logger.info("Check if task %s is used in %s" %(task.get_object_name(), project.get_object_name()))
         # option 1: check if task is used in released project:
         ret_val = self.task_used_in_project(task, project)
         if not ret_val:
@@ -130,7 +131,7 @@ class TaskUtil(object):
         for p in projects:
             # the projects can be two part names...
             if project.get_object_name().startswith(p):
-                print "Task %s used (finduse) in %s" %(task.get_object_name(), project.get_object_name())
+                logger.info("Task %s used (finduse) in %s" %(task.get_object_name(), project.get_object_name()))
                 return True
         return False
 
@@ -138,7 +139,7 @@ class TaskUtil(object):
         tasks = project.get_tasks_in_rp()
         for t in tasks:
             if task.get_object_name == t:
-                print "Task %s in reconfigure properties of %s" %(task.get_object_name(), project.get_object_name())
+                logger.info("Task %s in reconfigure properties of %s" %(task.get_object_name(), project.get_object_name()))
                 return True
         return False
 
@@ -148,7 +149,7 @@ class TaskUtil(object):
         task_baselines = task.get_baselines()
         common_baselines = set(proj_baselines).intersection(set(task_baselines))
         if common_baselines:
-            print "Task %s in in baseline of %s" %(task.get_object_name(), project.get_object_name())
+            logger.info("Task %s in in baseline of %s" %(task.get_object_name(), project.get_object_name()))
             return True
         return False
 
@@ -167,15 +168,15 @@ class ObjectHistory(object):
         self.old_objects = old_objects
         self.old_subproject_list = old_projects
         if old_projects:
-            print "Length of old subproject list %d" % len(self.old_subproject_list)
+            logger.info("Length of old subproject list %d" % len(self.old_subproject_list))
         self.current_subproject_list = new_projects
         if new_projects:
-            print "Length of current subproject list %d" % len(self.current_subproject_list)
+            logger.info("Length of current subproject list %d" % len(self.current_subproject_list))
         self.max_recursion_depth = self.load_max_recursion_depth()
 
     def get_history(self, fileobject, paths):
         recursion_depth = 1
-        print 'Processing:', fileobject.get_object_name(), "from", self.current_release, "to", self.old_release
+        logger.info('Processing: %s from %s to %s' % (fileobject.get_object_name(),  self.current_release, self.old_release))
 
         # clear old history
         self.history = {}
@@ -185,7 +186,7 @@ class ObjectHistory(object):
         if self.current_release != self.old_release and self.old_release is not None:
             # Check if a newer version of the file was already released
             old_objects = [o for o in self.old_objects if fileobject.get_name() in o and fileobject.get_type() in o and fileobject.get_instance() in o]
-            print "old objects: %s" % old_objects
+            logger.info("old objects: %s" % str(old_objects))
             old_object_is_in_newer_release = False
             for o in old_objects:
                 old_object = SynergyObject.SynergyObject(o, fileobject.get_separator())
@@ -199,17 +200,16 @@ class ObjectHistory(object):
                 # Add temp_history to real history dictionary
                 self.history.update(self.temp_history)
             else:
-                print "history marked not ok"
-                print "history was:"
+                logger.info("history marked not ok")
+                logger.info("history was:")
                 for o in self.temp_history.values():
                     for s in o.get_successors():
-                        print '%s -> %s' %(o.get_object_name(), s)
-                print ''
+                        logger.info('%s -> %s' %(o.get_object_name(), s))
+                logger.info('')
 
-        print "Filepath:", paths
-        print ""
+        logger.info("Filepath: %s" % str(paths))
+        #logger.info("")
         self.history[fileobject.get_object_name()] = fileobject
-
         return self.history
 
     def add_to_history(self, fileobject):
@@ -218,13 +218,13 @@ class ObjectHistory(object):
     def recursive_get_history(self, fileobject, recursion_depth):
         """ Recursivly find the history of the file object, optionally stopping at the 'old_release' project """
         next_iter = False
-        print ""
-        print 'Processing:', fileobject.get_object_name(), fileobject.get_status()
-        print 'Recursion depth %d' % recursion_depth
+        #logger.info("")
+        logger.info('Processing: %s %s' % (fileobject.get_object_name(), fileobject.get_status()))
+        logger.info('Recursion depth %d' % recursion_depth)
         retval = True
         #Check if recursion_depth is reached
         if recursion_depth > self.max_recursion_depth:
-            print 'Giving up on %s' % fileobject.get_object_name()
+            logger.warning('Giving up on %s' % fileobject.get_object_name())
 
             return False
         recursion_depth += 1
@@ -235,9 +235,9 @@ class ObjectHistory(object):
                 predecessor = ccm_cache.get_object(p, self.ccm)
             except ccm_cache.ObjectCacheException:
                 # Object couldn't be retrived from ccm, give up on this
-                print "Couldn't get %s from Synergy" % p
+                logger.info("Couldn't get %s from Synergy" % p)
                 return True
-            print "Predecessor:", predecessor.get_object_name()
+            logger.info("Predecessor: %s" % predecessor.get_object_name())
 
             # check predecessor release to see if this object should be added to the set.
             if self.old_release:
@@ -247,13 +247,13 @@ class ObjectHistory(object):
                     # Check if the "old" release is the the releases for the predecessor and stop if true
                     if [r for r in releases if r in self.current_subproject_list or r in self.old_subproject_list]:
                         # Object is already released, continue with the next predecessor
-                        print predecessor.get_object_name(), "is already released"
+                        logger.info("%s is already released" %predecessor.get_object_name())
                         continue
-                    print "Couldn't find release in current_subproject_list or old_subproject_list"
+                    logger.info("Couldn't find release in current_subproject_list or old_subproject_list")
 
                     #Check if chain of successors contains previous object - if true discard the chain
                     if self.successor_is_released(predecessor, fileobject, 0):
-                        print "Successor is already released", fileobject.get_object_name()
+                        logger.info("Successor is already released %s" % fileobject.get_object_name())
                         continue
 
                     #Check if projects are releated to old release. Latest first
@@ -263,7 +263,7 @@ class ObjectHistory(object):
                         except ccm_cache.ObjectCacheException:
                             continue
                         if self.project_is_some_predecessor(project, 0):
-                            print "Found Relationship between:", project.get_object_name(), "and", self.old_release
+                            logger.info("Found Relationship between: %s and %s " %(project.get_object_name(), self.old_release))
                             next_iter = True
                             break
                     if next_iter:
@@ -271,12 +271,12 @@ class ObjectHistory(object):
                 else:
                     #Check if a successor is released
                     if self.successor_is_released(predecessor, fileobject, 0):
-                        print "Successor is already released", fileobject.get_object_name()
+                        logger.info("Successor is already released %s " % fileobject.get_object_name())
                         continue
 
             # Check if predecessor is already added to history - if so add this as successor to fileobject, else add new predecessor to history
             if not self.temp_history.has_key(predecessor.get_object_name()):
-                print "Adding", predecessor.get_object_name(), predecessor.get_status(), "to history"
+                logger.info("Adding %s %s to history" % (predecessor.get_object_name(), predecessor.get_status()) )
                 path = fileobject.get_path()
                 predecessor.set_path(path)
                 self.add_to_history(predecessor)
@@ -290,15 +290,15 @@ class ObjectHistory(object):
         if recursion_depth > self.max_recursion_depth:
             return False
         recursion_depth += 1
-        print "Checking if", project.get_object_name(), "is some predecessor of", self.current_release, "or", self.old_release, "..."
+        logger.info("Checking if %s is some predecessor of %s or %s " %(project.get_object_name(), self.current_release, self.old_release))
         successors = project.get_baseline_successor()
         for successor in successors:
-            print "successor:", successor
+            logger.info("successor: %s" % successor)
             if successor in self.old_subproject_list:
-                print "Found", successor, "in previous subprojects"
+                logger.info("Found %s in previous subprojects"% successor)
                 return True
             elif successor in self.current_subproject_list:
-                print "Found", successor, "in current subprojects"
+                logger.info("Found %s in current subprojects" % successor)
                 return True
             else:
                 try:
@@ -313,7 +313,7 @@ class ObjectHistory(object):
         if recursion_depth > self.max_recursion_depth:
             return False
         recursion_depth += 1
-        print "Checking if successor is released, for", fileobject.get_object_name(), "by predecessor", predecessor.get_object_name()
+        logger.info("Checking if successor is released, for %s by predecessor %s" %(fileobject.get_object_name(), predecessor.get_object_name()))
         ret_val = False
         successors = predecessor.get_successors()
         for s in successors:
@@ -322,17 +322,18 @@ class ObjectHistory(object):
             if s != fileobject.get_object_name():
                 try:
                     successor = ccm_cache.get_object(s, self.ccm)
-                except ccm_cache.ObjectCacheException:
+                except ccm_cache.ObjectCacheException as e:
+                    logger.warning(e.value)
                     return False
-                print "successor:", successor.get_object_name()
+                logger.info("successor: %s" % successor.get_object_name())
                 #check releases of successor
                 releases = successor.get_releases()
                 if [r for r in releases if r in self.old_subproject_list]:
-                    print "successor:", successor.get_object_name(), "is released"
+                    logger.info("successor: %s is released" % successor.get_object_name())
                     self.release_lookup[successor.get_object_name()] = True
                     return True
                 elif [r for r in releases if r in self.current_subproject_list]:
-                    print "successor:", successor.get_object_name(), "is released in current project, don't continue"
+                    logger.info("successor: %s is released in current project, don't continue" % successor.get_object_name())
                     self.release_lookup[successor.get_object_name()] = False
                     return False
                 else:
@@ -342,14 +343,13 @@ class ObjectHistory(object):
                 # if there is only one successor and it is the fileobject assume it to be released if the predecessor is in released state
                 if len(successors) == 1 and predecessor.get_status() == 'released':
                     return True
-
         return ret_val
 
     def check_successor_chain_for_object(self, fileobject, old_object, recursion_depth):
         if recursion_depth > self.max_recursion_depth:
             return False
         recursion_depth += 1
-        print "Checking if successor chain for %s contains %s" % (fileobject.get_object_name(), old_object.get_object_name())
+        logger.info("Checking if successor chain for %s contains %s" % (fileobject.get_object_name(), old_object.get_object_name()))
         ret_val = False
         successors = fileobject.get_successors()
         for s in successors:
@@ -359,7 +359,7 @@ class ObjectHistory(object):
                 successor = ccm_cache.get_object(s, self.ccm)
             except ccm_cache.ObjectCacheException:
                 return False
-            print "successor:", successor.get_object_name()
+            logger.info("successor: %s" %successor.get_object_name())
             ret_val = self.check_successor_chain_for_object(successor, old_object, recursion_depth)
             if ret_val:
                 break

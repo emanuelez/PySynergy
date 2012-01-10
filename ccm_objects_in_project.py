@@ -28,6 +28,7 @@ from SynergySession import SynergySession
 from SynergySessions import SynergySessions
 from SynergyObject import SynergyObject
 from collections import deque
+import logging as logger
 from multiprocessing import Pool, Manager, Process
 import time
 
@@ -40,7 +41,7 @@ def get_objects_in_project(project, ccm=None, database=None, ccmpool=None):
             result = get_objects_in_project_parallel(project, ccmpool=ccmpool)
     else:
         result = get_objects_in_project_serial(project, ccm=ccm, database=database)
-    print "Time used fetching all objects and paths in %s: %d s." %(project, time.time()-start)
+    logger.info("Time used fetching all objects and paths in %s: %d s." %(project, time.time()-start))
     return result
 
 def get_objects_in_project_serial(project, ccm=None, database=None):
@@ -49,7 +50,7 @@ def get_objects_in_project_serial(project, ccm=None, database=None):
             raise SynergyException('No ccm instance nor database given\nCannot start ccm session!\n')
         ccm = SynergySession(database)
     else:
-        print "ccm instance:", ccm.environment['CCM_ADDR']
+        logger.info("ccm instance: %s" % ccm.environment['CCM_ADDR'])
 
     delim = ccm.delim()
     so = SynergyObject(project, delim)
@@ -64,7 +65,7 @@ def get_objects_in_project_serial(project, ccm=None, database=None):
     dir_structure[so.get_object_name()] = ''
     while queue:
         obj = queue.popleft()
-        #print 'Processing:', obj.get_object_name()
+        #logger.info('Processing: %s' % obj.get_object_name())
         parent_proj = None
 
         if obj.get_type() == 'dir':
@@ -112,9 +113,9 @@ def get_objects_in_project_serial(project, ccm=None, database=None):
                         hierarchy[o.get_object_name()].append('%s%s' % (cwd, o.get_name()))
                     else:
                         hierarchy[o.get_object_name()] = ['%s%s' % (cwd, o.get_name())]
-                    #print "Object:", o.get_object_name(), 'has path:'
-                    #print '%s%s' % (cwd, o.get_name())
-        print "Object count: %6d" % count
+                    #logger.info("Object: % has path" % o.get_object_name())
+                    #logger.info('%s%s' % (cwd, o.get_name()))
+        logger.info("Object count: %6d" % count)
     return hierarchy
 
 def find_root_project(project, objects, ccm):
@@ -144,7 +145,7 @@ class SynergyException(Exception):
 
 def do_query(next, free_ccm, semaphore, delim, p_queue):
     (project, parent_proj) = next
-    #print 'Querying:', project.get_object_name()
+    #logger.info('Querying: %s' % project.get_object_name())
     ccm_addr = get_and_lock_free_ccm_addr(free_ccm)
     ccm = SynergySession(None, ccm_addr=ccm_addr)
     ccm.keep_session_alive = True
@@ -166,20 +167,20 @@ def do_results(next, hierarchy, dir_structure, proj_lookup):
     (obj, objects) = next
 
     q = []
-    #print 'Processing:', obj.get_object_name()
+    #logger.info('Processing: %s' % obj.get_object_name())
     cwd = ''
 
     if obj.get_type() == 'dir' or obj.get_type() == 'project':
         # Processing a dir set 'working dir'
         cwd = dir_structure[obj.get_object_name()]
-        #print 'setting cwd:', cwd
+        #logger.info('setting cwd: %s' %cwd)
 
     for o in objects:
-        #print o.get_object_name()
+        #logger.info("%s" %o.get_object_name())
         if o.get_type() == 'dir':
             # add the directory to the queue and record its parent project
             q.append(o)
-            #print "object:", obj.get_object_name(), 'child', o.get_object_name(), 'cwd', cwd
+            #logger.info("object: %s child %s cwd %s" % (obj.get_object_name(), o.get_object_name(), cwd))
             dir_structure[o.get_object_name()] = '%s%s/' % (cwd, o.get_name())
             if obj.get_type() == 'project':
                 proj_lookup[o.get_object_name()] = obj.get_object_name()
@@ -191,8 +192,8 @@ def do_results(next, hierarchy, dir_structure, proj_lookup):
             else:
                 hierarchy[o.get_object_name()] = ['%s%s' % (cwd, o.get_name())]
         elif o.get_type() == 'project':
-            #print "object:", obj.get_object_name(), 'child', o.get_object_name(), 'cwd', cwd
             dir_structure[o.get_object_name()] = cwd
+            #logger.info("object: %s child %s cwd %s" % (obj.get_object_name(), o.get_object_name(), cwd))
             # Add the project to the queue
             q.append(o)
             # Add the project to the hierarchy, so the subprojects for the release/project is known
@@ -206,8 +207,6 @@ def do_results(next, hierarchy, dir_structure, proj_lookup):
                 hierarchy[o.get_object_name()].append('%s%s' % (cwd, o.get_name()))
             else:
                 hierarchy[o.get_object_name()] = ['%s%s' % (cwd, o.get_name())]
-            #print "Object:", o.get_object_name(), 'has path:'
-            #print '%s%s' % (cwd, o.get_name())
 
     return q, hierarchy, dir_structure, proj_lookup
 
@@ -244,7 +243,7 @@ def get_objects_in_project_parallel(project, ccmpool=None):
 
     prod.start()
     cons.start()
-    print "Waiting to join"
+    logger.info("Waiting to join")
     cons.join()
     hierarchy = p_queue.get()
     prod.join()
@@ -258,7 +257,7 @@ def consumer(c_queue, p_queue, free_ccm, semaphore, delim):
 
     while not done:
         #get item from queue
-        #print "Object count ------ ... P queue length %6d ... C queue length %6d" % (p_queue.qsize(), c_queue.qsize())
+        #logger.info("Object count ------ ... P queue length %6d ... C queue length %6d" % (p_queue.qsize(), c_queue.qsize()))
         next = c_queue.get()
         if next == "DONE":
             #done = True
@@ -288,7 +287,7 @@ def producer(c_queue, p_queue, free_ccm):
                     done = False
                     break
                 else:
-                    print "sleep..."
+                    logger.info("sleep...")
                     if p_queue.qsize() > 0:
                         done = False
                         break
@@ -297,7 +296,7 @@ def producer(c_queue, p_queue, free_ccm):
         if done:
             break
 
-        print "Object count %6d ... P queue length %6d ... C queue length %6d" % (len(project_hierarchy.keys()), p_queue.qsize(), c_queue.qsize())
+        logger.info("Object count %6d ... P queue length %6d ... C queue length %6d" % (len(project_hierarchy.keys()), p_queue.qsize(), c_queue.qsize()))
 
         # Get results from ccm query and put new objects on the queue
         next = p_queue.get()
@@ -311,7 +310,7 @@ def producer(c_queue, p_queue, free_ccm):
             c_queue.put((o, parent_proj))
 
 
-    print "we're done..."
+    logger.info("we're done...")
     if done:
         c_queue.put("DONE")
     p_queue.put(project_hierarchy)

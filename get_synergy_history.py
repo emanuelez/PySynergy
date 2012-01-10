@@ -24,6 +24,8 @@ CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING 
 """
 import cPickle
 import os
+import logging as logger
+
 from SynergySession import SynergySession
 from SynergySessions import SynergySessions
 from CCMHistory import CCMHistory
@@ -39,7 +41,7 @@ def load_history(config):
     history = {}
     filename = config['data_file'] + '.p'
     if os.path.isfile(filename):
-        print "Loading", filename, "..."
+        logger.info("Loading %s" %filename)
         fh = open(filename, 'rb')
         history = cPickle.load(fh)
         fh.close()
@@ -50,7 +52,7 @@ def load_history(config):
             if not os.path.isdir(f):
                 if config['data_file'] in f:
                     if f.endswith('.p'):
-                        print "Loading file", f
+                        logger.info("Loading file %s" % str(f))
                         # Try to pickle it
                         fh = open(f, 'rb')
                         hist = cPickle.load(fh)
@@ -58,7 +60,7 @@ def load_history(config):
                         if 'name' in hist.keys():
                             history[hist['name']] = hist
 
-    print "history contains:", sorted(history.keys())
+    logger.info("history contains: %s" % str(sorted(history.keys())))
 
     return history
 
@@ -66,6 +68,12 @@ def load_history(config):
 def main():
 
     config = load_config_file()
+    # Set up logger
+    log_file = config['log_file']
+    if not log_file.endswith('.log'):
+        log_file += '.log'
+    logger.basicConfig(filename=log_file, level=logger.DEBUG)
+
     ccm, ccm_pool = start_sessions(config)
     history = load_history(config)
 
@@ -80,6 +88,7 @@ def main():
     cPickle.dump(history, fh, cPickle.HIGHEST_PROTOCOL)
     fh.close()
 
+    logger.shutdown()
 if __name__ == '__main__':
     main()
 

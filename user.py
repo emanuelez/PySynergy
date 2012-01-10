@@ -24,6 +24,7 @@ import cPickle
 import ldap
 import re
 from subprocess import Popen, PIPE
+import logging as logger
 
 class user(object):
     def __init__(self):
@@ -92,7 +93,7 @@ class ldap_user(object):
                             result['mail'] = result['name'].split(' ')[1] + '.' + result['name'].split(' ')[0] + '@' + get_email_domain()
 
         except ldap.LDAPError, error_message:
-            print error_message
+            logger.warning(error_message)
 
         return result
 
