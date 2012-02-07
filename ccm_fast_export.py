@@ -69,7 +69,7 @@ def ccm_fast_export(releases, graphs):
     files = []
     # Create the initial release
     # get all the file objects:
-    file_objects = [ccm_cache.get_object(o) for o in releases[release]['objects']]
+    file_objects = (ccm_cache.get_object(o) for o in releases[release]['objects'])
     project_obj = ccm_cache.get_object(releases[release]['fourpartname'])
     paths = project_obj.get_members()
     for o in file_objects:

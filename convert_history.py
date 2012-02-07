@@ -205,13 +205,16 @@ def convert_history(files, tasks, releases, objects):
             else:
                 log.info("Cycle too long...")
                 pass
-        log.info("Candidate_cuts: %s" % str(candidate_cuts))
+        if len(candidate_cuts) < 50 :
+            log.info("Candidate_cuts: %s" % str(candidate_cuts))
 
         # Find the cut to break the cycle
         cut = _find_cut(candidate_cuts, cycle, tasks, files, releases)
         if not cut:
+            log.info("Shortest cycle cut didn't work, next option...")
             # Make a qualified guess of a cut with the shortest walk of files in the tasks
             walk, node = _find_shortest_incident_or_neighbor_walk(shortest_cycle, cycle, files, tasks)
+            log.info("Shortest incident or neighbor walk from {0}: {1}".format(node, walk))
             new_cut = walk
             new_cut.append(node)
             candidate_cuts.insert(0, tuple(new_cut))
@@ -310,16 +313,24 @@ def _find_shortest_incident_or_neighbor_walk(shortest_cycle, cycle, files, tasks
         else:
             found = True
     first_node = node
+    #log.info("First node %s" %first_node)
     # Find incidents to node included in the tasks in the cycle
     incidents = []
+    nodes_to_consider = []
     while node:
         if files.incidents(node):
             for incident in files.incidents(node):
-                if tasks.links(incident)[0] in cycle:
-                    incidents.append(incident)
-                    node = incident
-                else:
-                    node = None
+                try:
+                    if tasks.links(incident)[0] in cycle:
+                        incidents.append(incident)
+                        nodes_to_consider.append(incident)
+                except KeyError:
+                    # incident not in tasks
+                    pass
+            if nodes_to_consider:
+                node = nodes_to_consider.pop(0)
+            else:
+                node = None
         else:
             node = None
     # find last node in cycle
@@ -336,16 +347,23 @@ def _find_shortest_incident_or_neighbor_walk(shortest_cycle, cycle, files, tasks
         else:
             found = True
     last_node = node
+    #log.info("Last node %s" %first_node)
     # Find neighbors to node included in the tasks in the cycle
     neighbors = []
     while node:
         if files.neighbors(node):
             for neighbor in files.neighbors(node):
-                if tasks.links(neighbor)[0] in cycle:
-                    neighbors.append(neighbor)
-                    node = neighbor
-                else:
-                    node = None
+                try:
+                    if tasks.links(neighbor)[0] in cycle:
+                        neighbors.append(neighbor)
+                        nodes_to_consider.append(neighbor)
+                except KeyError:
+                    # neighbor not in tasks
+                    pass
+            if nodes_to_consider:
+                node = nodes_to_consider.pop(0)
+            else:
+                node = None
         else:
             node = None
     walk = min(incidents, neighbors)
@@ -480,10 +498,11 @@ def create_commits_graph(files, tasks, releases):
     [commits.add_edge((task, release)) for (release, task) in product(releases.edges(), tasks.edges()) if set(releases.links(release)) & set(tasks.links(task))]
 
     # Create the edges from the releases to the tasks
-    #print "\t\tFrom releases to tasks"
+    log.info("Releases %s" %', '.join(releases.edges()))
     product_number = len(releases.edges()) * len(tasks.edges())
+    log.info("From releases to tasks, %s edges" % product_number)
     for (counter, (release, task)) in enumerate(product(releases.edges(), tasks.edges())):
-        log.info("Edge (%d/%d) from release %s to task %s" % (counter, product_number, release, task))
+        #log.info("Edge (%d/%d) from release %s to task %s" % (counter, product_number, release, task))
         [commits.add_edge((release, task))
          for obj_in_release
          in releases.links(release)
@@ -491,9 +510,9 @@ def create_commits_graph(files, tasks, releases):
          and not commits.has_edge((release, task))]
 
     # Create the edges from tasks to tasks and from releases to tasks
-    #print "\t\tFrom tasks to tasks"
+    log.info("From tasks to tasks, %s edges" % len(files.nodes()) )
     for (counter, obj1) in enumerate(files.nodes()):
-        log.info("From task to task: object %d/%d" % (counter, len(files.nodes())))
+        #log.info("From task to task: object %d/%d" % (counter, len(files.nodes())))
         if not tasks.has_node(obj1):
             # obj1 is the node belonging to the previous release
             continue
