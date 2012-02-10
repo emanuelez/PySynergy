@@ -68,10 +68,11 @@ def get_objects_in_project_serial(project, ccm=None, database=None):
         #logger.info('Processing: %s' % obj.get_object_name())
         parent_proj = None
 
-        if obj.get_type() == 'dir':
+        if obj.get_type() == 'dir' or obj.get_type() == 'project':
             # Processing a dir set 'working dir'
             cwd = dir_structure[obj.get_object_name()]
-            parent_proj = proj_lookup[obj.get_object_name()]
+            if obj.get_type() == 'dir':
+                parent_proj = proj_lookup[obj.get_object_name()]
 
         result = get_members(obj, ccm, parent_proj)
         objects = [SynergyObject(o['objectname'], delim) for o in result]
@@ -88,6 +89,7 @@ def get_objects_in_project_serial(project, ccm=None, database=None):
             if o.get_type() == 'dir':
                 # add the directory to the queue and record its parent project
                 queue.append(o)
+                #logger.info("object: %s child %s cwd %s" % (obj.get_object_name(), o.get_object_name(), cwd))
                 dir_structure[o.get_object_name()] = '%s%s/' % (cwd, o.get_name())
                 if obj.get_type() == 'project':
                     proj_lookup[o.get_object_name()] = obj.get_object_name()
@@ -99,8 +101,10 @@ def get_objects_in_project_serial(project, ccm=None, database=None):
                 else:
                     hierarchy[o.get_object_name()] = ['%s%s' % (cwd, o.get_name())]
             elif o.get_type() == 'project':
+                dir_structure[o.get_object_name()] = cwd
                 # Add the project to the queue
                 queue.append(o)
+                #logger.info("object: %s child %s cwd %s" % (obj.get_object_name(), o.get_object_name(), cwd))
                 # Add the project to the hierarchy, so the subprojects for the release/project is known
                 if o.get_object_name() in hierarchy.keys():
                     hierarchy[o.get_object_name()].append('%s%s' % (cwd, o.get_name()))
@@ -113,8 +117,7 @@ def get_objects_in_project_serial(project, ccm=None, database=None):
                         hierarchy[o.get_object_name()].append('%s%s' % (cwd, o.get_name()))
                     else:
                         hierarchy[o.get_object_name()] = ['%s%s' % (cwd, o.get_name())]
-                    #logger.info("Object: % has path" % o.get_object_name())
-                    #logger.info('%s%s' % (cwd, o.get_name()))
+                    #logger.info("Object: %s has path %s%s" % (o.get_object_name(), cwd, o.get_name()))
         logger.info("Object count: %6d" % count)
     return hierarchy
 
@@ -186,7 +189,7 @@ def do_results(next, hierarchy, dir_structure, proj_lookup):
                 proj_lookup[o.get_object_name()] = obj.get_object_name()
             elif obj.get_type() == 'dir':
                 proj_lookup[o.get_object_name()] = proj_lookup[obj.get_object_name()]
-            # Also add the directory to the Hierachy to get empty dirs
+            # Also add the directory to the Hierarchy to get empty dirs
             if o.get_object_name() in hierarchy.keys():
                 hierarchy[o.get_object_name()].append('%s%s' % (cwd, o.get_name()))
             else:
