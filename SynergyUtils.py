@@ -181,7 +181,6 @@ class ObjectHistory(object):
         # clear old history
         self.history = {}
         self.temp_history = {}
-        fileobject.set_path(paths)
 
         if self.current_release != self.old_release and self.old_release is not None:
             # Check if a newer version of the file was already released
@@ -277,8 +276,6 @@ class ObjectHistory(object):
             # Check if predecessor is already added to history - if so add this as successor to fileobject, else add new predecessor to history
             if not self.temp_history.has_key(predecessor.get_object_name()):
                 logger.info("Adding %s %s to history" % (predecessor.get_object_name(), predecessor.get_status()) )
-                path = fileobject.get_path()
-                predecessor.set_path(path)
                 self.add_to_history(predecessor)
                 retval &= self.recursive_get_history(predecessor, recursion_depth)
                 if not retval:
