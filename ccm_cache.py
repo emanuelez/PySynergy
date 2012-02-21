@@ -34,7 +34,9 @@ import cPickle
 import hashlib
 import os
 import os.path
-import logging as logger
+import logging
+
+logger = logging.getLogger("ccm_cache")
 
 def validate_object_data(object_data, ccm_cache_path, ccm):
     """ Check predecessors etc for correct successor information"""
@@ -68,6 +70,7 @@ def get_object(obj, ccm=None):
     #try the object cache first
     try:
         object_data = get_object_data_from_cache(obj, ccm_cache_path)
+#        logger.debug("Get %s from cache", obj)
         validate_object_data(object_data, ccm_cache_path, ccm)
     except ObjectCacheException:
         if not ccm:
@@ -77,6 +80,7 @@ def get_object(obj, ccm=None):
                 #couldn't start Synergy on this computer
                 raise ObjectCacheException("Couldn't extract %s from Synergy" % obj)
         try:
+#            logger.debug("Get %s from Synergy", obj)
             object_data = get_object_from_ccm(obj, ccm, ccm_cache_path)
         except ObjectCacheException:
             raise ObjectCacheException("Couldn't extract %s from Synergy" % obj)
@@ -259,7 +263,6 @@ def fill_changed_entries(object, ccm):
     for o in set(new):
         if o not in deleted:
             new_objs.append(o)
-    
     object.set_new_objects(set(new_objs))
     object.set_deleted_objects(set(deleted_objs))
     return object
@@ -269,7 +272,10 @@ def get_object_from_ccm(four_part_name, ccm, ccm_cache_path):
     # convert the four-part-name to a synergy object:
     delim = ccm.delim()
     synergy_object = SynergyObject(four_part_name, delim)
-    res = ccm.query("name='{0}' and version='{1}' and type='{2}' and instance='{3}'".format(synergy_object.get_name(), synergy_object.get_version(), synergy_object.get_type(), synergy_object.get_instance())).format("%objectname").format("%owner").format("%status").format("%create_time").format("%task").run()
+    try:
+        res = ccm.query("name='{0}' and version='{1}' and type='{2}' and instance='{3}'".format(synergy_object.get_name(), synergy_object.get_version(), synergy_object.get_type(), synergy_object.get_instance())).format("%objectname").format("%owner").format("%status").format("%create_time").format("%task").run()
+    except SynergyException:
+        raise ObjectCacheException("Couldn't extract %s from Synergy" % four_part_name)
     if res:
         synergy_object.status = res[0]['status']
         synergy_object.author =  res[0]['owner']
@@ -291,7 +297,6 @@ def get_object_from_ccm(four_part_name, ccm, ccm_cache_path):
         object = create_task_object(synergy_object, ccm)
     else:
         object = create_file_or_dir_object(synergy_object, ccm)
-
     # Common among all objects
     object.predecessors = get_predecessors(object, ccm)
     object.successors = get_successors(object, ccm)
@@ -300,7 +305,6 @@ def get_object_from_ccm(four_part_name, ccm, ccm_cache_path):
 
     if object.get_type() == 'dir':
         object = fill_changed_entries(object, ccm)
-
     # Add database info to cache object
     object.info_databases.append(ccm.get_database_name())
     # write the file to the cache

@@ -199,8 +199,7 @@ class CCMHistory(object):
                 for o in self.history[self.tag]['objects']:
                     objects.append(o)
                     #objects[o] = ccm_cache.get_object(o, self.ccm)
-                logger.info("no of old objects loaded %i" % len(objects))
-                #logger.info("no of old objects loaded %i" % len(objects.keys()))
+                logger.info("no of old objects loaded %i", len(objects))
         else:
             self.history[self.tag] = {'objects': [], 'tasks': []}
 

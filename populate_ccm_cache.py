@@ -26,6 +26,7 @@ from SynergySessions import SynergySessions
 import ccm_cache
 import ccm_objects_in_project
 from load_configuration import load_config_file
+import logging as logger
 
 
 def update_project_with_members(project, ccm, ccmpool):
@@ -55,29 +56,21 @@ def populate_cache_with_projects(config):
         populate_cache_with_objects_from_project(project, ccm, ccmpool)
 #        update_project_with_members(project, ccm, ccmpool)
 
+def populate_cache_with_project_and_members(project, ccm, ccmpool):
+    print "Loading object %s" % project
+    project_obj = ccm_cache.get_object(project, ccm=ccm)
+    #assuming no project.members
+    objects_in_project = ccm_objects_in_project.get_objects_in_project(project, ccm=ccm, ccmpool=ccmpool, use_cache=True)
+    project_obj.set_members(objects_in_project)
+    ccm_cache.force_cache_update_for_object(project_obj)
+
+
 def populate_cache_with_objects_from_project(project, ccm, ccmpool):
     print "processing project %s" %project
     #first try to get the object from cache
     project_obj = ccm_cache.get_object(project, ccm)
     if not project_obj.members:
-        update_project_with_members(project, ccm, ccmpool)
-
-    na_obj =[]
-    if project_obj.members:
-        num_o = len(project_obj.members.keys())
-        for o in project_obj.members.keys():
-            print "loading object: %s" % o
-            try:
-                obj = ccm_cache.get_object(o, ccm)
-            except ccm_cache.ObjectCacheException:
-                na_obj.append(o)
-            num_o -=1
-            print "objects left %d" %num_o
-
-        print "%s done, members: %d" %(project, len(project_obj.members.keys()))
-    print "Objects not avaliable in this db:"
-    print '\n'.join(na_obj)
-
+        populate_cache_with_project_and_members(project, ccm, ccmpool)
 
 def start_sessions(config):
     ccm = SynergySession(config['database'])
@@ -86,8 +79,10 @@ def start_sessions(config):
 
 def main():
 
+    logger.basicConfig(filename='populate.log',level=logger.DEBUG)
     config = load_config_file()
     populate_cache_with_projects(config)
+
 
 if __name__ == '__main__':
     main()

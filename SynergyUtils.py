@@ -207,7 +207,6 @@ class ObjectHistory(object):
                 logger.info('')
 
         logger.info("Filepath: %s" % str(paths))
-        #logger.info("")
         self.history[fileobject.get_object_name()] = fileobject
         return self.history
 
@@ -217,7 +216,6 @@ class ObjectHistory(object):
     def recursive_get_history(self, fileobject, recursion_depth):
         """ Recursivly find the history of the file object, optionally stopping at the 'old_release' project """
         next_iter = False
-        #logger.info("")
         logger.info('Processing: %s %s' % (fileobject.get_object_name(), fileobject.get_status()))
         logger.info('Recursion depth %d' % recursion_depth)
         retval = True
