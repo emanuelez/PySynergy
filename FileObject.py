@@ -59,7 +59,7 @@ class FileObject(SynergyObject.SynergyObject):
         else:
             # Last resort inaccurate time, but might be better than now
             # working attribute
-            time = self.find_status_time('working', self.attributes['working'])
+            time = self.find_status_time('working', self.attributes['status_log'])
         return time
 
     def set_attributes(self, attributes):
@@ -73,3 +73,4 @@ class FileObject(SynergyObject.SynergyObject):
     def set_releases(self, releases):
         """ Set Releases """
         self.releases = releases
+
