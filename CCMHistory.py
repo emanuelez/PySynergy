@@ -537,8 +537,11 @@ def get_project_chain(head_project, base_project, ccm):
     baseline = ccm_cache.get_object(head_project, ccm)
     chain = [baseline.get_object_name()]
     while baseline.get_object_name() != base_project:
-        predecessor = ccm_cache.get_object(baseline.predecessors[0], ccm)
-        baseline = ccm_cache.get_object(baseline.baseline_predecessor[0], ccm)
+        if baseline.predecessors:
+            predecessor = ccm_cache.get_object(baseline.predecessors[0], ccm)
+        if baseline.baseline_predecessor:
+            baseline = ccm_cache.get_object(baseline.baseline_predecessor[0], ccm)
+
         if baseline:
             chain.append(baseline.get_object_name())
         elif predecessor:
