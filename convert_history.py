@@ -446,12 +446,14 @@ def _sanitize_tasks(tasks):
 
             # If one of the tasks is a 'fake' task just remove the link in that task
             if not t1.startswith('task'):
-                log.info("Fake task, unlinking %s from %s" %(obj, t1))
-                tasks.unlink(obj, t1)
+                if obj in tasks.links(t1):
+                    log.info("Fake task, unlinking %s from %s" %(obj, t1))
+                    tasks.unlink(obj, t1)
                 continue
             elif not t2.startswith('task'):
-                log.info("Fake task, unlinking %s from %s" %(obj, t2))
-                tasks.unlink(obj, t2)
+                if obj in tasks.links(t2):
+                    log.info("Fake task, unlinking %s from %s" %(obj, t2))
+                    tasks.unlink(obj, t2)
                 continue
 
             if tasks.has_edge(t1) and tasks.has_edge(t2):
