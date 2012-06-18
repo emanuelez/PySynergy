@@ -396,7 +396,7 @@ def get_tasks_in_reconfigure_prop(object, ccm):
     # Get task in reconfigure prop
     tasks = []
     try:
-        res = ccm.rp(object.get_object_name()).option('-show').option('all_tasks').run()
+        res = ccm.rp(object.get_object_name()).option('-show').option('all_tasks').option('-r').run()
     except SynergyException:
         res = []
     for t in res:
