@@ -385,7 +385,8 @@ class CCMHistory(object):
                 # Get the corresponding directory four-part-name
                 paths = members[dir]
                 name = get_dir_with_path(paths, d, members)
-                directories.append(name)
+                if name:
+                    directories.append(name)
         logger.info("new directories found:")
         logger.info(' ,'.join([d + ', '.join(members[d]) for d in directories]))
         return directories

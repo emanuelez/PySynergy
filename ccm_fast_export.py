@@ -596,7 +596,6 @@ def decide_type(obj):
     cache_path = ccm_cache.load_ccm_cache_path()
     dir, filename = ccm_cache.get_path_for_object(obj.get_object_name(), cache_path)
     command = ['file', '-i', '-b', filename]
-    logger.info('Finding super type for %s Command: %s' %(type, command))
     result = run_command(command)
     logger.info('Result %s' % result)
     if 'binary' in result:
