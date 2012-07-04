@@ -78,7 +78,7 @@ def get_object(obj, ccm=None):
                 ccm = create_ccm_session_from_config()
             except OSError:
                 #couldn't start Synergy on this computer
-                raise ObjectCacheException("Couldn't extract %s from Synergy" % obj)
+                raise ObjectCacheException("Couldn't start Synergy")
         try:
 #            logger.debug("Get %s from Synergy", obj)
             object_data = get_object_from_ccm(obj, ccm, ccm_cache_path)
@@ -100,7 +100,7 @@ def get_source(obj, ccm=None):
         try:
             get_object_from_ccm(obj, ccm, ccm_cache_path)
         except ObjectCacheException:
-            raise ObjectCacheException("Couldn't extract %s from Synergy" % obj)
+            raise ObjectCacheException("Couldn't extract source of %s from Synergy" % obj)
         object = get_object_source_from_cache(obj, ccm_cache_path)
 
     return object
@@ -191,7 +191,7 @@ def force_cache_update_for_object(object, ccm=None, ccm_cache_path=None):
         if not os.path.exists(filename):
             if ccm is None:
                 ccm = create_ccm_session_from_config()
-            content = ccm.cat(object.get_object_name()).run()
+            content = get_content(object, ccm)
             f = open(filename, 'wb')
             f.write(content)
             f.close()
@@ -217,7 +217,7 @@ def update_cache(object, ccm, ccm_cache_path):
     type = object.get_type()
     if type != 'project' and type != 'task' and type != 'dir':
         # Store the content of the object
-        content = ccm.cat(object.get_object_name()).run()
+        content = get_content(object, ccm)
         f = open(filename, 'wb')
         f.write(content)
         f.close()
@@ -275,7 +275,7 @@ def get_object_from_ccm(four_part_name, ccm, ccm_cache_path):
     try:
         res = ccm.query("name='{0}' and version='{1}' and type='{2}' and instance='{3}'".format(synergy_object.get_name(), synergy_object.get_version(), synergy_object.get_type(), synergy_object.get_instance())).format("%objectname").format("%owner").format("%status").format("%create_time").format("%task").run()
     except SynergyException:
-        raise ObjectCacheException("Couldn't extract %s from Synergy" % four_part_name)
+        raise ObjectCacheException("Couldn't query four-part-name of %s from Synergy" % four_part_name)
     if res:
         synergy_object.status = res[0]['status']
         synergy_object.author =  res[0]['owner']
@@ -289,7 +289,7 @@ def get_object_from_ccm(four_part_name, ccm, ccm_cache_path):
                     tasks.append(t)
         synergy_object.tasks = tasks
     else:
-        raise ObjectCacheException("Couldn't extract %s from Synergy" % four_part_name)
+        raise ObjectCacheException("Couldn't extract %s's info from Synergy" % four_part_name)
 
     if synergy_object.get_type() == 'project':
         object = create_project_object(synergy_object, ccm)
@@ -499,7 +499,17 @@ def create_ccm_session_from_config():
     ccm = SynergySession(config['database'])
     return ccm
 
+def get_content(object, ccm):
+    try:
+        content = ccm.cat(object.get_object_name()).run()
+    except SynergyException:
+        # try to list the objects source through the attr command:
+        try:
+            content = ccm.attr(object.get_object_name()).option('-s').option('source').run()
+        except SynergyException:
+            content = ""
 
+    return content
 
 class ObjectCacheException(Exception):
     """User defined exception raised by SynergySession"""
