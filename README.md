@@ -25,4 +25,12 @@ Done!
 For the conversion of synergy data to git data you'll need to have `pygraph` 
 installed.
 
+NOTE
+----
+If you need assistance or help in migrating from Synergy to git, don't hesitate 
+to contact me at aske.olsson@switch-gears.dk
+
+I'm currently not having access to any Synergy servers, so development on 
+PySynergy is slow, if not stopped.
+
 
