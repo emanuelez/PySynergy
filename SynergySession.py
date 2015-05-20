@@ -24,12 +24,13 @@ import os
 import re
 import time
 import random
+import logging as logger
 from subprocess import Popen, PIPE
 
 class SynergySession(object):
     """This class is a wrapper around the Synergy command line client"""
 
-    def __init__(self, database, engine=None, command_name='ccm', ccm_ui_path='/dev/null', ccm_eng_path='/dev/null', ccm_addr=None):
+    def __init__(self, database, engine=None, command_name='ccm', ccm_ui_path='/dev/null', ccm_eng_path='/dev/null', ccm_addr=None, offline=False):
         self.command_name = command_name
         self.database = database
         self.engine = engine
@@ -43,6 +44,7 @@ class SynergySession(object):
         # Store the warnings and errors that might be found along the preparation or execution of a command
         self.warnings = []
         self.errors = []
+        self.offline = offline
 
         # Open the session
         args = [self.command_name]
@@ -64,16 +66,20 @@ class SynergySession(object):
 
         #Check if an existing session should be used
         if not ccm_addr:
-            # Open the session
-            p = Popen(args, stdout=PIPE, stderr=PIPE, env=self.environment)
-            # Store the session data
-            #p.wait()
-            stdout, stderr = p.communicate()
-            if stderr:
-                raise SynergyException('Error while starting a synergy Session: ' + stderr)
+            if not self.offline:
+                # Open the session
+                p = Popen(args, stdout=PIPE, stderr=PIPE, env=self.environment)
+                # Store the session data
+                #p.wait()
+                stdout, stderr = p.communicate()
+                if stderr:
+                    raise SynergyException('Error while starting a synergy Session: ' + stderr)
 
-            # Set the environment variable for the Synergy session
-            self.environment['CCM_ADDR'] = stdout
+                # Set the environment variable for the Synergy session
+                self.environment['CCM_ADDR'] = stdout
+            else:
+                # fake it
+                self.environment['CCM_ADDR'] = "12345:0.0.0.0"
         else:
             self.environment['CCM_ADDR'] = ccm_addr
 
@@ -99,7 +105,8 @@ class SynergySession(object):
         # Close the session
         if not self.keep_session_alive:
             self.stop()
-            print "Stopping %s" % self.getCCM_ADDR()
+            if not self.offline:
+                print "Stopping %s" % self.getCCM_ADDR()
 
     def _reset_status(self):
         """Reset the status of the object"""
@@ -113,32 +120,41 @@ class SynergySession(object):
         if not command[0] == self.command_name:
             command.insert(0, self.command_name)
 
-        # retry all commands 3 times to patch over ccm concurrency issues
-        for retrycount in range(3):
-            # stagger parallel commands to patch over ccm concurrency issues
-            if (self.sessionID >= 0):
-                time.sleep(0.2 * random.random())
+        if not self.offline:
+            # retry all commands 3 times to patch over ccm concurrency issues
+            for retrycount in range(3):
+                # stagger parallel commands to patch over ccm concurrency issues
+                if (self.sessionID >= 0):
+                    time.sleep(0.2 * random.random())
 
-            if (retrycount > 0): # more sleep on retry operations
-                time.sleep(0.2 * random.random())
+                if (retrycount > 0): # more sleep on retry operations
+                    time.sleep(0.2 * random.random())
 
-            p = Popen(command, stdout=PIPE, stderr=PIPE, env=self.environment)
+                p = Popen(command, stdout=PIPE, stderr=PIPE, env=self.environment)
 
-            # Store the result as a single string. It will be splitted later
-            stdout, stderr = p.communicate()
+                # Store the result as a single string. It will be splitted later
+                stdout, stderr = p.communicate()
 
-            if not stderr:
-                break
+                if not stderr:
+                    break
 
-        if stderr:
-            raise SynergyException('Error while running the Synergy command: %s \nError message: %s' % (command, stderr))
+            if stderr:
+                raise SynergyException('Error while running the Synergy command: %s \nError message: %s' % (command, stderr))
+            else:
+                # Log command
+                logger.info('Synergy offline mode, cmd: %s' %command )
+                pass
 
-        return stdout
+            return stdout
+        return ""
 
     def delim(self):
         """Returns the delimiter defined in the Synergy DB"""
         self._reset_status()
-        return self._run(['delim']).strip()
+        delim = self._run(['delim']).strip()
+        if delim is "":
+            return "-"
+        return delim
 
     def stop(self):
         """Stops the current Synergy session"""

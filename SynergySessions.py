@@ -37,7 +37,7 @@ sys.stderr =  os.fdopen(sys.stderr.fileno(), 'w', 0);
 class SynergySessions(object):
     """This class is a wrapper around a pool of cm synergy sessions"""
 
-    def __init__(self, database, engine=None, command_name='ccm', ccm_ui_path='/dev/null', ccm_eng_path='/dev/null', nr_sessions=2):
+    def __init__(self, database, engine=None, command_name='ccm', ccm_ui_path='/dev/null', ccm_eng_path='/dev/null', nr_sessions=2, offline=False):
         self.database = database
         self.command_name = command_name
         self.ccm_ui_path = ccm_ui_path
@@ -46,8 +46,9 @@ class SynergySessions(object):
         self.nr_sessions = nr_sessions
         self.max_session_index = nr_sessions-1
         self.sessionArray = {}
+        self.offline = offline
         """populate and array with synergy sessions"""
-        create_sessions_pool(self.nr_sessions, self.database, self.engine, self.command_name, self.ccm_ui_path, self.ccm_eng_path, self)
+        create_sessions_pool(self.nr_sessions, self.database, self.engine, self.command_name, self.ccm_ui_path, self.ccm_eng_path, self.offline, self)
 
         for k, v in self.sessionArray.iteritems():
             print "session %d: %s" %(k, v.getCCM_ADDR())
@@ -70,19 +71,22 @@ class SynergySessions(object):
             retstring = retstring + "[" + str(i) + "] " + self.sessionArray[i].getCCM_ADDR() + "\n"
         return retstring
 
-def create_sessions_pool(nr_sessions, database, engine, command_name, ccm_ui_path, ccm_eng_path, session_cls):
+def create_sessions_pool(nr_sessions, database, engine, command_name, ccm_ui_path, ccm_eng_path, offline, session_cls):
     session_array = {}
     pool = Pool(nr_sessions)
     for i in range(nr_sessions):
-        pool.apply_async(create_session, (database, engine, command_name, ccm_ui_path, ccm_eng_path, i), callback=session_cls.put_session )
-        print "starting session [" + str(i) + "]"
+        pool.apply_async(create_session, (database, engine, command_name, ccm_ui_path, ccm_eng_path, offline, i), callback=session_cls.put_session )
+        if offline:
+            print "Offline mode, just using cache"
+        else:
+            print "starting session [" + str(i) + "]"
 
     pool.close()
 
     pool.join()
 
-def create_session(database, engine, command_name, ccm_ui_path, ccm_eng_path, i):
-    ccm = SynergySession(database, engine, command_name, ccm_ui_path, ccm_eng_path)
+def create_session(database, engine, command_name, ccm_ui_path, ccm_eng_path, offline, i):
+    ccm = SynergySession(database, engine, command_name, ccm_ui_path, ccm_eng_path, offline)
     ccm.keep_session_alive = True
     ccm.sessionID = i
     return (i,ccm)

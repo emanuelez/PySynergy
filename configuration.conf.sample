@@ -34,6 +34,7 @@ data_file=                                                  ; pickle file to sto
 log_file=                                                   ;
 max_recursion_depth=                                        ; recursion depth to give up when reached, when traversing file history between two releases
 skip_binary_files=                                          ; Don't put binary files in git history
+offline=False
 
 [history conversion]
 print_graphs=False                                          ; print png images of the different releases when converting history
