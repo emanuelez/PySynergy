@@ -279,7 +279,7 @@ def get_object_from_ccm(four_part_name, ccm, ccm_cache_path):
     if res:
         synergy_object.status = res[0]['status']
         synergy_object.author =  res[0]['owner']
-        synergy_object.created_time = datetime.strptime(res[0]['create_time'], "%a %b %d %H:%M:%S %Y")
+        synergy_object.created_time = datetime.strptime(res[0]['create_time'], "%Y/%m/%d %H:%M:%S")
         tasks = []
         for t in res[0]['task'].split(','):
             if t != '<void>':
