@@ -48,6 +48,8 @@ def load_config_file():
             v = [i.strip() for i in v]
         if k == 'skip_binary_files':
             v = config_parser.getboolean('synergy', 'skip_binary_files')
+        if k == 'offline':
+            v = config_parser.getboolean('synergy', 'offline')
         config[k]=v
     for k, v in config_parser.items('history conversion'):
         if k == 'print_graphs':
