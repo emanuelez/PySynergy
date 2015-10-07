@@ -450,8 +450,8 @@ def get_releases(object, ccm):
 
 def task_to_four_part(task, delim):
     # Task four-part-name: task<tasknumber>-1:task:instance
-    split = task.split('#')
-    four_part = ['task', split[1], delim, '1:task:', split[0]]
+    # in Synergy 7.1 the instance of a task is always 'probtrac'
+    four_part = ['task', task, delim, '1:task:', 'probtrac']
     return ''.join(four_part)
 
 def get_non_blacklisted_attributes(obj, ccm):
