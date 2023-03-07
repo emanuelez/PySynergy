@@ -66,7 +66,7 @@ def main():
     fh.add_edge(('F2-6', 'F2-8'))
     fh.add_edge(('F2-7', 'F2-8'))
 
-    #print "File History graph ready."
+    #print("File History graph ready.")
 
     # The tasks hypergraph
     tasks = hypergraph()
@@ -92,7 +92,7 @@ def main():
     tasks.link('F2-7', 'T3')
     tasks.link('F2-8', 'T8')
 
-    #print "Tasks hypergraph ready."
+    #print("Tasks hypergraph ready.")
 
     # The releases hypergraph
     releases = hypergraph()
@@ -106,7 +106,7 @@ def main():
     releases.link('F1-7', 'R2')
     releases.link('F2-8', 'R2')
 
-    #print "Releases hypergraph ready."
+    #print("Releases hypergraph ready.")
 
     convert_history(fh, tasks, releases, None)
 
@@ -488,15 +488,15 @@ def create_commits_graph(files, tasks, releases):
     commits = digraph()
 
     # Create the nodes
-    #print "\tCreate the nodes..."
-    #print "\t\tFrom the tasks"
+    #print("\tCreate the nodes...")
+    #print("\t\tFrom the tasks")
     [commits.add_node(task) for task in tasks.edges()]
-    #print "\t\tFrom the releases"
+    #print("\t\tFrom the releases")
     [commits.add_node(release) for release in releases.edges()]
 
     # Create the edges from the tasks to the releases
-    #print "\tCreate the nodes..."
-    #print "\t\tFrom tasks to releases"
+    #print("\tCreate the nodes...")
+    #print("\t\tFrom tasks to releases")
     [commits.add_edge((task, release)) for (release, task) in product(releases.edges(), tasks.edges()) if set(releases.links(release)) & set(tasks.links(task))]
 
     # Create the edges from the releases to the tasks

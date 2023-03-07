@@ -144,7 +144,7 @@ def get_object_data_from_cache(obj, ccm_cache_path):
     # check if object exists
     if os.path.exists(datafile):
         # load the data file
-#        print 'Loading object %s from cache' %obj
+#        print('Loading object %s from cache' %obj)
         f = open(datafile, 'rb')
         object_data = pickle.load(f)
         f.close()

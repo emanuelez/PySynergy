@@ -20,7 +20,7 @@ def get_snapshot(project, ccm, outdir):
 
     # write the objects to outdir
     for object, paths in objects.iteritems():
-#        print object, paths
+#        print(object, paths)
         if not ':dir:' in object and not ':project:' in object:
             content = ccm.cat(object).run()
             for path in paths:
@@ -28,7 +28,7 @@ def get_snapshot(project, ccm, outdir):
                 dir = os.path.split(p)[0]
                 if not os.path.exists(dir):
                     os.makedirs(dir)
-                print "Writing %s to %s" %(object, p)
+                print("Writing %s to %s" %(object, p))
                 f = open(p, 'wb')
                 f.write(content)
                 f.close()
@@ -43,7 +43,7 @@ def write_empty_dirs(dirs, outdir):
         filepath = os.path.join(path, '.gitignore')
         if not os.path.exists(path):
             os.makedirs(path)
-        print "Writing empty .gitignore to %s" %filepath
+        print("Writing empty .gitignore to %s" %filepath)
         f = open(filepath, 'wb')
         f.write('')
         f.close()

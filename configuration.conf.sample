@@ -37,7 +37,7 @@ skip_binary_files=                                          ; Don't put binary f
 offline=False
 
 [history conversion]
-print_graphs=False                                          ; print png images of the different releases when converting history
+print_graphs=False                                          ; print(png images of the different releases when converting history)
 email_domain=                                               ; email domain to use when writing commit info (if not found through ldap)
 
 [ldap]

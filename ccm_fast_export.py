@@ -95,7 +95,7 @@ def ccm_fast_export(releases, graphs):
                    'author Nokia <nokia@nokia.com> ' + str(int(initial_release_time)) + " +0000",
                    'committer Nokia <nokia@nokia.com> ' + str(int(initial_release_time)) + " +0000", 'data 15',
                    'Initial commit', '\n'.join(files), '']
-    print '\n'.join(commit_info)
+    print('\n'.join(commit_info))
 
     logger.info("git-fast-import:\n%s" %('\n'.join(commit_info)))
 
@@ -105,7 +105,7 @@ def ccm_fast_export(releases, graphs):
                'tagger Nokia <nokia@nokia.com> ' + str(int(initial_release_time)) + " +0000",
                'data %s' % len(tag_msg),
                tag_msg]
-    print '\n'.join(annotated_tag)
+    print('\n'.join(annotated_tag))
     
     commit_lookup[release] = mark
     # do the following releases (graphs)
@@ -167,7 +167,7 @@ def ccm_fast_export(releases, graphs):
             logger.info("Name changed: %s -> %s" %(previous_name, current_name))
             from_mark = commit_lookup[previous_release]
             mark, commit = rename_toplevel_dir(previous_name, current_name, release, releases, mark, from_mark)
-            print '\n'.join(commit)
+            print('\n'.join(commit))
             # adjust the commit lookup
             commit_lookup[previous_release] = mark
 
@@ -206,9 +206,9 @@ def ccm_fast_export(releases, graphs):
             reference = [commit_lookup[ releases[release]['previous'] ] ]
 
         mark, merge_commit = create_release_merge_commit(releases, release, get_mark(mark), reference, graphs, set(ancestors[release]) - set(acn_ancestors))
-        print '\n'.join(merge_commit)
+        print('\n'.join(merge_commit))
         annotated_tag = create_annotated_tag(releases, release, mark)
-        print '\n'.join(annotated_tag)
+        print('\n'.join(annotated_tag))
 
         commit_lookup[release] = mark
         release_queue.extend(releases[release]['next'])
@@ -219,7 +219,7 @@ def ccm_fast_export(releases, graphs):
     master = get_master_tag()
     reset = ['reset refs/heads/master', 'from :' + str(commit_lookup[master])]
     logger.info("git-fast-import:\n%s" %('\n'.join(reset)))
-    print '\n'.join(reset)
+    print('\n'.join(reset))
 
 def create_annotated_tag(releases, release, mark):
     global users
@@ -338,7 +338,7 @@ def create_merge_commit(n, release, releases, mark, reference, graphs, ancestors
     else:
         mark, commit = make_commit_from_object(single_object, get_mark(mark), reference, release, file_list)
 
-    print '\n'.join(commit)
+    print('\n'.join(commit))
     return mark
 
 def create_commit(n, release, releases, mark, reference, graphs):
@@ -368,7 +368,7 @@ def create_commit(n, release, releases, mark, reference, graphs):
 
         file_list = create_file_list(objects, object_lookup, releases['ccm_types']['permissions'], releases[release]['fourpartname'])
         mark, commit = make_commit_from_task(task, n, get_mark(mark), reference, release, file_list)
-        print '\n'.join(commit)
+        print('\n'.join(commit))
         return mark
 
     else:
@@ -381,7 +381,7 @@ def create_commit(n, release, releases, mark, reference, graphs):
 
         file_list = create_file_list([single_object], object_lookup, releases['ccm_types']['permissions'], releases[release]['fourpartname'])
         mark, commit = make_commit_from_object(single_object, get_mark(mark), reference, release, file_list)
-        print '\n'.join(commit)
+        print('\n'.join(commit))
         return mark
 
 def make_commit_from_task(task, task_name, mark, reference, release, file_list):
@@ -627,13 +627,13 @@ def create_blob(obj, mark):
         length = len(content)
         blob.append('data '+ str(length))
         blob.append(content)
-        print '\n'.join(blob)
+        print('\n'.join(blob))
         object_mark_lookup[obj.get_object_name()] = next_mark
         return next_mark, next_mark
 
 def create_blob_for_empty_dir(mark):
     blob = ['blob', 'mark :' + str(mark), 'data 0']
-    print '\n'.join(blob)
+    print('\n'.join(blob))
     return mark
 
 def rename_toplevel_dir(previous_name, current_name, release, releases, mark, from_mark):

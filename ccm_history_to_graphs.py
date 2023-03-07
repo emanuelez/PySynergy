@@ -42,13 +42,13 @@ def create_graphs_from_releases(releases):
             release = k
             break
 
-    #print release, "is initial release, skipping graphing"
+    #print(release, "is initial release, skipping graphing")
     release_queue = deque(releases[release]['next'])
 
     graphs = {}
     while release_queue:
         release = release_queue.popleft()
-        #print "Creating graph for", release
+        #print("Creating graph for", release)
         graphs[release] = {}
         object_graph, task_graph, release_graph, commit_graph = create_graphs(releases[release])
         graphs[release]['commit'] = commit_graph
@@ -132,7 +132,7 @@ def create_release_graph(objects, release, previous):
                 if p not in objects:
                     if not release_graph.has_node(p):
                         release_graph.add_node(p)
-                        #print "linking", p, "to release", previous
+                        #print("linking", p, "to release", previous)
                         release_graph.link(p, previous)
 
     return release_graph
@@ -145,13 +145,13 @@ def create_task_graph(tasks, objects):
     #link the objects and the tasks
     for t in tasks:
         for o in t.get_objects():
-            #print "linking:", o, "and", t.get_object_name()
+            #print("linking:", o, "and", t.get_object_name())
             if t.get_object_name() not in task_graph.links(o):
                 task_graph.link(o, t.get_object_name())
     # Add single_objects to task_graph
     for o in find_objects_without_associated_tasks(objects, tasks):
         task_graph.add_hyperedge(o)
-        #print "linking:", o.get_object_name(), "and", o.get_object_name()
+        #print("linking:", o.get_object_name(), "and", o.get_object_name())
         task_graph.link(o, o)
 
     return task_graph

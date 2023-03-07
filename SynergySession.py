@@ -106,7 +106,7 @@ class SynergySession(object):
         if not self.keep_session_alive:
             self.stop()
             if not self.offline:
-                print "Stopping %s" % self.getCCM_ADDR()
+                print("Stopping %s" % self.getCCM_ADDR())
 
     def _reset_status(self):
         """Reset the status of the object"""
