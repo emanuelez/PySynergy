@@ -23,7 +23,7 @@ FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.    IN NO EVENT SHALL THE COPYRI
 CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 from _collections import deque
-import cPickle
+import pickle
 import pygraphviz as gv
 import ccm_cache
 import convert_history as ch
@@ -100,7 +100,7 @@ def create_graphs(release):
 
 def print_graphs():
     f = open('config.p', 'rb')
-    config = cPickle.load(f)
+    config = pickle.load(f)
     f.close()
 
     return config['print_graphs']

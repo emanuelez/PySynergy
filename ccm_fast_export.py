@@ -23,7 +23,7 @@ FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.    IN NO EVENT SHALL THE COPYRI
 CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 from _collections import deque
-import cPickle
+import pickle
 import logging as logger
 from subprocess import Popen, PIPE
 import time
@@ -672,7 +672,7 @@ def get_mark(mark):
 
 def get_master_tag():
     f = open('config.p', 'rb')
-    config = cPickle.load(f)
+    config = pickle.load(f)
     f.close()
     object = ccm_cache.get_object(config['master'])
     tag = object.name + object.separator + object.version
@@ -680,7 +680,7 @@ def get_master_tag():
 
 def skip_binary():
     f = open('config.p', 'rb')
-    config = cPickle.load(f)
+    config = pickle.load(f)
     f.close()
     return config['skip_binary_files']
 

@@ -23,12 +23,12 @@ FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.    IN NO EVENT SHALL THE COPYRI
 CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 from ConfigParser import ConfigParser
-import cPickle
+import pickle
 
 
 def save_config(config):
     f = open('config.p', 'wb')
-    cPickle.dump(config, f)
+    pickle.dump(config, f)
     f.close()
 
 def load_config_file():

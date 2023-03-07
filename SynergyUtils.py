@@ -20,7 +20,7 @@ FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.    IN NO EVENT SHALL THE COPYRI
 (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
 CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
-import cPickle
+import pickle
 
 import SynergyObject
 import ccm_cache
@@ -362,7 +362,7 @@ class ObjectHistory(object):
 
     def load_max_recursion_depth(self):
         f = open('config.p', 'rb')
-        config = cPickle.load(f)
+        config = pickle.load(f)
         f.close()
 
         return config['max_recursion_depth']

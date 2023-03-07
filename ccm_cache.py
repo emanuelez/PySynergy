@@ -30,7 +30,7 @@ from SynergySession import SynergySession, SynergyException
 from TaskObject import TaskObject
 
 import string
-import cPickle
+import pickle
 import hashlib
 import os
 import os.path
@@ -146,7 +146,7 @@ def get_object_data_from_cache(obj, ccm_cache_path):
         # load the data file
 #        print 'Loading object %s from cache' %obj
         f = open(datafile, 'rb')
-        object_data = cPickle.load(f)
+        object_data = pickle.load(f)
         f.close()
         return object_data
     else:
@@ -182,7 +182,7 @@ def force_cache_update_for_object(object, ccm=None, ccm_cache_path=None):
             # just continue if it is already there
             pass
     f = open(datafile, 'wb')
-    cPickle.dump(object, f)
+    pickle.dump(object, f)
     f.close()
 
     type = object.get_type()
@@ -211,7 +211,7 @@ def update_cache(object, ccm, ccm_cache_path):
                 # just continue if it is already there
                 pass
         f = open(datafile, 'wb')
-        cPickle.dump(object, f)
+        pickle.dump(object, f)
         f.close()
 
     type = object.get_type()
@@ -486,14 +486,14 @@ def strip_non_ascii(str):
 
 def load_ccm_cache_path():
     f = open('config.p', 'rb')
-    config = cPickle.load(f)
+    config = pickle.load(f)
     f.close()
 
     return config['ccm_cache_path']
 
 def create_ccm_session_from_config():
     f = open('config.p', 'rb')
-    config = cPickle.load(f)
+    config = pickle.load(f)
     f.close()
 
     ccm = SynergySession(config['database'])

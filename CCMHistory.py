@@ -24,7 +24,7 @@ CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING 
 """
 from _collections import deque
 
-import cPickle
+import pickle
 import os
 import sys
 import logging as logger
@@ -330,7 +330,7 @@ class CCMHistory(object):
         fname += '.p'
         logger.info("saving...")
         fh = open(fname, 'wb')
-        cPickle.dump(data, fh, cPickle.HIGHEST_PROTOCOL)
+        pickle.dump(data, fh, pickle.HIGHEST_PROTOCOL)
         fh.close()
         logger.info("done...")
 

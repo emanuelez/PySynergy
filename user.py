@@ -20,7 +20,7 @@ FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.    IN NO EVENT SHALL THE COPYRI
 (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
 CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
-import cPickle
+import pickle
 import ldap
 import re
 from subprocess import Popen, PIPE
@@ -45,7 +45,7 @@ class user(object):
 
 def get_email_domain():
     f = open('config.p', 'rb')
-    config = cPickle.load(f)
+    config = pickle.load(f)
     f.close()
     try:
         domain = config['email_domain']
@@ -110,7 +110,7 @@ class ldap_user(object):
 
     def get_ldap_configuration(self):
         f = open('config.p', 'rb')
-        config = cPickle.load(f)
+        config = pickle.load(f)
         f.close()
         try:
             username = config['username']
@@ -125,7 +125,7 @@ class ldap_user(object):
 
 def get_finger_configuration():
     f = open('config.p', 'rb')
-    config = cPickle.load(f)
+    config = pickle.load(f)
     f.close()
     try:
         server = config['finger']['server']

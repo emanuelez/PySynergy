@@ -22,7 +22,7 @@ FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.    IN NO EVENT SHALL THE COPYRI
 (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
 CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
-import cPickle
+import pickle
 import os
 import logging as logger
 
@@ -43,7 +43,7 @@ def load_history(config):
     if os.path.isfile(filename):
         logger.info("Loading %s" %filename)
         fh = open(filename, 'rb')
-        history = cPickle.load(fh)
+        history = pickle.load(fh)
         fh.close()
     else:
         cwd = os.getcwd()
@@ -55,7 +55,7 @@ def load_history(config):
                         logger.info("Loading file %s" % str(f))
                         # Try to pickle it
                         fh = open(f, 'rb')
-                        hist = cPickle.load(fh)
+                        hist = pickle.load(fh)
                         fh.close()
                         if 'name' in hist.keys():
                             history[hist['name']] = hist
@@ -85,7 +85,7 @@ def main():
             history = ccm_hist.get_project_history(head, config['base_project'])
         
     fh = open(config['data_file'] + '.p', 'wb')
-    cPickle.dump(history, fh, cPickle.HIGHEST_PROTOCOL)
+    pickle.dump(history, fh, pickle.HIGHEST_PROTOCOL)
     fh.close()
 
     logger.shutdown()

@@ -23,7 +23,7 @@ FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.    IN NO EVENT SHALL THE COPYRI
 CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
-import cPickle
+import pickle
 import ccm_history_to_graphs as cg
 import ccm_fast_export as cfe
 from load_configuration import load_config_file
@@ -31,7 +31,7 @@ from load_configuration import load_config_file
 data_file = load_config_file()['data_file']
 data_file += '.p'
 f = open(data_file, 'rb')
-history = cPickle.load(f)
+history = pickle.load(f)
 f.close()
 
 cgraphs = cg.create_graphs_from_releases(history)
