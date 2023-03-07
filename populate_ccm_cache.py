@@ -66,7 +66,7 @@ def populate_cache_with_project_and_members(project, ccm, ccmpool):
 
 
 def populate_cache_with_objects_from_project(project, ccm, ccmpool):
-    print("processing project %s" %project)
+    print ("processing project %s" %project)
     #first try to get the object from cache
     project_obj = ccm_cache.get_object(project, ccm)
     if not project_obj.members:

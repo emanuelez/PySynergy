@@ -92,7 +92,7 @@ class ldap_user(object):
                         if d.has_key('displayName'):
                             result['mail'] = result['name'].split(' ')[1] + '.' + result['name'].split(' ')[0] + '@' + get_email_domain()
 
-        except ldap.LDAPError, error_message:
+        except ldap.LDAPError as error_message:
             logger.warning(error_message)
 
         return result
