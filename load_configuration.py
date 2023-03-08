@@ -34,6 +34,8 @@ def save_config(config):
 def load_config_file():
 
     config_parser = ConfigParser()
+    # we need to be case sensitive for environment variables
+    config_parser.optionxform = str
     config_parser.read('configuration.conf')
     config = {}
     for k, v in config_parser.items('synergy'):
@@ -69,4 +71,9 @@ def load_config_file():
 
     save_config(config)
 
+    if config_parser.has_section('env'):
+        config['env'] = {}
+        for k,v in config_parser.items('env'):
+            config['env'][k] = v
+            
     return config

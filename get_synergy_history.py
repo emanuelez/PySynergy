@@ -64,6 +64,13 @@ def load_history(config):
 
     return history
 
+def setup_os_env(config):
+    for k,v in config['env'].items():
+            # detect path env variable to be added : it must start with PATH_
+            if k.startswith("PATH_"):
+                os.environ["PATH"] = v + os.pathsep + os.getenv("PATH")
+            else:
+                os.environ[k] = v
 
 def main():
 
@@ -72,8 +79,11 @@ def main():
     log_file = config['log_file']
     if not log_file.endswith('.log'):
         log_file += '.log'
-    logger.basicConfig(filename=log_file, level=logger.DEBUG)
+    logger.basicConfig(filename=log_file, level=logger.INFO)
 
+    # set up system environment
+    setup_os_env(config)
+    
     ccm, ccm_pool = start_sessions(config)
     history = load_history(config)
 

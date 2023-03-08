@@ -48,3 +48,9 @@ server=
 [finger]                                                    ; Find users with finger program, can run on a remote server through ssh (keys needed)
 server=                                                     ; Remote server to use
 user=                                                       ; User to login in as
+
+[env]
+; These values will be added to os.environ
+; all items starting with PATH will be added to PATH env variable
+PATH_SYNERGY=
+CCM_ADDR=
