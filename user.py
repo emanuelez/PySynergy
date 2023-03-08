@@ -21,26 +21,47 @@ FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.    IN NO EVENT SHALL THE COPYRI
 CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 import pickle
-import ldap
 import re
-from subprocess import Popen, PIPE
 import logging as logger
 
+from user_ldap import ldap_user
+from user_finger import finger_user
+
 class user(object):
-    def __init__(self):
-        self.lu = ldap_user()
-        self.fu = finger_user()
+    """ User object that containe user detailed info retreived from remote service
+        srv : string "LDAP", "FINGER", "None"
+    """
+    def __init__(self, srv : str = None):
+        self.str = srv
+        self.lu = None
+        pass
+
+    def _get_user_by_uid_creator(self, srv : str):
+        """ Will retreive the right method from implementation selected with srv
+            srv : string "LDAP", "FINGER", ""
+            if srv is "" Then default implementation is selected
+        """
+        if srv == "LDAP":
+            self.lu = ldap_user()
+            return ldap_user.get_user_by_uid
+        elif srv == "FINGER":
+            self.lu = finger_user()
+            return finger_user.get_user_by_uid
+        else:
+             return self.get_user_by_uid_dft
 
     def get_user_by_uid(self, username):
-        #try ldap
-        user = self.lu.get_user_by_uid(username)
-
-        if not user:
-            # try finger...
-            user = self.fu.get_user_by_uid(username)
-        if not user:
+        """ Call external method configured, but if it fails will fall back to default method """
+        try:
+            get_user_by_uid = self._get_user_by_uid_creator(self.srv)
+            return get_user_by_uid(username)
+        except Exception as e:
+            return self.get_user_by_uid_dft(username)
+            
+    def get_user_by_uid_dft(self, username):
+        """ Default method creating username from synergy username and configured domain """
             #create default
-            user = {'name': username, 'mail': username + '@' + get_email_domain()}
+        user = {'name': username, 'mail': username + '@' + get_email_domain()}
         return user
 
 def get_email_domain():
@@ -52,147 +73,3 @@ def get_email_domain():
     except KeyError:
         domain = 'none.com'
     return domain
-
-class ldap_user(object):
-    """LDAP connection """
-
-    def __init__(self):
-        self.ldap = self.ldap_setup()
-
-    def __del__(self):
-        # Close the ldap session
-        self.ldap.unbind_s()
-
-    def get_user_by_uid(self, uid):
-        result = {}
-        if not self.ldap:
-            return result
-
-        base = "o=nokia"
-        scope = ldap.SCOPE_SUBTREE
-        filter = "uid=" + uid
-        retrieve_attributes = None
-        timeout = 0
-        try:
-            result_id = self.ldap.search(base, scope, filter, retrieve_attributes)
-            result_type, result_data = self.ldap.result(result_id, timeout)
-            if result_data:
-                if result_type == ldap.RES_SEARCH_ENTRY:
-                    d = result_data[0][1] # result dict
-                    if d.has_key('displayName'):
-                        result['name'] = d['displayName'][0]
-                    elif d.has_key('cn'):
-                        result['name'] = d['cn'][0]
-                    elif d.has_key('gecos'):
-                        result['name'] = d['gecos'][0]
-
-                    if d.has_key('mail'):
-                        result['mail'] = d['mail'][0]
-                    else:
-                        if d.has_key('displayName'):
-                            result['mail'] = result['name'].split(' ')[1] + '.' + result['name'].split(' ')[0] + '@' + get_email_domain()
-
-        except ldap.LDAPError as error_message:
-            logger.warning(error_message)
-
-        return result
-
-
-    def ldap_setup(self):
-        username, password, server = self.get_ldap_configuration()
-        if username:
-            l = ldap.open(server)
-            l.simple_bind_s(username, password)
-            return l
-        else:
-            return None
-
-
-    def get_ldap_configuration(self):
-        f = open('config.p', 'rb')
-        config = pickle.load(f)
-        f.close()
-        try:
-            username = config['username']
-            password = config['password']
-            server = config['server']
-        except KeyError:
-            username = None
-            password = None
-            server = None
-        return username, password, server
-
-
-def get_finger_configuration():
-    f = open('config.p', 'rb')
-    config = pickle.load(f)
-    f.close()
-    try:
-        server = config['finger']['server']
-    except KeyError:
-        server = None
-    try:
-        username = config['finger']['user']
-    except KeyError:
-        username = None
-
-    return username, server
-
-
-
-class finger_user(object):
-    def __init__(self):
-
-        username, server = get_finger_configuration()
-        if server and server != 'localhost':
-            self.command_name = 'ssh'
-            if username:
-                self.options = [username + '@' + server, 'finger', '-mp']
-            else:
-                self.options = [server, 'finger', '-mp']
-        else:
-            self.command_name = 'finger'
-            self.options = ['-mp']
-
-    def get_user_by_uid(self, uid):
-        result = {}
-        # build command
-        command = [self.command_name]
-        command.extend(self.options)
-        command.append(uid)
-
-        try:
-            res = self._run(command)
-        except FingerException:
-            return {}
-        name = []
-        for line in res.splitlines():
-            if line.startswith('Login'):
-                p = re.compile("Login:\s*.*\s*Name:\s*(.*)")
-                m = p.match(line)
-                if m:
-                    name = m.group(1)
-                break
-        if name:
-            result = {'name': name, 'mail': '.'.join(name.split(' ')) + '@' + get_email_domain()}
-        return result
-
-
-    def _run(self, command):
-        p = Popen(command, stdout=PIPE, stderr=PIPE)
-
-        # Store the result as a single string. It will be splitted later
-        stdout, stderr = p.communicate()
-
-        if stderr:
-            raise FingerException('Error while running the command: %s \nError message: %s' % (command, stderr))
-
-        return stdout
-
-class FingerException(Exception):
-    def __init__(self, value):
-        self.value = value
-
-    def __str__(self):
-        return repr(self.value)
-    
