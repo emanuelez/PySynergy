@@ -24,7 +24,7 @@ import pickle
 import re
 from subprocess import Popen, PIPE
 import logging as logger
-from user import get_email_domain
+import user
 import user_srv_factory as factory
 
 def get_finger_configuration():
@@ -78,7 +78,7 @@ class finger_user(object):
                     name = m.group(1)
                 break
         if name:
-            result = {'name': name, 'mail': '.'.join(name.split(' ')) + '@' + get_email_domain()}
+            result = {'name': name, 'mail': '.'.join(name.split(' ')) + '@' + user.get_email_domain()}
         return result
 
 

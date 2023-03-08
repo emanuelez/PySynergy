@@ -25,7 +25,7 @@ import ldap
 import re
 from subprocess import Popen, PIPE
 import logging as logger
-from user import get_email_domain
+import user
 import user_srv_factory as factory
 
 class ldap_user(object):
@@ -65,7 +65,7 @@ class ldap_user(object):
                         result['mail'] = d['mail'][0]
                     else:
                         if d.has_key('displayName'):
-                            result['mail'] = result['name'].split(' ')[1] + '.' + result['name'].split(' ')[0] + '@' + get_email_domain()
+                            result['mail'] = result['name'].split(' ')[1] + '.' + result['name'].split(' ')[0] + '@' + user.get_email_domain()
 
         except ldap.LDAPError as error_message:
             logger.warning(error_message)

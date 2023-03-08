@@ -21,14 +21,14 @@ FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.    IN NO EVENT SHALL THE COPYRI
 CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
-from user import get_email_domain
+import user
 
 class dft_user_srv():
     def __init__(self):
         pass      
     def get_user_by_uid(self, username):
         """ Default method creating username from synergy username and configured domain """
-        user = {'name': username, 'mail': username + '@' + get_email_domain()}
+        user = {'name': username, 'mail': username + '@' + user.get_email_domain()}
         return user
     
 class user_srv_factory():
