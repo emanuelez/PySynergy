@@ -30,7 +30,7 @@ import logging as logger
 
 
 def update_project_with_members(project, ccm, ccmpool):
-    print("Loading object %s" % project)
+    print(("Loading object %s" % project))
     project_obj = ccm_cache.get_object(project, ccm=ccm)
     if not project_obj.members:
         objects_in_project = ccm_objects_in_project.get_objects_in_project(project, ccm=ccm, ccmpool=ccmpool)
@@ -40,7 +40,7 @@ def update_project_with_members(project, ccm, ccmpool):
 
 def populate_cache_with_projects(config):
     heads = []
-    if config.has_key('heads'):
+    if 'heads' in config:
         heads = config['heads']
     heads.append(config['master'])
     base_project = config['base_project']
@@ -51,13 +51,13 @@ def populate_cache_with_projects(config):
         projects.extend(get_project_chain(head, base_project, ccm))
 
     # Got all the project chains - now get all the objects
-    print(sorted(set(projects)))
+    print((sorted(set(projects))))
     for project in sorted(set(projects)):
         populate_cache_with_objects_from_project(project, ccm, ccmpool)
 #        update_project_with_members(project, ccm, ccmpool)
 
 def populate_cache_with_project_and_members(project, ccm, ccmpool):
-    print("Loading object %s" % project)
+    print(("Loading object %s" % project))
     project_obj = ccm_cache.get_object(project, ccm=ccm)
     #assuming no project.members
     objects_in_project = ccm_objects_in_project.get_objects_in_project(project, ccm=ccm, ccmpool=ccmpool, use_cache=True)
@@ -66,7 +66,7 @@ def populate_cache_with_project_and_members(project, ccm, ccmpool):
 
 
 def populate_cache_with_objects_from_project(project, ccm, ccmpool):
-    print ("processing project %s" %project)
+    print(("processing project %s" %project))
     #first try to get the object from cache
     project_obj = ccm_cache.get_object(project, ccm)
     if not project_obj.members:

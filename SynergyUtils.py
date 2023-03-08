@@ -50,7 +50,7 @@ class CCMFilePath(object):
         #logger.info("Object: %s"% object_name)
         result = self.ccm.finduse(object_name).option("-released_proj").run().splitlines()
         #lets first try to see if any of the cached projects are already in the list
-        r = [(k,j) for (k,j) in product(self.path_lookup.keys(), result) if k in j]
+        r = [(k,j) for (k,j) in product(list(self.path_lookup.keys()), result) if k in j]
         if r:
             logger.info("Trying %s first for %s" %( r[0][1], object_name))
             #put the matching project to end of array
@@ -78,7 +78,7 @@ class CCMFilePath(object):
                         return path
                     else:
                         #try lookup table
-                        if parentproject in self.path_lookup.keys():
+                        if parentproject in list(self.path_lookup.keys()):
                             #logger.info("Path cached for: %s %s" %(object_name, self.path_lookup[parentproject]))
                             self.top_reached = 1
                             # Add remaning path
@@ -201,7 +201,7 @@ class ObjectHistory(object):
             else:
                 logger.info("history marked not ok")
                 logger.info("history was:")
-                for o in self.temp_history.values():
+                for o in list(self.temp_history.values()):
                     for s in o.get_successors():
                         logger.info('%s -> %s' %(o.get_object_name(), s))
                 logger.info('')
@@ -272,7 +272,7 @@ class ObjectHistory(object):
                         continue
 
             # Check if predecessor is already added to history - if so add this as successor to fileobject, else add new predecessor to history
-            if not self.temp_history.has_key(predecessor.get_object_name()):
+            if predecessor.get_object_name() not in self.temp_history:
                 logger.info("Adding %s %s to history" % (predecessor.get_object_name(), predecessor.get_status()) )
                 self.add_to_history(predecessor)
                 retval &= self.recursive_get_history(predecessor, recursion_depth)
@@ -312,7 +312,7 @@ class ObjectHistory(object):
         ret_val = False
         successors = predecessor.get_successors()
         for s in successors:
-            if s in self.release_lookup.keys():
+            if s in list(self.release_lookup.keys()):
                 return self.release_lookup[s]
             if s != fileobject.get_object_name():
                 try:

@@ -62,7 +62,7 @@ class CCMHistory(object):
         self.tag = baseline_project.get_name() + self.delim + baseline_project.get_version()
 
         # Initialize history
-        if self.tag not in self.history.keys():
+        if self.tag not in list(self.history.keys()):
             self.history[self.tag] = {'objects': [], 'tasks': []}
             self.history['delimiter'] = self.delim
         self.history[self.tag]['previous'] = None
@@ -89,7 +89,7 @@ class CCMHistory(object):
             next_project = ccm_cache.get_object(next, self.ccm)
 
             # Set next project for the current baseline_project
-            if self.history[self.tag].has_key('next'):
+            if 'next' in self.history[self.tag]:
                 if not next_project.get_name() + self.delim + next_project.get_version() in self.history[self.tag]['next']:
                     self.history[self.tag]['next'].append(next_project.get_name() + self.delim + next_project.get_version())
             else:
@@ -108,7 +108,7 @@ class CCMHistory(object):
 
             self.tag = next_project.get_name() + self.delim + next_project.get_version()
             logger.info("Next project: %s" % next_project.get_object_name())
-            if self.tag not in self.history.keys():
+            if self.tag not in list(self.history.keys()):
                 self.history[self.tag] = {'objects': [], 'tasks': []}
             self.history[self.tag]['previous'] = baseline_project.get_name() + self.delim + baseline_project.get_version()
 
@@ -139,7 +139,7 @@ class CCMHistory(object):
                 os.remove(fname + '_inc' + '.p')
 
         # Info for last project:
-        if not self.history[self.tag].has_key('next'):
+        if 'next' not in self.history[self.tag]:
             self.history[self.tag]['next'] = []
         logger.info("%s done processing, Info: " %self.tag)
         logger.info("Name        %s" % self.tag)
@@ -154,7 +154,7 @@ class CCMHistory(object):
         # Get the different types in the db and their corresponding file permissions and super types
         ccm_types_perms = ccm_type.get_types_and_permissions(self.ccm)
         ccm_super_types = ccm_type.get_super_types(self.ccm)
-        if not self.history.has_key('ccm_types'):
+        if 'ccm_types' not in self.history:
             self.history['ccm_types'] = {}
 
         self.history['ccm_types']['permissions'] = ccm_types_perms
@@ -180,8 +180,8 @@ class CCMHistory(object):
                 ccm_cache.force_cache_update_for_object(next_project)
             # Find difference between baseline_project and next_project
             new_objects, old_objects = get_changed_objects(self.baseline_objects, self.project_objects)
-            next_projects = [o for o in self.project_objects.keys() if ':project:' in o]
-            baseline_projects = [o for o in self.baseline_objects.keys() if ':project:' in o]
+            next_projects = [o for o in list(self.project_objects.keys()) if ':project:' in o]
+            baseline_projects = [o for o in list(self.baseline_objects.keys()) if ':project:' in o]
             object_history = ObjectHistory(self.ccm, next_project.get_object_name(), old_objects=old_objects, old_release=baseline_project.get_object_name(), new_projects=next_projects, old_projects=baseline_projects)
         else:
             # root project, get ALL objects in release
@@ -190,10 +190,10 @@ class CCMHistory(object):
             object_history = ObjectHistory(self.ccm, baseline_project.get_object_name())
 
 
-        num_of_objects = len([o for o in new_objects.keys() if ":project:" not in o])
+        num_of_objects = len([o for o in list(new_objects.keys()) if ":project:" not in o])
         logger.info("objects to process : %i" % num_of_objects)
         objects = []
-        if self.tag in self.history.keys():
+        if self.tag in list(self.history.keys()):
             if 'objects' in self.history[self.tag]:
                 #Add all existing objects
                 for o in self.history[self.tag]['objects']:
@@ -203,14 +203,14 @@ class CCMHistory(object):
         else:
             self.history[self.tag] = {'objects': [], 'tasks': []}
 
-        object_names = set([o for o in new_objects.keys() if ':project:' not in o]) - set(objects)
+        object_names = set([o for o in list(new_objects.keys()) if ':project:' not in o]) - set(objects)
 
         for o in object_names:
             object = ccm_cache.get_object(o, self.ccm)
             if next_project:
                 # get the object history between releases
                 history = object_history.get_history(object, new_objects[object.get_object_name()])
-                objects.extend(history.keys())
+                objects.extend(list(history.keys()))
                 #objects.update(object_history.get_history(object, new_objects[object.get_object_name()]))
             else:
                 # just get all the objects in the release
@@ -234,12 +234,12 @@ class CCMHistory(object):
             new_created_projects = get_new_projects(old_objects, new_objects, self.delim)
             dir_lookup ={}
             # create lookup for path to directory-4-part-name {path : dir-name}
-            for k,v in new_objects.iteritems():
+            for k,v in new_objects.items():
                 if ':dir:' in k:
                     for i in v:
                         dir_lookup[i] = k
             project_dirs = [dir for project in new_created_projects for dir in new_objects[project]]
-            directories = [d for k,v in new_objects.iteritems() for d in v if ':dir:' in k]
+            directories = [d for k,v in new_objects.items() for d in v if ':dir:' in k]
             changed_directories = set(directories).intersection(set(project_dirs))
             changed_directories = remove_subdirs_under_same_path(changed_directories)
             dirs = [dir_lookup[d] for d in changed_directories]
@@ -253,8 +253,8 @@ class CCMHistory(object):
              # find task and add all objects to the task, which shares the path.
             dir_tasks = self.find_task_from_dirs(directories)
             # merge project and dir tasks
-            for k,v in dir_tasks.iteritems():
-                if not project_tasks.has_key(k):
+            for k,v in dir_tasks.items():
+                if k not in project_tasks:
                     project_tasks[k] = v
             # if real synergy tasks isn't found check the path of the directories and skip possible subdirs
             tasks = self.reduce_dir_tasks(project_tasks)
@@ -266,7 +266,7 @@ class CCMHistory(object):
         self.history[self.tag]['objects'] = list(set(self.history[self.tag]['objects']))
 
     def update_tasks_with_directory_contens(self, tasks):
-        for k,v in tasks.iteritems():
+        for k,v in tasks.items():
             objects = self.find_children_of_dir(k)
             #if len(v) > 1:
             #    # TODO something
@@ -300,7 +300,7 @@ class CCMHistory(object):
 
     def find_children_of_dir(self, dir):
         objects = []
-        for k,v in self.project_objects.iteritems():
+        for k,v in self.project_objects.items():
             for path in v:
                 for p in self.project_objects[dir]:
                     if path.startswith(p):
@@ -337,7 +337,7 @@ class CCMHistory(object):
     def find_tasks_from_objects(self, objects, project):
         tasks = {}
         unconfirmed_tasks = {}
-        if self.tag in self.history.keys():
+        if self.tag in list(self.history.keys()):
             if 'tasks' in self.history[self.tag]:
                 for t in self.history[self.tag]['tasks']:
                     logger.info("loading old task: %s" % t.get_object_name())
@@ -361,14 +361,14 @@ class CCMHistory(object):
                     # try to add it anyway to see what happens...
                     unconfirmed_tasks[task.get_object_name()] = task
         # Add objects to tasks
-        [t.add_object(o) for o in objects for t in tasks.values() if t.get_object_name() in ccm_cache.get_object(o, self.ccm).get_tasks()]
+        [t.add_object(o) for o in objects for t in list(tasks.values()) if t.get_object_name() in ccm_cache.get_object(o, self.ccm).get_tasks()]
         # Add objects to unconfirmed tasks
-        [t.add_object(o) for o in objects for t in unconfirmed_tasks.values() if t.get_object_name() in ccm_cache.get_object(o, self.ccm).get_tasks()]
+        [t.add_object(o) for o in objects for t in list(unconfirmed_tasks.values()) if t.get_object_name() in ccm_cache.get_object(o, self.ccm).get_tasks()]
         logger.info("Sanitizing tasks")
         tasks = sanitize_tasks(tasks, unconfirmed_tasks)
 
-        logger.info("No of tasks in release %s: %i" % (project.get_object_name(), len(tasks.keys())))
-        self.history[self.tag]['tasks'] = tasks.values()
+        logger.info("No of tasks in release %s: %i" % (project.get_object_name(), len(list(tasks.keys()))))
+        self.history[self.tag]['tasks'] = list(tasks.values())
         fname = self.outputfile + '_' + self.tag + '_inc'
         self.persist_data(fname, self.history[self.tag])
 
@@ -376,7 +376,7 @@ class CCMHistory(object):
         self.history[self.tag]['objects'].extend([o for o in objects if ':project:' not in o])
 
     def get_new_dirs(self, members, new_objects):
-        new_directories = [d for d in new_objects.keys() if ':dir:' in d]
+        new_directories = [d for d in list(new_objects.keys()) if ':dir:' in d]
         directories = []
         for dir in new_directories:
             dir_obj = ccm_cache.get_object(dir, self.ccm)
@@ -394,7 +394,7 @@ class CCMHistory(object):
     def reduce_dir_tasks(self, tasks):
         # find the fake tasks
         fake_tasks = []
-        for k,v in tasks.iteritems():
+        for k,v in tasks.items():
             #if len(v) > 1:
             #hmmm
             if not v[0].startswith('task'):
@@ -408,7 +408,7 @@ class CCMHistory(object):
             # remove the entry from the tasks dict
             del tasks[dir]
 
-        dirs = remove_subdirs_under_same_path(paths.keys())
+        dirs = remove_subdirs_under_same_path(list(paths.keys()))
 
         tmp_tasks = {}
         for dir in dirs:
@@ -419,8 +419,8 @@ class CCMHistory(object):
 
 
 def sanitize_tasks(confirmed_tasks, unconfirmed_tasks):
-    confirmed_objects = set([o for t in confirmed_tasks.values() for o in t.objects])
-    unconfirmed_objects = set([o for t in unconfirmed_tasks.values() for o in t.objects])
+    confirmed_objects = set([o for t in list(confirmed_tasks.values()) for o in t.objects])
+    unconfirmed_objects = set([o for t in list(unconfirmed_tasks.values()) for o in t.objects])
     logger.info("Length of unconfirmed before %d" %len(unconfirmed_objects))
     # remove objects in confirmed tasks from unconfirmed
     for o in set(confirmed_objects):
@@ -430,10 +430,10 @@ def sanitize_tasks(confirmed_tasks, unconfirmed_tasks):
 
     # Recreate the tasks with removed objects
     all_tasks = {}
-    for task in unconfirmed_tasks.values():
+    for task in list(unconfirmed_tasks.values()):
         for o in task.objects:
             if o in unconfirmed_objects:
-                if all_tasks.has_key(task.get_object_name()):
+                if task.get_object_name() in all_tasks:
                     all_tasks[task.get_object_name()].append(o)
                 else:
                     all_tasks[task.get_object_name()] = [o]
@@ -467,7 +467,7 @@ def sanitize_tasks(confirmed_tasks, unconfirmed_tasks):
         sanitized[task] = to
     sanitized.update(confirmed_tasks)
     logger.info("Tasks filtered out:")
-    logger.info("%s" % str(remaining_tasks.keys()))
+    logger.info("%s" % str(list(remaining_tasks.keys())))
     return sanitized
 
 def find_greatest_cover(uncovered, covered, sets, discard_covered_intersection=False):
@@ -475,7 +475,7 @@ def find_greatest_cover(uncovered, covered, sets, discard_covered_intersection=F
     count = 0
     discard = None
     #remaning_elements = set([e for set in sets for e in sets[set]])
-    for s, elements in sets.iteritems():
+    for s, elements in sets.items():
         c = uncovered.intersection(set(elements))
         if len(c) > count:
             # Check if using elements already covered
@@ -492,7 +492,7 @@ def find_greatest_cover(uncovered, covered, sets, discard_covered_intersection=F
 
 def get_dir_with_path(paths, dir, objects):
     paths_of_dir = [p +'/' + dir.strip('/') for p in paths]
-    for k,v in objects.iteritems():
+    for k,v in objects.items():
         if v == paths_of_dir:
             return k
 
@@ -556,8 +556,8 @@ def get_project_chain(head_project, base_project, ccm):
     return chain
 
 def find_empty_dirs(objects):
-    dirs = [d for o, paths in objects.iteritems() for d in paths if ':dir:' in o]
-    file_dirs = [d.rsplit('/',1)[0] for o, paths in objects.iteritems() for d in paths if ':dir:' not in o and ':project:' not in o]
+    dirs = [d for o, paths in objects.items() for d in paths if ':dir:' in o]
+    file_dirs = [d.rsplit('/',1)[0] for o, paths in objects.items() for d in paths if ':dir:' not in o and ':project:' not in o]
     leaf_dirs = get_leaf_dirs(dirs)
     empty_leaves = set(leaf_dirs) - set(file_dirs)
     return empty_leaves

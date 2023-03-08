@@ -152,7 +152,7 @@ def convert_history(files, tasks, releases, objects):
     log.info("Looking for cycles in the Commits graph")
     while find_cycle(commits):
         log.info("Finding strictly connected components")
-        cycle = max(mutual_accessibility(commits).values(), key=len)
+        cycle = max(list(mutual_accessibility(commits).values()), key=len)
 
         #cycle = find_cycle(commits)
 
@@ -182,7 +182,7 @@ def convert_history(files, tasks, releases, objects):
         reduced_digraph.add_nodes(culpript_nodes)
         [reduced_digraph.add_edge(edge) for edge in culpript_edges]
 
-        shortest_cycle = max(mutual_accessibility(reduced_digraph).values(), key=len)
+        shortest_cycle = max(list(mutual_accessibility(reduced_digraph).values()), key=len)
         log.info("Cycle in objects: %s" % shortest_cycle)
 
         candidate_cuts = []
@@ -407,13 +407,13 @@ def spaghettify_digraph(g, head, tail):
     
     for component in set(components.values()):
         # Find the nodes in the component
-        nodes = set([k for k, v in components.iteritems() if v == component])
+        nodes = set([k for k, v in components.items() if v == component])
         hc[frozenset(heads.intersection(nodes))] = component
         tc[frozenset(tails & nodes)] = component
 
-    for component in xrange(1, len(hc)):
-        current_heads = next((t for t, c in hc.iteritems() if c == component + 1))
-        current_tails = next((t for t, c in tc.iteritems() if c == component))
+    for component in range(1, len(hc)):
+        current_heads = next((t for t, c in hc.items() if c == component + 1))
+        current_tails = next((t for t, c in tc.items() if c == component))
 
         for current_head, current_tail in product(current_heads, current_tails):
             original.add_edge((current_tail, current_head))

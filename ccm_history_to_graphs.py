@@ -33,7 +33,7 @@ from pygraph.classes.hypergraph import hypergraph
 def create_graphs_from_releases(releases):
     # Find first release i.e. where previous is none
     release = None
-    for k, v in releases.iteritems():
+    for k, v in releases.items():
         if k == 'delimiter':
             continue
         if k == 'ccm_types':

@@ -57,7 +57,7 @@ def load_history(config):
                         fh = open(f, 'rb')
                         hist = pickle.load(fh)
                         fh.close()
-                        if 'name' in hist.keys():
+                        if 'name' in list(hist.keys()):
                             history[hist['name']] = hist
 
     logger.info("history contains: %s" % str(sorted(history.keys())))
@@ -80,7 +80,7 @@ def main():
     ccm_hist = CCMHistory(ccm, ccm_pool, history, config['data_file'])
     history = ccm_hist.get_project_history(config['master'], config['base_project'])
 
-    if config.has_key('heads'):
+    if 'heads' in config:
         for head in config['heads']:
             history = ccm_hist.get_project_history(head, config['base_project'])
         

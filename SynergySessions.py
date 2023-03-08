@@ -50,8 +50,8 @@ class SynergySessions(object):
         """populate and array with synergy sessions"""
         create_sessions_pool(self.nr_sessions, self.database, self.engine, self.command_name, self.ccm_ui_path, self.ccm_eng_path, self.offline, self)
 
-        for k, v in self.sessionArray.iteritems():
-            print("session %d: %s" %(k, v.getCCM_ADDR()))
+        for k, v in self.sessionArray.items():
+            print(("session %d: %s" %(k, v.getCCM_ADDR())))
             v.keep_session_alive = False
 
     def put_session(self, res):
@@ -79,7 +79,7 @@ def create_sessions_pool(nr_sessions, database, engine, command_name, ccm_ui_pat
         if offline:
             print("Offline mode, just using cache")
         else:
-            print("starting session [" + str(i) + "]")
+            print(("starting session [" + str(i) + "]"))
 
     pool.close()
 

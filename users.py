@@ -37,7 +37,7 @@ class users(object):
 
     def get_user(self, username):
         # check if user exists in cache, otherwise fetch user from server
-        if self.users.has_key(username):
+        if username in self.users:
             return self.users[username]
         else:
             user = self.user.get_user_by_uid(username)
@@ -46,7 +46,7 @@ class users(object):
         return user
 
     def store_user(self, username):
-        if not self.users.has_key(username):
+        if username not in self.users:
             user = self.user.get_user_by_uid(username)
             self.users[username] = user
 

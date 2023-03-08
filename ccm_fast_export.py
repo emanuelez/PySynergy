@@ -50,7 +50,7 @@ def ccm_fast_export(releases, graphs):
     commit_lookup = {}
 
     # Get the  initial release
-    for k, v in releases.iteritems():
+    for k, v in releases.items():
         if k == 'delimiter':
             continue
         if k == 'ccm_types':
@@ -95,7 +95,7 @@ def ccm_fast_export(releases, graphs):
                    'author Nokia <nokia@nokia.com> ' + str(int(initial_release_time)) + " +0000",
                    'committer Nokia <nokia@nokia.com> ' + str(int(initial_release_time)) + " +0000", 'data 15',
                    'Initial commit', '\n'.join(files), '']
-    print ('\n'.join(commit_info))
+    print(('\n'.join(commit_info)))
 
     logger.info("git-fast-import:\n%s" %('\n'.join(commit_info)))
 
@@ -105,7 +105,7 @@ def ccm_fast_export(releases, graphs):
                'tagger Nokia <nokia@nokia.com> ' + str(int(initial_release_time)) + " +0000",
                'data %s' % len(tag_msg),
                tag_msg]
-    print ('\n'.join(annotated_tag))
+    print(('\n'.join(annotated_tag)))
     
     commit_lookup[release] = mark
     # do the following releases (graphs)
@@ -142,7 +142,7 @@ def ccm_fast_export(releases, graphs):
         logger.info("Ancestors of the release: %s" % str(ancestors[release]))
 
         # Clean up the ancestors matrix
-        for k, v in ancestors.iteritems():
+        for k, v in ancestors.items():
             if k in v:
                 v.remove(k)
 
@@ -157,7 +157,7 @@ def ccm_fast_export(releases, graphs):
 
         # Check if the release (Synergy project has changed name, if it has the
         # 'base' directory name needs to be renamed
-        if releases.has_key('delimiter'):
+        if 'delimiter' in releases:
             delim = releases['delimiter']
         else:
             delim = '-'
@@ -167,7 +167,7 @@ def ccm_fast_export(releases, graphs):
             logger.info("Name changed: %s -> %s" %(previous_name, current_name))
             from_mark = commit_lookup[previous_release]
             mark, commit = rename_toplevel_dir(previous_name, current_name, release, releases, mark, from_mark)
-            print ('\n'.join(commit))
+            print(('\n'.join(commit)))
             # adjust the commit lookup
             commit_lookup[previous_release] = mark
 
@@ -206,9 +206,9 @@ def ccm_fast_export(releases, graphs):
             reference = [commit_lookup[ releases[release]['previous'] ] ]
 
         mark, merge_commit = create_release_merge_commit(releases, release, get_mark(mark), reference, graphs, set(ancestors[release]) - set(acn_ancestors))
-        print ('\n'.join(merge_commit))
+        print(('\n'.join(merge_commit)))
         annotated_tag = create_annotated_tag(releases, release, mark)
-        print ('\n'.join(annotated_tag))
+        print(('\n'.join(annotated_tag)))
 
         commit_lookup[release] = mark
         release_queue.extend(releases[release]['next'])
@@ -219,7 +219,7 @@ def ccm_fast_export(releases, graphs):
     master = get_master_tag()
     reset = ['reset refs/heads/master', 'from :' + str(commit_lookup[master])]
     logger.info("git-fast-import:\n%s" %('\n'.join(reset)))
-    print ('\n'.join(reset))
+    print(('\n'.join(reset)))
 
 def create_annotated_tag(releases, release, mark):
     global users
@@ -338,7 +338,7 @@ def create_merge_commit(n, release, releases, mark, reference, graphs, ancestors
     else:
         mark, commit = make_commit_from_object(single_object, get_mark(mark), reference, release, file_list)
 
-    print ('\n'.join(commit))
+    print(('\n'.join(commit)))
     return mark
 
 def create_commit(n, release, releases, mark, reference, graphs):
@@ -368,7 +368,7 @@ def create_commit(n, release, releases, mark, reference, graphs):
 
         file_list = create_file_list(objects, object_lookup, releases['ccm_types']['permissions'], releases[release]['fourpartname'])
         mark, commit = make_commit_from_task(task, n, get_mark(mark), reference, release, file_list)
-        print ('\n'.join(commit))
+        print(('\n'.join(commit)))
         return mark
 
     else:
@@ -381,7 +381,7 @@ def create_commit(n, release, releases, mark, reference, graphs):
 
         file_list = create_file_list([single_object], object_lookup, releases['ccm_types']['permissions'], releases[release]['fourpartname'])
         mark, commit = make_commit_from_object(single_object, get_mark(mark), reference, release, file_list)
-        print ('\n'.join(commit))
+        print(('\n'.join(commit)))
         return mark
 
 def make_commit_from_task(task, task_name, mark, reference, release, file_list):
@@ -457,7 +457,7 @@ def create_file_list(objects, lookup, ccm_types, project, empty_dirs=None, empty
         l.append('D ' + project_object.name)
         # Insert all files in the release
         logger.info("Loading all objects for %s"  %project_object.get_object_name())
-        for object, paths in project_object.members.iteritems():
+        for object, paths in project_object.members.items():
             if not ':dir:' in object and not ':project:' in object:
                 perm = ccm_types[object.split(':')[1]]
                 for p in paths:
@@ -474,14 +474,14 @@ def create_file_list(objects, lookup, ccm_types, project, empty_dirs=None, empty
     return '\n'.join(l)
 
 def get_object_paths(object, project_paths):
-    if project_paths.has_key(object.get_object_name()):
+    if object.get_object_name() in project_paths:
         return project_paths[object.get_object_name()]
     path = get_path_of_object_in_release(object, project_paths)
     return path
 
 def get_path_of_object_in_release(object, project_paths):
     logger.info("Finding path of %s" %object.get_object_name())
-    for k, v in project_paths.iteritems():
+    for k, v in project_paths.items():
         if k.startswith(object.name):
             logger.info("Found similar object %s" % k)
             # Check if three part name matches:
@@ -505,15 +505,15 @@ def create_commit_msg_from_task(tasks, task_name):
         attr = task.get_attributes()
 
         #Do Task synopsis and description first
-        if attr.has_key('task_synopsis'):
+        if 'task_synopsis' in attr:
             msg.append(attr['task_synopsis'].strip())
             msg.append('')
-        if attr.has_key('task_description'):
+        if 'task_description' in attr:
             if not attr['task_description'].strip() == "":
                 msg.append('Synergy-description: %s' %attr['task_description'].strip())
                 msg.append('')
 
-        for k, v in attr.iteritems():
+        for k, v in attr.items():
             if k == 'task_synopsis':
                 continue
             if k == 'task_description':
@@ -561,12 +561,12 @@ def reduce_objects_for_commit(objects):
     objs = {}
     for o in objects:
         key = o.get_name() + ':' + o.get_type() + ':' + o.get_instance()
-        if key in objs.keys():
+        if key in list(objs.keys()):
             objs[key].append(o)
         else:
             objs[key] = [o]
 
-    for v in objs.values():
+    for v in list(objs.values()):
         o = sort_objects_by_history(v)
         ret_val.append(o)
 
@@ -605,7 +605,7 @@ def decide_type(obj):
 
 def create_blob(obj, mark):
     global object_mark_lookup
-    if object_mark_lookup.has_key(obj.get_object_name()):
+    if obj.get_object_name() in object_mark_lookup:
         object_mark = object_mark_lookup[obj.get_object_name()]
         logger.info("Used lookup-mark: %s for: %s" % (str(object_mark), obj.get_object_name()))
         return object_mark, mark
@@ -627,13 +627,13 @@ def create_blob(obj, mark):
         length = len(content)
         blob.append('data '+ str(length))
         blob.append(content)
-        print ('\n'.join(blob))
+        print(('\n'.join(blob)))
         object_mark_lookup[obj.get_object_name()] = next_mark
         return next_mark, next_mark
 
 def create_blob_for_empty_dir(mark):
     blob = ['blob', 'mark :' + str(mark), 'data 0']
-    print ('\n'.join(blob))
+    print(('\n'.join(blob)))
     return mark
 
 def rename_toplevel_dir(previous_name, current_name, release, releases, mark, from_mark):

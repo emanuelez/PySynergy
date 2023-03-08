@@ -54,17 +54,17 @@ class ldap_user(object):
             if result_data:
                 if result_type == ldap.RES_SEARCH_ENTRY:
                     d = result_data[0][1] # result dict
-                    if d.has_key('displayName'):
+                    if 'displayName' in d:
                         result['name'] = d['displayName'][0]
-                    elif d.has_key('cn'):
+                    elif 'cn' in d:
                         result['name'] = d['cn'][0]
-                    elif d.has_key('gecos'):
+                    elif 'gecos' in d:
                         result['name'] = d['gecos'][0]
 
-                    if d.has_key('mail'):
+                    if 'mail' in d:
                         result['mail'] = d['mail'][0]
                     else:
-                        if d.has_key('displayName'):
+                        if 'displayName' in d:
                             result['mail'] = result['name'].split(' ')[1] + '.' + result['name'].split(' ')[0] + '@' + user.get_email_domain()
 
         except ldap.LDAPError as error_message:

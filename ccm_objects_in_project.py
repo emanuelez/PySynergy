@@ -36,7 +36,7 @@ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
 OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
-import Queue
+import queue
 from SynergySession import SynergySession, SynergyException
 from SynergyObject import SynergyObject
 from collections import deque
@@ -142,7 +142,7 @@ def get_objects_in_project_serial(project, ccm=None, database=None, use_cache=Fa
                     proj_lookup[synergy_object.get_object_name()] = \
                     proj_lookup[obj.get_object_name()]
                     # Also add the directory to the Hierachy to get empty dirs
-                if synergy_object.get_object_name() in hierarchy.keys():
+                if synergy_object.get_object_name() in list(hierarchy.keys()):
                     hierarchy[synergy_object.get_object_name()].append(
                         '%s%s' % (cwd, synergy_object.get_name()))
                 else:
@@ -156,7 +156,7 @@ def get_objects_in_project_serial(project, ccm=None, database=None, use_cache=Fa
                 # .get_object_name(), o.get_object_name(), cwd))
                 # Add the project to the hierarchy,
                 # so the subprojects for the release/project is known
-                if synergy_object.get_object_name() in hierarchy.keys():
+                if synergy_object.get_object_name() in list(hierarchy.keys()):
                     hierarchy[synergy_object.get_object_name()].append(
                         '%s%s' % (cwd, synergy_object.get_name()))
                 else:
@@ -165,7 +165,7 @@ def get_objects_in_project_serial(project, ccm=None, database=None, use_cache=Fa
             else:
                 # Add the object to the hierarchy
                 if obj.get_type() == 'dir':
-                    if synergy_object.get_object_name() in hierarchy.keys():
+                    if synergy_object.get_object_name() in list(hierarchy.keys()):
                         hierarchy[synergy_object.get_object_name()].append(
                             '%s%s' % (cwd, synergy_object.get_name()))
                     else:
@@ -270,7 +270,7 @@ def do_results(from_queue, hierarchy, dir_structure, proj_lookup):
                 proj_lookup[obj.get_object_name()]
 
             # Also add the directory to the Hierarchy to get empty dirs
-            if synergy_object.get_object_name() in hierarchy.keys():
+            if synergy_object.get_object_name() in list(hierarchy.keys()):
                 hierarchy[synergy_object.get_object_name()].append(
                     '%s%s' % (cwd, synergy_object.get_name()))
             else:
@@ -284,7 +284,7 @@ def do_results(from_queue, hierarchy, dir_structure, proj_lookup):
             next_on_queue.append(synergy_object)
             # Add the project to the hierarchy,
             # so the subprojects for the release/project is known
-            if synergy_object.get_object_name() in hierarchy.keys():
+            if synergy_object.get_object_name() in list(hierarchy.keys()):
                 hierarchy[synergy_object.get_object_name()].append(
                     '%s%s' % (cwd, synergy_object.get_name()))
             else:
@@ -292,7 +292,7 @@ def do_results(from_queue, hierarchy, dir_structure, proj_lookup):
                 ['%s%s' % (cwd, synergy_object.get_name())]
         else:
             # Add the object to the hierarchy
-            if synergy_object.get_object_name() in hierarchy.keys():
+            if synergy_object.get_object_name() in list(hierarchy.keys()):
                 hierarchy[synergy_object.get_object_name()].append(
                     '%s%s' % (cwd, synergy_object.get_name()))
             else:
@@ -304,7 +304,7 @@ def do_results(from_queue, hierarchy, dir_structure, proj_lookup):
 
 def get_and_lock_free_ccm_addr(free_ccm):
     """ Get a free ccm session and mark it as being in use """
-    for k in free_ccm.keys():
+    for k in list(free_ccm.keys()):
         entry = free_ccm[k]
         if free_ccm[k]['free']:
             # Extract dict entry and write it back to dict to inform manager
@@ -320,7 +320,7 @@ def get_objects_in_project_parallel(project, ccmpool=None, use_cache=False):
     mgr = Manager()
     free_ccm = mgr.dict()
 
-    for ccm in ccmpool.sessionArray.values():
+    for ccm in list(ccmpool.sessionArray.values()):
         free_ccm[ccm.getCCM_ADDR()] = {'free': True, 'database': ccm.database}
     ccm_addr, database = get_and_lock_free_ccm_addr(free_ccm)
     ccm = SynergySession(database, ccm_addr=ccm_addr)
@@ -364,7 +364,7 @@ def consumer(c_queue, p_queue, free_ccm, semaphore, delim, use_cache):
     """ This thread handles queries to the ccm sessions by allpying them
     async to a process pool """
     done = False
-    pool = Pool(len(free_ccm.keys()))
+    pool = Pool(len(list(free_ccm.keys())))
 
     while not done:
         #get item from queue
@@ -399,7 +399,7 @@ def producer(c_queue, p_queue, free_ccm):
         #if not p_queue.qsize():
         done = True
         for i in range(10):
-            if [free_ccm[k]['free'] for k in free_ccm.keys() if
+            if [free_ccm[k]['free'] for k in list(free_ccm.keys()) if
                 free_ccm[k]['free'] == False]:
                 done = False
                 logger.debug("ccm busy...")
@@ -419,11 +419,11 @@ def producer(c_queue, p_queue, free_ccm):
         try:
             next_in_queue = p_queue.get(timeout=1200) # 1200 secs,
             # to allow ccm_cache to populate if option is chosen
-        except Queue.Empty:
+        except queue.Empty:
             logger.warning("Synergy timeout")
             logger.debug("Free ccm: %s ",
-                         [k['free'] for k in free_ccm.values()] )
-            for k in free_ccm.keys():
+                         [k['free'] for k in list(free_ccm.values())] )
+            for k in list(free_ccm.keys()):
                 entry = free_ccm[k]
                 if free_ccm[k]['free']:
                     entry['free'] = True
@@ -440,7 +440,7 @@ def producer(c_queue, p_queue, free_ccm):
             c_queue.put((synergy_object, parent_proj))
 
         logger.debug("Objects %6d ... P queue %6d ... C queue %6d" % (
-        len(project_hierarchy.keys()), p_queue.qsize(), c_queue.qsize()))
+        len(list(project_hierarchy.keys())), p_queue.qsize(), c_queue.qsize()))
 
     logger.debug("we're done...")
     if done:

@@ -63,7 +63,7 @@ def load_config_file():
         for k,v in config_parser.items('finger'):
             config['finger'][k] = v
 
-    if config.has_key('heads'):
+    if 'heads' in config:
         if config['master'] in config['heads']:
             config['heads'].remove(config['master'])
 

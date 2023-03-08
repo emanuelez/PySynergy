@@ -96,9 +96,9 @@ class TaskObject(SynergyObject.SynergyObject):
     def set_attributes(self, attributes):
         self.attributes = attributes
         self.complete_time = self.find_status_time('complete', self.attributes['status_log'], self.instance)
-        if 'task_description' in self.attributes.keys():
+        if 'task_description' in list(self.attributes.keys()):
             self.description = self.attributes['task_description']
-        if 'task_number' in self.attributes.keys():
+        if 'task_number' in list(self.attributes.keys()):
             self.attributes['task_number'] = self.get_display_name()
 
     def find_status_time(self, status, status_log, db):
