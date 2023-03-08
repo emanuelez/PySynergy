@@ -25,6 +25,8 @@ import ldap
 import re
 from subprocess import Popen, PIPE
 import logging as logger
+from user import get_email_domain
+import user_srv_factory as factory
 
 class ldap_user(object):
     """LDAP connection for user oject"""
@@ -94,3 +96,5 @@ class ldap_user(object):
             password = None
             server = None
         return username, password, server
+
+factory.register_srv('LDAP', ldap_user)

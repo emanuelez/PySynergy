@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-User.py
+user_finger.py
 
 Created by Aske Olsson on 2011-06-28.
 Copyright (c) 2011, Nokia
@@ -24,8 +24,8 @@ import pickle
 import re
 from subprocess import Popen, PIPE
 import logging as logger
-
-
+from user import get_email_domain
+import user_srv_factory as factory
 
 def get_finger_configuration():
     f = open('config.p', 'rb')
@@ -100,3 +100,5 @@ class FingerException(Exception):
     def __str__(self):
         return repr(self.value)
     
+# register ourselves to the factory
+factory.register_srv('FINGER', finger_user)

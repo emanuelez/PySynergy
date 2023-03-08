@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-User.py
+user_srv_factory.py
 
-Created by Aske Olsson on 2011-06-28.
-Copyright (c) 2011, Nokia
+Created by Selso LIBERADO on 2023-03-08.
+Copyright (c) 2023, Guerbet
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -20,40 +20,34 @@ FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.    IN NO EVENT SHALL THE COPYRI
 (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
 CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
-import pickle
-import re
-import logging as logger
 
-import user_srv_factory as factory
+from user import get_email_domain
 
-class user(object):
-    """ User object that contains user detailed info retreived from remote service
-    """
-    def __init__(self, srv: str = 'DFT'):
-        """ Init with Sevice selection
-        """
-        # to reproduce 'past behavior" we'll call default getter whenever the selected service fails.
-        self.user_srv_dft = factory.get_user_srv('DFT')
-        if srv != 'DFT':
-            self.user_srv = factory.get_user_srv(srv)
-
+class dft_user_srv():
+    def __init__(self):
+        pass      
     def get_user_by_uid(self, username):
-        """ Call external method configured, but if it fails will fall back to default method """
-        result = {}
-        try:
-            result =  self.user_srv.get_user_by_uid(username)
-        except Exception as e:
-             if self.user_srv != self.user_srv_dft:
-                result = self.user_srv.user_srv_dft(username)
-        return result
-        
-
-def get_email_domain():
-    f = open('config.p', 'rb')
-    config = pickle.load(f)
-    f.close()
-    try:
-        domain = config['email_domain']
-    except KeyError:
-        domain = 'none.com'
-    return domain
+        """ Default method creating username from synergy username and configured domain """
+        user = {'name': username, 'mail': username + '@' + get_email_domain()}
+        return user
+    
+class user_srv_factory():
+    """ Serializer factory to provide dynamic abstraction above product method,
+        and runtime dependency addition.
+    """
+    def __init__(self):
+        self._creators = {}
+    def register_srv(self, srv: str, creator):
+        self._creators[srv] = creator
+    def get_user_srv(self, srv : str):
+        creator = self._creators.get(srv)
+        if not creator:
+            raise ValueError(srv)
+        return creator()
+    
+factory = user_srv_factory()
+# register default only
+factory.register_srv('DFT', dft_user_srv)
+# Let other services register themselves if appropriate
+#factory.register_srv('LDAP', ldap_user)
+#factory.register_srv('FINGER', finger_user)

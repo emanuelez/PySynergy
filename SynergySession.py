@@ -152,7 +152,7 @@ class SynergySession(object):
         """Returns the delimiter defined in the Synergy DB"""
         self._reset_status()
         delim = self._run(['delim']).strip()
-        if delim is "":
+        if delim == "":
             return "-"
         return delim
 
