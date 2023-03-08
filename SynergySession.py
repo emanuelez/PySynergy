@@ -68,7 +68,8 @@ class SynergySession(object):
         if not ccm_addr:
             if not self.offline:
                 # Open the session
-                p = Popen(args, stdout=PIPE, stderr=PIPE, env=self.environment)
+                logger.info('Opening session : %s' %args )
+                p = Popen(args, stdout=PIPE, stderr=PIPE, env=self.environment, text=True)
                 # Store the session data
                 #p.wait()
                 stdout, stderr = p.communicate()
