@@ -23,6 +23,7 @@ CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING 
 
 import sys
 import os
+import io
 import re
 import random
 from datetime import datetime, timedelta
@@ -31,8 +32,17 @@ from SynergySession import SynergySession
 import time
 from multiprocessing import Pool, Process, Queue
 
-sys.stdout =  os.fdopen(sys.stdout.fileno(), 'w', 0);
-sys.stderr =  os.fdopen(sys.stderr.fileno(), 'w', 0);
+
+# Disable output buffering :
+# https://stackoverflow.com/questions/107705/disable-output-buffering
+# reopen stdout file descriptor with write mode
+# and 0 as the buffer size (unbuffered)
+# Python 3, open as binary, then wrap in a TextIOWrapper with write-through.
+sys.stdout = io.TextIOWrapper(open(sys.stdout.fileno(), 'wb', 0), write_through=True)
+sys.stderr =  io.TextIOWrapper(open(sys.stderr.fileno(), 'wb', 0), write_through=True)
+# If flushing on newlines is sufficient, as of 3.7 you can instead just call:
+# sys.stdout.reconfigure(line_buffering=True)
+
 
 class SynergySessions(object):
     """This class is a wrapper around a pool of cm synergy sessions"""
