@@ -56,7 +56,10 @@ class SynergyObject(object):
         return self.separator
 
     def set_separator(self, separator):
-        self.separator = separator
+        if (isinstance(separator, bytes)):
+            self.separator = separator.decode()
+        else:
+            self.separator = separator
 
     def get_object_name_pattern(self):
         return "(.+)" + self.separator + "(.+):(.+):(.+)"
