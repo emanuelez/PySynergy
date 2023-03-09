@@ -22,8 +22,6 @@ CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING 
 """
 import pickle
 import ldap
-import re
-from subprocess import Popen, PIPE
 import logging as logger
 import user
 import user_srv_factory as factory

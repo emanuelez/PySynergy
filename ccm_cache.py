@@ -130,7 +130,8 @@ def delete_object(obj):
 
 def get_path_for_object(obj, ccm_cache_path):
     m = hashlib.sha1()
-    m.update(obj)
+    # hashlib need encoded string
+    m.update(obj.encode())
     sha = m.hexdigest()
     dir = ccm_cache_path + sha[0:2]
     filename = dir + '/' + sha[2:-1]
@@ -273,13 +274,14 @@ def get_object_from_ccm(four_part_name, ccm, ccm_cache_path):
     delim = ccm.delim()
     synergy_object = SynergyObject(four_part_name, delim)
     try:
-        res = ccm.query("name='{0}' and version='{1}' and type='{2}' and instance='{3}'".format(synergy_object.get_name(), synergy_object.get_version(), synergy_object.get_type(), synergy_object.get_instance())).format("%objectname").format("%owner").format("%status").format("%create_time").format("%task").run()
+        # Force the query result date format to make it consistent with strptime format
+        res = ccm.query("name='{0}' and version='{1}' and type='{2}' and instance='{3}'".format(synergy_object.get_name(), synergy_object.get_version(), synergy_object.get_type(), synergy_object.get_instance())).format("%objectname").format("%owner").format("%status").format("%{create_time[dateformat=\\\"yyyy.MM.dd H:mm:s\\\"]}").format("%task").run()
     except SynergyException:
         raise ObjectCacheException("Couldn't query four-part-name of %s from Synergy" % four_part_name)
     if res:
         synergy_object.status = res[0]['status']
         synergy_object.author =  res[0]['owner']
-        synergy_object.created_time = datetime.strptime(res[0]['create_time'], "%a %b %d %H:%M:%S %Y")
+        synergy_object.created_time = datetime.strptime(res[0]['create_time'], "%Y.%m.%d %H:%M:%S")
         tasks = []
         for t in res[0]['task'].split(','):
             if t != '<void>':

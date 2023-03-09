@@ -130,8 +130,8 @@ class SynergySession(object):
 
                 if (retrycount > 0): # more sleep on retry operations
                     time.sleep(0.2 * random.random())
-
-                p = Popen(command, stdout=PIPE, stderr=PIPE, env=self.environment)
+                logger.info('Execute command : %s' %command )
+                p = Popen(command, stdout=PIPE, stderr=PIPE, env=self.environment, text=True)
 
                 # Store the result as a single string. It will be splitted later
                 stdout, stderr = p.communicate()

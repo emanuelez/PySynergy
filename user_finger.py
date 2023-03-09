@@ -83,7 +83,7 @@ class finger_user(object):
 
 
     def _run(self, command):
-        p = Popen(command, stdout=PIPE, stderr=PIPE)
+        p = Popen(command, stdout=PIPE, stderr=PIPE, text=True)
 
         # Store the result as a single string. It will be splitted later
         stdout, stderr = p.communicate()
