@@ -80,7 +80,7 @@ def get_object(obj, ccm=None):
                 #couldn't start Synergy on this computer
                 raise ObjectCacheException("Couldn't start Synergy")
         try:
-#            logger.debug("Get %s from Synergy", obj)
+            logger.debug("Get %s from Synergy", obj)
             object_data = get_object_from_ccm(obj, ccm, ccm_cache_path)
         except ObjectCacheException:
             raise ObjectCacheException("Couldn't extract %s from Synergy" % obj)
@@ -219,6 +219,8 @@ def update_cache(object, ccm, ccm_cache_path):
     if type != 'project' and type != 'task' and type != 'dir':
         # Store the content of the object
         content = get_content(object, ccm)
+        if not isinstance(content, bytes):
+            content = content.encode()
         f = open(filename, 'wb')
         f.write(content)
         f.close()
@@ -274,8 +276,8 @@ def get_object_from_ccm(four_part_name, ccm, ccm_cache_path):
     delim = ccm.delim()
     synergy_object = SynergyObject(four_part_name, delim)
     try:
-        # Force the query result date format to make it consistent with strptime format
-        res = ccm.query("name='{0}' and version='{1}' and type='{2}' and instance='{3}'".format(synergy_object.get_name(), synergy_object.get_version(), synergy_object.get_type(), synergy_object.get_instance())).format("%objectname").format("%owner").format("%status").format("%{create_time[dateformat=\\\"yyyy.MM.dd H:mm:s\\\"]}").format("%task").run()
+        # create_time : be sur to force the format using client properties file (check INSTALL file)
+        res = ccm.query("name='{0}' and version='{1}' and type='{2}' and instance='{3}'".format(synergy_object.get_name(), synergy_object.get_version(), synergy_object.get_type(), synergy_object.get_instance())).format("%objectname").format("%owner").format("%status").format("%create_time").format("%task").run()
     except SynergyException:
         raise ObjectCacheException("Couldn't query four-part-name of %s from Synergy" % four_part_name)
     if res:
@@ -452,8 +454,13 @@ def get_releases(object, ccm):
 
 def task_to_four_part(task, delim):
     # Task four-part-name: task<tasknumber>-1:task:instance
-    split = task.split('#')
-    four_part = ['task', split[1], delim, '1:task:', split[0]]
+    # to preserve compatibility with previous version we keep a test on # separator
+    if '#' in task:
+        split = task.split('#')
+        four_part = ['task', split[1], delim, '1:task:', split[0]]
+    else:
+        # in Synergy 7.2.1 the instance of a task is always 'probtrac', there is no # separator
+        four_part = ['task', task, delim, '1:task:', 'probtrac']
     return ''.join(four_part)
 
 def get_non_blacklisted_attributes(obj, ccm):
