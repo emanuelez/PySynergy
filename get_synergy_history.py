@@ -79,8 +79,8 @@ def main():
     log_file = config['log_file']
     if not log_file.endswith('.log'):
         log_file += '.log'
-    logger.basicConfig(filename=log_file, level=logger.INFO)
-
+    logger.basicConfig(filename=log_file, format='%(levelname)s - %(asctime)s - %(message)s', level=logger.DEBUG)
+    logger.info("START - Fetch history")
     # set up system environment
     setup_os_env(config)
     
@@ -98,6 +98,7 @@ def main():
     pickle.dump(history, fh, pickle.HIGHEST_PROTOCOL)
     fh.close()
 
+    logger.info("END - Fetch history")
     logger.shutdown()
 if __name__ == '__main__':
     main()
