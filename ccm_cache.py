@@ -220,7 +220,7 @@ def update_cache(object, ccm, ccm_cache_path):
         # Store the content of the object
         content = get_content(object, ccm)
         if not isinstance(content, bytes):
-            content = content.encode()
+            raise ObjectCacheException("content object is not bytes type : %s" % type(content).__name__)
         f = open(filename, 'wb')
         f.write(content)
         f.close()
