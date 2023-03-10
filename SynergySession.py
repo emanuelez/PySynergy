@@ -130,9 +130,11 @@ class SynergySession(object):
 
                 if (retrycount > 0): # more sleep on retry operations
                     time.sleep(0.2 * random.random())
-                logger.info('Execute command : %s' %command )
-                p = Popen(command, stdout=PIPE, stderr=PIPE, env=self.environment, text=True)
-
+                
+                # By default we use Text mode for db instrospection, so we just check if it exist and set
+                popen_text_mode = self.status.get('popen_text_mode', True)
+                logger.debug("Execute command ({0}) in text mode ({1})".format(command, popen_text_mode) )
+                p = Popen(command, stdout=PIPE, stderr=PIPE, env=self.environment, text=popen_text_mode)
                 # Store the result as a single string. It will be splitted later
                 stdout, stderr = p.communicate()
 
@@ -167,6 +169,7 @@ class SynergySession(object):
         self.command = 'query'
         self.status['arguments'] = [query_string]
         self.status['formattable'] = True
+        self.status['popen_text_mode'] = True
         if 'format' not in self.status:
             self.status['format'] = ['%objectname']
         return self
@@ -176,6 +179,8 @@ class SynergySession(object):
         self.command = 'cat'
         self.status['arguments'] = [object_name]
         self.status['formattable'] = False
+        # Object file cat be binary file, hence we should read output in binary mode
+        self.status['popen_text_mode'] = False
         if 'format' in self.status:
             self.status['format'] = []
         return self
