@@ -30,6 +30,7 @@ from SynergySession import SynergySession
 from SynergySessions import SynergySessions
 from CCMHistory import CCMHistory
 from load_configuration import load_config_file
+from load_configuration import setup_os_env
 
 def start_sessions(config):
     ccm = SynergySession(config['database'], offline=config['offline'])
@@ -92,7 +93,8 @@ def main():
 
     if 'heads' in config:
         for head in config['heads']:
-            history = ccm_hist.get_project_history(head, config['base_project'])
+            if ( (len(head) > 0) and not head.isspace() ):
+                history = ccm_hist.get_project_history(head, config['base_project'])
         
     fh = open(config['data_file'] + '.p', 'wb')
     pickle.dump(history, fh, pickle.HIGHEST_PROTOCOL)

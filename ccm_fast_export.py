@@ -626,7 +626,8 @@ def create_blob(obj, mark):
             content = ccm_cache.get_source(obj.get_object_name())
         length = len(content)
         blob.append('data '+ str(length))
-        blob.append(content)
+        # All data saved in file is stored as file : we must convert it
+        blob.append(str(content))
         print(('\n'.join(blob)))
         object_mark_lookup[obj.get_object_name()] = next_mark
         return next_mark, next_mark

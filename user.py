@@ -24,7 +24,7 @@ import pickle
 import re
 import logging as logger
 
-import user_srv_factory as factory
+from  user_srv_factory import factory
 
 class user(object):
     """ User object that contains user detailed info retreived from remote service
