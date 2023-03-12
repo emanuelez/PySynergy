@@ -203,7 +203,7 @@ def update_cache(object, ccm, ccm_cache_path):
     datafile = filename + '_data'
     # check if object exists
     if os.path.exists(datafile):
-        raise ObjectCacheException("Object %s is already in cache" %object)
+        raise ObjectCacheException("Object {0} is already in cache {1}".format(object.get_object_name(), datafile))
     else:
         if not os.path.exists(dir):
             try:
