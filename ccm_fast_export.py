@@ -221,6 +221,9 @@ def ccm_fast_export(releases, graphs):
     logger.info("git-fast-import:\n%s" %('\n'.join(reset)))
     print(('\n'.join(reset)))
 
+    # cleanup : for users to cleanup
+    users = None
+    
 def create_annotated_tag(releases, release, mark):
     global users
     tagger = users.get_user(releases[release]['author'])
