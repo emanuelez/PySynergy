@@ -58,6 +58,9 @@ class finger_user(object):
             self.command_name = 'finger'
             self.options = ['-mp']
 
+    def get_typeName(self):
+        return 'FINGER'
+    
     def get_user_by_uid(self, uid):
         result = {}
         # build command

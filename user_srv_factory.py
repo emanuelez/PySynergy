@@ -25,11 +25,15 @@ import user
 
 class dft_user_srv():
     def __init__(self):
-        pass      
+        pass    
+      
     def get_user_by_uid(self, username):
         """ Default method creating username from synergy username and configured domain """
-        user = {'name': username, 'mail': username + '@' + user.get_email_domain()}
-        return user
+        entry = {'name': username, 'mail': username + '@' + user.get_email_domain()}
+        return entry
+    
+    def get_typeName(self):
+        return 'DFT'
     
 class user_srv_factory():
     """ Serializer factory to provide dynamic abstraction above product method,

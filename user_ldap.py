@@ -35,7 +35,10 @@ class ldap_user(object):
     def __del__(self):
         # Close the ldap session
         self.ldap.unbind_s()
-
+        
+    def get_typeName(self):
+        return 'LDAP'
+    
     def get_user_by_uid(self, uid):
         result = {}
         if not self.ldap:

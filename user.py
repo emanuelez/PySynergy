@@ -24,18 +24,17 @@ import pickle
 import re
 import logging as logger
 
-from  user_srv_factory import factory
+import user_srv_factory as f
 
 class user(object):
     """ User object that contains user detailed info retreived from remote service
     """
     def __init__(self, srv: str = 'DFT'):
-        """ Init with Sevice selection
+        """ Init with Service selection
         """
         # to reproduce 'past behavior" we'll call default getter whenever the selected service fails.
-        self.user_srv_dft = factory.get_user_srv('DFT')
-        if srv != 'DFT':
-            self.user_srv = factory.get_user_srv(srv)
+        self.user_srv_dft = f.factory.get_user_srv('DFT')
+        self.user_srv = f.factory.get_user_srv(srv)
 
     def get_user_by_uid(self, username):
         """ Call external method configured, but if it fails will fall back to default method """
@@ -43,7 +42,7 @@ class user(object):
         try:
             result =  self.user_srv.get_user_by_uid(username)
         except Exception as e:
-             if self.user_srv != self.user_srv_dft:
+             if self.user_srv.get_typeName() != self.user_srv_dft.get_typeName():
                 result = self.user_srv.user_srv_dft(username)
         return result
         
