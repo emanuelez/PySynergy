@@ -27,8 +27,14 @@ import pickle
 import ccm_history_to_graphs as cg
 import ccm_fast_export as cfe
 from load_configuration import load_config_file
+from load_configuration import setup_os_env
 
-data_file = load_config_file()['data_file']
+config = load_config_file()
+data_file = config['data_file']
+
+# set up system environment
+setup_os_env(config)
+    
 data_file += '.p'
 f = open(data_file, 'rb')
 history = pickle.load(f)

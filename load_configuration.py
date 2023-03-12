@@ -24,7 +24,7 @@ CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING 
 """
 from configparser import ConfigParser
 import pickle
-
+import os
 
 def save_config(config):
     f = open('config.p', 'wb')
@@ -77,3 +77,11 @@ def load_config_file():
             config['env'][k] = v
             
     return config
+
+def setup_os_env(config):
+    for k,v in config['env'].items():
+            # detect path env variable to be added : it must start with PATH_
+            if k.startswith("PATH_"):
+                os.environ["PATH"] = v + os.pathsep + os.getenv("PATH")
+            else:
+                os.environ[k] = v
