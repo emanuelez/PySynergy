@@ -92,21 +92,23 @@ def ccm_fast_export(releases, graphs):
 
     mark = get_mark(mark)
 
+    # FIXME : what is this Nokia committer ?!!
     commit_info = ['reset refs/tags/' + release, 'commit refs/tags/' + release, 'mark :' + str(mark),
                    'author Nokia <nokia@nokia.com> ' + str(int(initial_release_time)) + " +0000",
                    'committer Nokia <nokia@nokia.com> ' + str(int(initial_release_time)) + " +0000", 'data 15',
                    'Initial commit', '\n'.join(files), '']
-    print(('\n'.join(commit_info)))
+    # Git does not allow '~' ':' => replace.
+    sys.stdout.buffer.write(('\n'.join(commit_info)).replace('~', '_tilde_').encode())
 
     logger.info("git-fast-import:\n%s" %('\n'.join(commit_info)))
 
-    tag_msg = 'Release: %s' %release
-    annotated_tag = ['tag %s' % release,
+    tag_msg = 'Release: %s' %release.replace('~', '_tilde_')
+    annotated_tag = ['tag %s' % release.replace('~', '_tilde_'),
                'from :%s' % str(mark),
                'tagger Nokia <nokia@nokia.com> ' + str(int(initial_release_time)) + " +0000",
                'data %s' % len(tag_msg),
                tag_msg]
-    print(('\n'.join(annotated_tag)))
+    sys.stdout.buffer.write(('\n'.join(annotated_tag)).encode())
     
     commit_lookup[release] = mark
     # do the following releases (graphs)
@@ -168,7 +170,7 @@ def ccm_fast_export(releases, graphs):
             logger.info("Name changed: %s -> %s" %(previous_name, current_name))
             from_mark = commit_lookup[previous_release]
             mark, commit = rename_toplevel_dir(previous_name, current_name, release, releases, mark, from_mark)
-            print(('\n'.join(commit)))
+            sys.stdout.buffer.write(('\n'.join(commit)).encode())
             # adjust the commit lookup
             commit_lookup[previous_release] = mark
 
@@ -207,9 +209,9 @@ def ccm_fast_export(releases, graphs):
             reference = [commit_lookup[ releases[release]['previous'] ] ]
 
         mark, merge_commit = create_release_merge_commit(releases, release, get_mark(mark), reference, graphs, set(ancestors[release]) - set(acn_ancestors))
-        print(('\n'.join(merge_commit)))
+        sys.stdout.buffer.write(('\n'.join(merge_commit)).encode())
         annotated_tag = create_annotated_tag(releases, release, mark)
-        print(('\n'.join(annotated_tag)))
+        sys.stdout.buffer.write(('\n'.join(annotated_tag)).encode())
 
         commit_lookup[release] = mark
         release_queue.extend(releases[release]['next'])
@@ -220,7 +222,7 @@ def ccm_fast_export(releases, graphs):
     master = get_master_tag()
     reset = ['reset refs/heads/master', 'from :' + str(commit_lookup[master])]
     logger.info("git-fast-import:\n%s" %('\n'.join(reset)))
-    print(('\n'.join(reset)))
+    sys.stdout.buffer.write(('\n'.join(reset)).encode())
 
     # cleanup : for users to cleanup
     users = None
@@ -228,8 +230,8 @@ def ccm_fast_export(releases, graphs):
 def create_annotated_tag(releases, release, mark):
     global users
     tagger = users.get_user(releases[release]['author'])
-    msg = 'Release: %s' %release
-    tag_msg = ['tag %s' % release,
+    msg = 'Release: %s' %release.replace('~', '_tilde_')
+    tag_msg = ['tag %s' % release.replace('~', '_tilde_'),
                'from :%s' % str(mark),
                'tagger %s <%s> ' % (tagger['name'], tagger['mail']) + str(int(time.mktime(releases[release]['created'].timetuple()))) + " +0000",
                'data %s' % len(msg),
@@ -277,14 +279,14 @@ def create_release_merge_commit(releases, release, mark, reference, graphs, ance
 
     logger.info("File list: %i" % len(file_list))
     mark = get_mark(mark)
-    msg = ['commit refs/tags/' + release, 'mark :' + str(mark)]
+    msg = ['commit refs/tags/' + release.replace('~', '_tilde_'), 'mark :' + str(mark)]
     if 'author' not in releases[release]:
         releases[release]['author'] = "Nobody"
     author = users.get_user(releases[release]['author'])
     msg.append('author %s <%s> ' % (author['name'], author['mail']) + str(int(time.mktime(releases[release]['created'].timetuple()))) + " +0000")
     msg.append('committer %s <%s> ' % (author['name'], author['mail']) + str(int(time.mktime(releases[release]['created'].timetuple()))) + " +0000")
 
-    commit_msg = "Release " + release
+    commit_msg = "Release " + release.replace('~', '_tilde_')
     msg.append('data ' + str(len(commit_msg)))
     msg.append(commit_msg)
     msg.append('from :' + str(reference[0]))
@@ -342,7 +344,7 @@ def create_merge_commit(n, release, releases, mark, reference, graphs, ancestors
     else:
         mark, commit = make_commit_from_object(single_object, get_mark(mark), reference, release, file_list)
 
-    print(('\n'.join(commit)))
+    sys.stdout.buffer.write(('\n'.join(commit)).encode())
     return mark
 
 def create_commit(n, release, releases, mark, reference, graphs):
@@ -372,7 +374,7 @@ def create_commit(n, release, releases, mark, reference, graphs):
 
         file_list = create_file_list(objects, object_lookup, releases['ccm_types']['permissions'], releases[release]['fourpartname'])
         mark, commit = make_commit_from_task(task, n, get_mark(mark), reference, release, file_list)
-        print(('\n'.join(commit)))
+        sys.stdout.buffer.write(('\n'.join(commit)).encode())
         return mark
 
     else:
@@ -385,14 +387,14 @@ def create_commit(n, release, releases, mark, reference, graphs):
 
         file_list = create_file_list([single_object], object_lookup, releases['ccm_types']['permissions'], releases[release]['fourpartname'])
         mark, commit = make_commit_from_object(single_object, get_mark(mark), reference, release, file_list)
-        print(('\n'.join(commit)))
+        sys.stdout.buffer.write(('\n'.join(commit)).encode())
         return mark
 
 def make_commit_from_task(task, task_name, mark, reference, release, file_list):
     global users
     # Use the first task for author, time etc...
     author = users.get_user(task[0].get_author())
-    commit_info = ['commit refs/tags/' + release, 'mark :' + str(mark),
+    commit_info = ['commit refs/tags/' + release.replace('~', '_tilde_'), 'mark :' + str(mark),
                    'author %s <%s> ' % (author['name'], author['mail']) + str(
                        int(time.mktime(task[0].get_complete_time().timetuple()))) + " +0000",
                    'committer %s <%s> ' % (author['name'], author['mail']) + str(
@@ -413,7 +415,7 @@ def make_commit_from_task(task, task_name, mark, reference, release, file_list):
 def make_commit_from_object(o, mark, reference, release, file_list):
     global users
     author = users.get_user(o.get_author())
-    commit_info = ['commit refs/tags/' + release, 'mark :' + str(mark),
+    commit_info = ['commit refs/tags/' + release.replace('~', '_tilde_'), 'mark :' + str(mark),
                    'author %s <%s> ' % (author['name'], author['mail']) + str(
                        int(time.mktime(o.get_integrate_time().timetuple()))) + " +0000",
                    'committer %s <%s> ' % (author['name'], author['mail']) + str(
@@ -638,8 +640,8 @@ def create_blob(obj, mark):
         return next_mark, next_mark
 
 def create_blob_for_empty_dir(mark):
-    blob = ['blob', 'mark :' + str(mark), 'data 0']
-    print(('\n'.join(blob)))
+    blob = [b'blob', b'mark :' + str(mark).encode(), b'data 0\n']
+    sys.stdout.buffer.write((b'\n'.join(blob)))
     return mark
 
 def rename_toplevel_dir(previous_name, current_name, release, releases, mark, from_mark):
@@ -652,7 +654,7 @@ def rename_toplevel_dir(previous_name, current_name, release, releases, mark, fr
     # Use the release time from previous release
     create_time = time.mktime(releases[releases[release]['previous']]['created'].timetuple())
 
-    commit_info = ['commit refs/tags/' + release,
+    commit_info = ['commit refs/tags/' + release.replace('~', '_tilde_'),
                    'mark :' + str(mark),
                    'author %s <%s@nokia.com> ' % (author['name'], author['mail']) + str(int(create_time)) + " +0000",
                    'committer %s <%s@nokia.com> ' % (author['name'], author['mail']) + str(int(create_time)) + " +0000"]
