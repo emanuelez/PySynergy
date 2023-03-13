@@ -37,6 +37,7 @@ import convert_history as ch
 import ccm_history_to_graphs as htg
 import re
 from users import users
+import sys
 
 object_mark_lookup = {}
 users
@@ -615,7 +616,7 @@ def create_blob(obj, mark):
     else:
         #create the blob
         next_mark = get_mark(mark)
-        blob = ['blob', 'mark :' + str(next_mark)]
+        blob = [b'blob', b'mark :' + str(next_mark).encode()]
         logger.info("Creating lookup-mark: %s for %s" % (str(next_mark), obj.get_object_name()))
         if skip_binary():
             # Skip for binary files
@@ -628,10 +629,11 @@ def create_blob(obj, mark):
         else:
             content = ccm_cache.get_source(obj.get_object_name())
         length = len(content)
-        blob.append('data '+ str(length))
+        blob.append(b'data '+ str(length).encode())
         # All data saved in file is stored as file : we must convert it
-        blob.append(str(content))
-        print(('\n'.join(blob)))
+        blob.append(content)
+        # print() will interpret data to be displayed, use a non smart buffer write
+        sys.stdout.buffer.write((b'\n'.join(blob)))
         object_mark_lookup[obj.get_object_name()] = next_mark
         return next_mark, next_mark
 
