@@ -22,7 +22,7 @@ To do the actual conversion run `do_convert_history.py` and pipe this to
 
 Done!
 
-For the conversion of synergy data to git data you'll need to have `pygraph` 
+For the conversion of synergy data to git data you'll need to have `python-pygraph` 
 installed.
 
 NOTE
