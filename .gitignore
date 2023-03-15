@@ -1,8 +1,10 @@
 *.pyc
 *.p
+*.log
 data/
 *.png
 .idea/
 configuration.conf
 toplevelhistory.py
 update_cache.py
+myenv/
